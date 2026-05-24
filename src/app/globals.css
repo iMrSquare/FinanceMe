@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg-page:          #f5f7fb;
+  --bg-sidebar:       #ffffff;
+  --bg-card:          rgba(255,255,255,0.75);
+  --border-card:      rgba(255,255,255,0.5);
+  --shadow-card:      rgba(15,23,42,0.06);
+  --sidebar-border:   #e2e8f0;
+  --text-primary:     #1e293b;
+  --text-secondary:   #64748b;
+  --text-muted:       #94a3b8;
+  --row-hover:        #f8fafc;
+  --sidebar-hover-bg: #eef2ff;
+  --sidebar-hover-c:  #4f46e5;
+  --divider:          #f1f5f9;
+  --btn-border:       #e2e8f0;
+  --btn-hover:        #f8fafc;
+}
+
+.dark {
+  --bg-page:          #0f172a;
+  --bg-sidebar:       #1e293b;
+  --bg-card:          rgba(30,41,59,0.85);
+  --border-card:      rgba(255,255,255,0.08);
+  --shadow-card:      rgba(0,0,0,0.3);
+  --sidebar-border:   #334155;
+  --text-primary:     #f1f5f9;
+  --text-secondary:   #94a3b8;
+  --text-muted:       #64748b;
+  --row-hover:        rgba(255,255,255,0.04);
+  --sidebar-hover-bg: #312e81;
+  --sidebar-hover-c:  #a5b4fc;
+  --divider:          #1e293b;
+  --btn-border:       #334155;
+  --btn-hover:        #334155;
+}
+
+*, *::before, *::after {
+  transition-property: background-color, border-color, color;
+  transition-duration: 0.2s;
+  transition-timing-function: ease;
+}
+
+body {
+  background: var(--bg-page);
+  color: var(--text-primary);
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* PWA safe area — bottom nav + home indicator */
+.pb-safe-nav {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 1024px) {
+  .pb-safe-nav {
+    padding-bottom: 2.5rem;
+  }
+}
+
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-card);
+  box-shadow: 0 8px 30px var(--shadow-card);
+}
+
+/* ── Tables ── */
+.theme-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--text-primary);
+}
+.theme-table thead tr {
+  background: var(--bg-page);
+}
+.theme-table thead th {
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: left;
+  border-bottom: 1px solid var(--divider);
+}
+.theme-table thead th.text-right { text-align: right; }
+.theme-table tbody tr {
+  border-bottom: 1px solid var(--divider);
+  transition: background-color 0.15s ease;
+}
+.theme-table tbody tr:hover {
+  background: var(--row-hover);
+}

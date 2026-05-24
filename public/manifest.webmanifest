@@ -1,0 +1,19 @@
+{
+  "name": "FinanceMe Hogar",
+  "short_name": "FinanceMe",
+  "description": "Gestión de finanzas del hogar",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "/logo_FinanceMe-Hogar.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

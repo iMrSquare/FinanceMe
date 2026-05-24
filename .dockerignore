@@ -1,0 +1,23 @@
+node_modules
+.next
+.git
+.gitignore
+
+# Keep data dir out of build context (mounted as volume at runtime)
+data
+
+# Dev/local env files
+.env
+.env.local
+.env.development
+.env.development.local
+
+# Project meta files
+AGENTS.md
+CLAUDE.md
+
+# Misc
+.DS_Store
+*.pem
+npm-debug.log*
+coverage
