@@ -43,6 +43,9 @@ yarn-error.log*
 # User-uploaded avatars — may contain personal photos
 /public/avatars
 
+# Claude Code local config
+.claude
+
 # vercel
 .vercel
 
