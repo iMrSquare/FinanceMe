@@ -123,9 +123,9 @@ const ROLE_LABELS: Record<string, string> = {
   visor: 'Visor',
 };
 
-interface Props { session: SessionUser | null; }
+interface Props { session: SessionUser | null; hogarInitialized: boolean; }
 
-export default function Sidebar({ session }: Props) {
+export default function Sidebar({ session, hogarInitialized }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const [dark, setDark] = useState(false);
@@ -158,8 +158,13 @@ export default function Sidebar({ session }: Props) {
 
   function toggleMode(next: 'hogar' | 'personal') {
     if (next === 'hogar' && !localStorage.getItem('hogar-activated')) {
-      setShowHogarModal(true);
-      return;
+      if (hogarInitialized) {
+        // Another user already activated Hogar — skip the modal and mark locally
+        localStorage.setItem('hogar-activated', '1');
+      } else {
+        setShowHogarModal(true);
+        return;
+      }
     }
     applyMode(next);
   }

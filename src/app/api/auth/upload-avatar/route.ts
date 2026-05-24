@@ -4,9 +4,11 @@ import { getUserById, updateUserAvatar, clearUserAvatar } from '@/lib/db';
 import { writeFile, mkdir, unlink } from 'fs/promises';
 import path from 'path';
 
+const AVATARS_DIR = () => path.join(process.cwd(), 'data', 'avatars');
+
 async function deleteAvatarFile(avatarUrl: string) {
   try {
-    await unlink(path.join(process.cwd(), 'public', avatarUrl.replace(/^\//, '')));
+    await unlink(path.join(AVATARS_DIR(), path.basename(avatarUrl)));
   } catch { /* file may not exist */ }
 }
 
@@ -32,23 +34,20 @@ export async function POST(request: NextRequest) {
 
   const currentUser = getUserById(session.id);
 
-  const avatarsDir = path.join(process.cwd(), 'public', 'avatars');
-  await mkdir(avatarsDir, { recursive: true });
+  await mkdir(AVATARS_DIR(), { recursive: true });
 
   const filename = `user-${session.id}.${ext}`;
-  const filepath = path.join(avatarsDir, filename);
-  await writeFile(filepath, Buffer.from(await file.arrayBuffer()));
+  await writeFile(path.join(AVATARS_DIR(), filename), Buffer.from(await file.arrayBuffer()));
 
-  // Delete old avatar if it was a different file (e.g. different extension)
-  if (currentUser?.avatar_url && currentUser.avatar_url !== `/avatars/${filename}`) {
+  // Delete old file if extension changed
+  if (currentUser?.avatar_url && path.basename(currentUser.avatar_url) !== filename) {
     await deleteAvatarFile(currentUser.avatar_url);
   }
 
-  const avatarUrl = `/avatars/${filename}`;
-  updateUserAvatar(session.id, avatarUrl);
+  updateUserAvatar(session.id, `/api/avatars/${filename}`);
   await refreshSession(session.id);
 
-  return NextResponse.json({ ok: true, avatarUrl });
+  return NextResponse.json({ ok: true, avatarUrl: `/api/avatars/${filename}` });
 }
 
 export async function DELETE(_request: NextRequest) {
