@@ -40,6 +40,9 @@ yarn-error.log*
 # SQLite database — never commit data
 /data
 
+# User-uploaded avatars — may contain personal photos
+/public/avatars
+
 # vercel
 .vercel
 

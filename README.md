@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FinanceMe
 
-## Getting Started
+Aplicación web de gestión financiera personal y del hogar. Permite registrar gastos, ingresos, préstamos, servicios (luz, agua) y suscripciones, con estadísticas por mes.
 
-First, run the development server:
+> **Aviso de seguridad:** Esta aplicación está diseñada para uso en red local o privada. **No se recomienda exponerla directamente a internet** sin un proxy inverso con HTTPS, autenticación adicional y el hardening adecuado.
+
+---
+
+## Requisitos
+
+- [Docker](https://docs.docker.com/get-docker/) y [Docker Compose](https://docs.docker.com/compose/install/)
+
+## Instalación
+
+### 1. Clonar o descargar el repositorio
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/imrsquare/financeme.git
+cd financeme
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Configurar las variables de entorno
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.example .env
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Edita `.env` y asigna un valor seguro a `JWT_SECRET`:
 
-## Learn More
+```bash
+# Genera un secreto aleatorio con:
+openssl rand -base64 48
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Levantar la aplicación
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+docker compose up -d
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+La aplicación estará disponible en [http://localhost:3000](http://localhost:3000).
 
-## Deploy on Vercel
+### 4. Primer acceso
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+En el primer arranque se crea automáticamente un usuario administrador con las credenciales por defecto. **Cámbialas inmediatamente** desde el perfil o la sección de ajustes.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## Parar la aplicación
+
+```bash
+docker compose down
+```
+
+Los datos persisten en el directorio `./data/` (volumen local).
+
+## Actualizar a la última versión
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+---
+
+## Variables de entorno
+
+| Variable     | Descripción                                                                 | Requerida |
+|--------------|-----------------------------------------------------------------------------|-----------|
+| `JWT_SECRET` | Secreto para firmar los tokens de sesión. Mínimo 32 caracteres aleatorios. | Sí        |
+| `HTTPS`      | Poner a `true` solo si el tráfico llega directamente por HTTPS sin proxy.  | No        |
+
+---
+
+## Licencia
+
+MIT — ver [LICENSE](LICENSE).

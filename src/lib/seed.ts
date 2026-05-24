@@ -16,26 +16,26 @@ export function seedDatabase() {
   const abril = getOrCreateMes(4, 2026);
 
   const insertIngreso = db.prepare('INSERT INTO ingresos (mes_id, inquilino, aportacion) VALUES (?, ?, ?)');
-  insertIngreso.run(abril.id, 'David', 0);
-  insertIngreso.run(abril.id, 'Alba', 0);
+  insertIngreso.run(abril.id, 'Titular', 0);
+  insertIngreso.run(abril.id, 'Socio', 0);
 
   const insertGasto = db.prepare(
     'INSERT INTO gastos (mes_id, gasto, fecha, categoria, importe, comentario) VALUES (?, ?, ?, ?, ?, ?)'
   );
-  insertGasto.run(abril.id, 'Crunchyroll', null, 'Otros', 5.99, '13/mes');
-  insertGasto.run(abril.id, 'Comunidad', null, 'Consumo', 44.40, '10/mes');
-  insertGasto.run(abril.id, 'Spotify', null, 'Otros', 7.00, '23/mes (3,5€ David, Genue, Alba, Ex-Cuñado Alba)');
-  insertGasto.run(abril.id, 'Internet', null, 'Consumo', 37.00, '27/mes Digi Fibra');
+  insertGasto.run(abril.id, 'Streaming', null, 'Otros', 6.00, '13/mes');
+  insertGasto.run(abril.id, 'Comunidad', null, 'Consumo', 45.00, '10/mes');
+  insertGasto.run(abril.id, 'Música', null, 'Otros', 7.00, '23/mes (plan familiar)');
+  insertGasto.run(abril.id, 'Internet', null, 'Consumo', 35.00, '27/mes');
   insertGasto.run(abril.id, 'Agua', null, 'Consumo', 0, null);
   insertGasto.run(abril.id, 'Luz', null, 'Consumo', 0, null);
 
   const insertPrestamo = db.prepare(
     'INSERT INTO prestamos (mes_id, gasto, fecha, categoria, importe, comentario) VALUES (?, ?, ?, ?, ?, ?)'
   );
-  insertPrestamo.run(abril.id, 'Prestamo BBVA', null, 'BBVA', 120.72, '2/mes');
-  insertPrestamo.run(abril.id, 'Seguro Casa', null, 'Cajamar', 23.99, '25/mes');
-  insertPrestamo.run(abril.id, 'Seguros Vida', null, 'Cajamar', 118.75, '25/mes');
-  insertPrestamo.run(abril.id, 'Hipoteca', null, 'Cajamar', 493.90, '29/mes (235,44 + 258,46 int)');
+  insertPrestamo.run(abril.id, 'Préstamo personal', null, 'BBVA', 120.00, '2/mes');
+  insertPrestamo.run(abril.id, 'Seguro Hogar', null, 'Cajamar', 24.00, '25/mes');
+  insertPrestamo.run(abril.id, 'Seguro Vida', null, 'Cajamar', 50.00, '25/mes');
+  insertPrestamo.run(abril.id, 'Hipoteca', null, 'Cajamar', 500.00, '29/mes');
 
   // Mayo 2026 (mes actual)
   getOrCreateMes(5, 2026);
