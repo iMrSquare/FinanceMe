@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import type { SessionUser } from '@/lib/auth';
 import { validatePassword } from '@/lib/validation';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import Image from 'next/image';
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
@@ -102,6 +101,16 @@ export default function PerfilClient({ session }: Props) {
     setAvatarPreview(URL.createObjectURL(file));
   }
 
+  async function handleDeleteAvatar() {
+    setProfileMsg(''); setProfileErr('');
+    const res = await fetch('/api/auth/upload-avatar', { method: 'DELETE' });
+    if (!res.ok) { setProfileErr((await res.json()).error); return; }
+    setAvatarPreview(null);
+    setAvatarFile(null);
+    setProfileMsg('Foto de perfil eliminada');
+    router.refresh();
+  }
+
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
     setProfileMsg(''); setProfileErr('');
@@ -183,7 +192,8 @@ export default function PerfilClient({ session }: Props) {
           <div className="flex items-center gap-6">
             <div className="relative shrink-0">
               {avatarPreview ? (
-                <Image
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
                   src={avatarPreview}
                   alt={nombre}
                   width={80}
@@ -199,12 +209,25 @@ export default function PerfilClient({ session }: Props) {
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg hover:bg-indigo-700 transition-colors"
+                title="Cambiar foto"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                   <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
               </button>
+              {avatarPreview && !avatarFile && (
+                <button
+                  type="button"
+                  onClick={handleDeleteAvatar}
+                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors"
+                  title="Eliminar foto de perfil"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              )}
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
             </div>
             <div>

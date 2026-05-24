@@ -577,6 +577,11 @@ export function updateUserAvatar(id: number, avatarUrl: string): void {
   db.prepare('UPDATE users SET avatar_url = ? WHERE id = ?').run(avatarUrl, id);
 }
 
+export function clearUserAvatar(id: number): void {
+  const db = getDb();
+  db.prepare('UPDATE users SET avatar_url = NULL WHERE id = ?').run(id);
+}
+
 export function updateUserProfile(id: number, nombre: string): void {
   const db = getDb();
   db.prepare('UPDATE users SET nombre = ? WHERE id = ?').run(nombre, id);

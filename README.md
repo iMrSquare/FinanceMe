@@ -42,7 +42,14 @@ La aplicación estará disponible en [http://localhost:3000](http://localhost:30
 
 ### 4. Primer acceso
 
-En el primer arranque se crea automáticamente un usuario administrador con las credenciales por defecto. **Cámbialas inmediatamente** desde el perfil o la sección de ajustes.
+En el primer arranque se crea automáticamente un usuario administrador con las credenciales por defecto:
+
+| Campo    | Valor     |
+|----------|-----------|
+| Usuario  | `admin`   |
+| Contraseña | `admin123` |
+
+Al iniciar sesión por primera vez se te pedirá que **cambies la contraseña**. Hazlo antes de continuar.
 
 ---
 

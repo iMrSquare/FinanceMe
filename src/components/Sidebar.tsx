@@ -416,7 +416,8 @@ export default function Sidebar({ session }: Props) {
               title={collapsed ? session?.nombre ?? 'Usuario' : undefined}
             >
               {session?.avatarUrl ? (
-                <Image src={session.avatarUrl} alt={session.nombre} width={32} height={32} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={session.avatarUrl} alt={session.nombre} width={32} height={32} className="w-8 h-8 rounded-full object-cover shrink-0" />
               ) : (
                 <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
                   {initials}
@@ -485,7 +486,8 @@ export default function Sidebar({ session }: Props) {
           aria-label="Abrir menú"
         >
           {session?.avatarUrl ? (
-            <Image src={session.avatarUrl} alt={session.nombre} width={36} height={36} className="w-9 h-9 object-cover" />
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={session.avatarUrl} alt={session.nombre} width={36} height={36} className="w-9 h-9 object-cover" />
           ) : (
             <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
               {initials}
@@ -545,7 +547,8 @@ export default function Sidebar({ session }: Props) {
             {/* User info */}
             <div className="flex items-center gap-3 p-3 rounded-2xl" style={{ background: 'var(--bg-page)' }}>
               {session?.avatarUrl ? (
-                <Image src={session.avatarUrl} alt={session.nombre} width={44} height={44} className="w-11 h-11 rounded-full object-cover shrink-0" />
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={session.avatarUrl} alt={session.nombre} width={44} height={44} className="w-11 h-11 rounded-full object-cover shrink-0" />
               ) : (
                 <div className="w-11 h-11 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
                   {initials}
