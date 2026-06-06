@@ -5,13 +5,13 @@ import type { PersonalAhorro, PersonalAhorroMes } from '@/lib/db';
 const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/50 border transition-colors';
+const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/50 border transition-colors';
 const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
 
 function MonthStatus({ aportado, objetivo }: { aportado: number; objetivo: number }) {
   if (objetivo <= 0) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
   if (aportado <= 0) return <span className="text-xs font-bold" style={{ color: '#ef4444' }}>✗</span>;
-  if (aportado >= objetivo) return <span className="text-xs font-bold" style={{ color: '#10b981' }}>✓</span>;
+  if (aportado >= objetivo) return <span className="text-xs font-bold" style={{ color: '#f59e0b' }}>✓</span>;
   return <span className="text-xs font-bold" style={{ color: '#f59e0b' }}>~</span>;
 }
 
@@ -51,8 +51,8 @@ function EditableAmount({ value, mesIndex, onSave }: EditableAmountProps) {
         onChange={e => setDraft(e.target.value)}
         onBlur={handleBlur}
         onKeyDown={e => { if (e.key === 'Enter') inputRef.current?.blur(); if (e.key === 'Escape') { setEditing(false); setDraft(String(value)); } }}
-        className="w-32 rounded-xl px-3 py-1.5 text-sm text-right font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-400/50 border-2 ml-auto block"
-        style={{ background: 'var(--bg-page)', color: '#10b981', borderColor: '#10b981' }}
+        className="w-32 rounded-xl px-3 py-1.5 text-sm text-right font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400/50 border-2 ml-auto block"
+        style={{ background: 'var(--bg-page)', color: '#f59e0b', borderColor: '#f59e0b' }}
         autoFocus
       />
     );
@@ -61,9 +61,9 @@ function EditableAmount({ value, mesIndex, onSave }: EditableAmountProps) {
   return (
     <button
       onClick={() => setEditing(true)}
-      className="flex items-center justify-between gap-2 w-32 ml-auto rounded-xl px-3 py-1.5 text-sm font-mono font-semibold border transition-all hover:border-emerald-400/60"
+      className="flex items-center justify-between gap-2 w-32 ml-auto rounded-xl px-3 py-1.5 text-sm font-mono font-semibold border transition-all hover:border-amber-400/60"
       style={{
-        color: value > 0 ? '#10b981' : 'var(--text-muted)',
+        color: value > 0 ? '#f59e0b' : 'var(--text-muted)',
         borderColor: 'var(--btn-border)',
         background: 'var(--bg-page)',
       }}
@@ -128,8 +128,8 @@ export default function AhorroClient() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(16,185,129,0.12)' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(245,158,11,0.12)' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
           </div>
@@ -153,7 +153,7 @@ export default function AhorroClient() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
         {/* Objetivo anual */}
-        <div className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6" style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
+        <div className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6" style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)' }}>
           <p className="text-[10px] sm:text-xs font-semibold text-white/70 uppercase tracking-wide mb-1">Objetivo anual</p>
           {editingObjetivo ? (
             <div className="flex items-center gap-1 sm:gap-2 mt-1">
@@ -195,13 +195,13 @@ export default function AhorroClient() {
         {/* Conseguido */}
         <div className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6">
           <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Conseguido en {year}</p>
-          <p className="text-base sm:text-2xl font-extrabold leading-tight" style={{ color: totalAportado > 0 ? '#10b981' : 'var(--text-muted)' }}>
+          <p className="text-base sm:text-2xl font-extrabold leading-tight" style={{ color: totalAportado > 0 ? '#f59e0b' : 'var(--text-muted)' }}>
             {fmt(totalAportado)}
           </p>
           {objetivoAnual > 0 && (
             <>
               <div className="h-1.5 rounded-full overflow-hidden mt-2 sm:mt-3 mb-1" style={{ background: 'var(--divider)' }}>
-                <div className="h-full rounded-full transition-all" style={{ width: `${porcentaje}%`, background: porcentaje >= 100 ? '#10b981' : porcentaje >= 50 ? '#f59e0b' : '#ef4444' }} />
+                <div className="h-full rounded-full transition-all" style={{ width: `${porcentaje}%`, background: porcentaje >= 100 ? '#f59e0b' : porcentaje >= 50 ? '#f59e0b' : '#ef4444' }} />
               </div>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{porcentaje.toFixed(1)}% del objetivo</p>
             </>
@@ -244,7 +244,7 @@ export default function AhorroClient() {
                       <td className="px-6 py-3 font-semibold flex items-center gap-2">
                         <span style={{ color: 'var(--text-primary)' }}>{MESES[i]}</span>
                         {isCurrent && (
-                          <span className="text-xs font-bold rounded-full px-2 py-0.5" style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981' }}>
+                          <span className="text-xs font-bold rounded-full px-2 py-0.5" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>
                             Actual
                           </span>
                         )}
@@ -257,7 +257,7 @@ export default function AhorroClient() {
                       </td>
                       <td className="px-6 py-3 text-right font-mono text-sm">
                         {objetivoMensual > 0 && m.aportado > 0 ? (
-                          <span style={{ color: diff >= 0 ? '#10b981' : '#ef4444' }}>
+                          <span style={{ color: diff >= 0 ? '#f59e0b' : '#ef4444' }}>
                             {diff >= 0 ? '+' : ''}{fmt(diff)}
                           </span>
                         ) : (
@@ -282,19 +282,19 @@ export default function AhorroClient() {
                     <td className="px-6 py-4 text-right font-bold font-mono" style={{ color: 'var(--text-primary)' }}>
                       {objetivoAnual > 0 ? fmt(objetivoAnual) : '—'}
                     </td>
-                    <td className="px-6 py-4 text-right font-bold font-mono" style={{ color: '#10b981' }}>
+                    <td className="px-6 py-4 text-right font-bold font-mono" style={{ color: '#f59e0b' }}>
                       {fmt(totalAportado)}
                     </td>
                     <td className="px-6 py-4 text-right font-bold font-mono">
                       {objetivoAnual > 0 && totalAportado > 0 ? (
-                        <span style={{ color: (totalAportado - objetivoAnual) >= 0 ? '#10b981' : '#ef4444' }}>
+                        <span style={{ color: (totalAportado - objetivoAnual) >= 0 ? '#f59e0b' : '#ef4444' }}>
                           {(totalAportado - objetivoAnual) >= 0 ? '+' : ''}{fmt(totalAportado - objetivoAnual)}
                         </span>
                       ) : '—'}
                     </td>
                     <td className="px-6 py-4 text-center">
                       {objetivoAnual > 0 && (
-                        <span className="text-xs font-bold" style={{ color: porcentaje >= 100 ? '#10b981' : porcentaje >= 50 ? '#f59e0b' : '#ef4444' }}>
+                        <span className="text-xs font-bold" style={{ color: porcentaje >= 100 ? '#f59e0b' : porcentaje >= 50 ? '#f59e0b' : '#ef4444' }}>
                           {porcentaje.toFixed(1)}%
                         </span>
                       )}

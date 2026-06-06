@@ -11,11 +11,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const { mes_id, inquilino, aportacion } = await req.json();
+  const { mes_id, inquilino, aportacion, comentario } = await req.json();
   if (!mes_id || !inquilino) return NextResponse.json({ error: 'mes_id e inquilino requeridos' }, { status: 400 });
   const db = getDb();
   const result = db.prepare(
-    'INSERT INTO ingresos (mes_id, inquilino, aportacion) VALUES (?, ?, ?)'
-  ).run(mes_id, inquilino, aportacion ?? 0);
+    'INSERT INTO ingresos (mes_id, inquilino, aportacion, comentario) VALUES (?, ?, ?, ?)'
+  ).run(mes_id, inquilino, aportacion ?? 0, comentario ?? null);
   return NextResponse.json({ id: result.lastInsertRowid }, { status: 201 });
 }

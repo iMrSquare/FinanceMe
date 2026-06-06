@@ -156,6 +156,48 @@ function initSchema(db: Database.Database) {
       aportado REAL NOT NULL DEFAULT 0,
       UNIQUE(ahorro_id, mes)
     );
+
+    CREATE TABLE IF NOT EXISTS personal_meses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      mes INTEGER NOT NULL,
+      anio INTEGER NOT NULL,
+      UNIQUE(user_id, mes, anio)
+    );
+
+    CREATE TABLE IF NOT EXISTS personal_gastos_mes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      anio INTEGER NOT NULL,
+      mes INTEGER NOT NULL,
+      concepto TEXT NOT NULL,
+      importe REAL NOT NULL DEFAULT 0,
+      categoria TEXT,
+      fecha TEXT,
+      comentario TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS personal_presupuesto_auto (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      tipo TEXT NOT NULL,
+      banco TEXT,
+      categoria TEXT,
+      UNIQUE(user_id, tipo)
+    );
+
+    CREATE TABLE IF NOT EXISTS personal_ingresos_mes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      anio INTEGER NOT NULL,
+      mes INTEGER NOT NULL,
+      concepto TEXT NOT NULL,
+      importe REAL NOT NULL DEFAULT 0,
+      fecha TEXT,
+      comentario TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 }
 
@@ -231,6 +273,39 @@ function runMigrations(db: Database.Database) {
     db.exec('ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0');
   } catch {}
 
+  // Migration: add banco column to personal_gastos_mes
+  try { db.exec('ALTER TABLE personal_gastos_mes ADD COLUMN banco TEXT'); } catch {}
+
+  // Migration: add banco to gastos and prestamos, comentario to ingresos
+  for (const sql of [
+    'ALTER TABLE gastos ADD COLUMN banco TEXT',
+    'ALTER TABLE prestamos ADD COLUMN banco TEXT',
+    'ALTER TABLE ingresos ADD COLUMN comentario TEXT',
+  ]) { try { db.exec(sql); } catch { /* already exists */ } }
+
+  // Migration: add cobro, vencimiento and banco to fijos
+  for (const sql of [
+    'ALTER TABLE fijos ADD COLUMN cobro TEXT',
+    'ALTER TABLE fijos ADD COLUMN vencimiento TEXT',
+    'ALTER TABLE fijos ADD COLUMN banco TEXT',
+  ]) { try { db.exec(sql); } catch { /* already exists */ } }
+
+  // Migration: convert prestamo fijos → gasto with 'Préstamo' category
+  db.exec(`
+    INSERT INTO categorias (tipo, nombre, color)
+    SELECT 'gasto', 'Préstamo', '#3b82f6'
+    WHERE NOT EXISTS (SELECT 1 FROM categorias WHERE tipo='gasto' AND nombre='Préstamo');
+    UPDATE fijos SET tipo='gasto', categoria='Préstamo' WHERE tipo='prestamo';
+  `);
+
+  // Migration: move prestamos → gastos (new UI no longer has a separate prestamos section)
+  db.exec(`
+    INSERT INTO gastos (mes_id, gasto, fecha, categoria, importe, comentario, banco)
+    SELECT mes_id, gasto, fecha, COALESCE(categoria, 'Préstamo'), importe, comentario, banco
+    FROM prestamos;
+    DELETE FROM prestamos;
+  `);
+
   // Seed default admin user if no users exist
   const userCount = (db.prepare('SELECT COUNT(*) as n FROM users').get() as { n: number }).n;
   if (userCount === 0) {
@@ -256,6 +331,7 @@ export interface Ingreso {
   mes_id: number;
   inquilino: string;
   aportacion: number;
+  comentario: string | null;
 }
 
 export interface Gasto {
@@ -264,6 +340,7 @@ export interface Gasto {
   gasto: string;
   fecha: string | null;
   categoria: string | null;
+  banco: string | null;
   importe: number;
   comentario: string | null;
 }
@@ -274,6 +351,7 @@ export interface Prestamo {
   gasto: string;
   fecha: string | null;
   categoria: string | null;
+  banco: string | null;
   importe: number;
   comentario: string | null;
 }
@@ -315,7 +393,10 @@ export interface Fijo {
   tipo: 'gasto' | 'prestamo' | 'ingreso';
   gasto: string;
   categoria: string | null;
+  banco: string | null;
   importe: number;
+  cobro: string | null;
+  vencimiento: string | null;
   comentario: string | null;
 }
 
@@ -378,15 +459,15 @@ export function getFijos(tipo: 'gasto' | 'prestamo' | 'ingreso'): Fijo[] {
   return db.prepare('SELECT * FROM fijos WHERE tipo = ? ORDER BY id ASC').all(tipo) as Fijo[];
 }
 
-export function createFijo(tipo: 'gasto' | 'prestamo' | 'ingreso', gasto: string, categoria: string | null, importe: number, comentario: string | null): Fijo {
+export function createFijo(tipo: 'gasto' | 'prestamo' | 'ingreso', gasto: string, categoria: string | null, banco: string | null, importe: number, comentario: string | null, cobro: string | null, vencimiento: string | null): Fijo {
   const db = getDb();
-  const result = db.prepare('INSERT INTO fijos (tipo, gasto, categoria, importe, comentario) VALUES (?,?,?,?,?)').run(tipo, gasto, categoria, importe, comentario);
+  const result = db.prepare('INSERT INTO fijos (tipo, gasto, categoria, banco, importe, comentario, cobro, vencimiento) VALUES (?,?,?,?,?,?,?,?)').run(tipo, gasto, categoria, banco, importe, comentario, cobro, vencimiento);
   return db.prepare('SELECT * FROM fijos WHERE id = ?').get(result.lastInsertRowid) as Fijo;
 }
 
-export function updateFijo(id: number, gasto: string, categoria: string | null, importe: number, comentario: string | null) {
+export function updateFijo(id: number, gasto: string, categoria: string | null, banco: string | null, importe: number, comentario: string | null, cobro: string | null, vencimiento: string | null) {
   const db = getDb();
-  db.prepare('UPDATE fijos SET gasto=?, categoria=?, importe=?, comentario=? WHERE id=?').run(gasto, categoria, importe, comentario, id);
+  db.prepare('UPDATE fijos SET gasto=?, categoria=?, banco=?, importe=?, comentario=?, cobro=?, vencimiento=? WHERE id=?').run(gasto, categoria, banco, importe, comentario, cobro, vencimiento, id);
 }
 
 export function deleteFijo(id: number) {
@@ -394,17 +475,41 @@ export function deleteFijo(id: number) {
   db.prepare('DELETE FROM fijos WHERE id=?').run(id);
 }
 
-export function applyFijosToMes(mesId: number) {
+export function clearMesData(mesId: number) {
+  const db = getDb();
+  db.prepare('DELETE FROM gastos WHERE mes_id = ?').run(mesId);
+  db.prepare('DELETE FROM prestamos WHERE mes_id = ?').run(mesId);
+  db.prepare('DELETE FROM ingresos WHERE mes_id = ?').run(mesId);
+}
+
+export function applyFijosToMes(mesId: number, mes: number, anio: number) {
   const db = getDb();
   const gastosFijos = db.prepare("SELECT * FROM fijos WHERE tipo='gasto'").all() as Fijo[];
-  const prestamosFijos = db.prepare("SELECT * FROM fijos WHERE tipo='prestamo'").all() as Fijo[];
   const ingresosFijos = db.prepare("SELECT * FROM fijos WHERE tipo='ingreso'").all() as Fijo[];
-  const insertGasto = db.prepare('INSERT INTO gastos (mes_id, gasto, categoria, importe, comentario) VALUES (?,?,?,?,?)');
-  const insertPrestamo = db.prepare('INSERT INTO prestamos (mes_id, gasto, categoria, importe, comentario) VALUES (?,?,?,?,?)');
-  const insertIngreso = db.prepare('INSERT INTO ingresos (mes_id, inquilino, aportacion) VALUES (?,?,?)');
-  for (const f of gastosFijos) insertGasto.run(mesId, f.gasto, f.categoria, f.importe, f.comentario);
-  for (const f of prestamosFijos) insertPrestamo.run(mesId, f.gasto, f.categoria, f.importe, f.comentario);
-  for (const f of ingresosFijos) insertIngreso.run(mesId, f.gasto, f.importe);
+
+  function isVencido(f: Fijo): boolean {
+    if (!f.vencimiento) return false;
+    const [vAnio, vMes] = f.vencimiento.split('T')[0].split('-').map(Number);
+    return vAnio < anio || (vAnio === anio && vMes < mes);
+  }
+
+  function cobroFecha(cobro: string | null): string | null {
+    if (!cobro) return null;
+    const day = Math.min(parseInt(cobro), new Date(anio, mes, 0).getDate());
+    return `${anio}-${String(mes).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+
+  const insertGasto = db.prepare('INSERT INTO gastos (mes_id, gasto, fecha, categoria, banco, importe, comentario) VALUES (?,?,?,?,?,?,?)');
+  const insertIngreso = db.prepare('INSERT INTO ingresos (mes_id, inquilino, aportacion, comentario) VALUES (?,?,?,?)');
+
+  for (const f of gastosFijos) {
+    if (isVencido(f)) continue;
+    insertGasto.run(mesId, f.gasto, cobroFecha(f.cobro), f.categoria, f.banco, f.importe, f.comentario);
+  }
+  for (const f of ingresosFijos) {
+    if (isVencido(f)) continue;
+    insertIngreso.run(mesId, f.gasto, f.importe, f.comentario);
+  }
 }
 
 export interface MesBalance {
@@ -484,7 +589,9 @@ export function getEstadisticasGastos(limit = 12): EstadisticasData {
   const colorMap = Object.fromEntries(cats.map(c => [c.nombre, c.color]));
   const PALETTE = ['#6366f1','#0ea5e9','#10b981','#f97316','#f59e0b','#ec4899','#8b5cf6','#06b6d4'];
 
-  const catNames = [...new Set(rows.map(r => r.categoria))];
+  const allCatNames = cats.map(c => c.nombre);
+  const catNamesFromGastos = [...new Set(rows.map(r => r.categoria))];
+  const catNames = [...new Set([...allCatNames, ...catNamesFromGastos])];
   const categorias: CategoriaStats[] = catNames.map((cat, i) => {
     const totalesPorMes = meses.map(m => rows.find(r => r.mes_id === m.id && r.categoria === cat)?.total ?? 0);
     const total = totalesPorMes.reduce((s, v) => s + v, 0);
@@ -498,6 +605,49 @@ export function getEstadisticasGastos(limit = 12): EstadisticasData {
   }).sort((a, b) => b.total - a.total);
 
   return { mesesLabels: meses.map(m => m.nombre), categorias };
+}
+
+export function getPersonalEstadisticas(userId: number, limit = 12): EstadisticasData {
+  const db = getDb();
+  const MESES_NOMBRES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+  const allMeses = db.prepare(
+    'SELECT anio, mes FROM personal_meses WHERE user_id = ? ORDER BY anio DESC, mes DESC'
+  ).all(userId) as Array<{ anio: number; mes: number }>;
+  const meses = allMeses.slice(0, limit).reverse();
+
+  if (meses.length === 0) return { mesesLabels: [], categorias: [] };
+
+  const keys = meses.map(m => m.anio * 100 + m.mes);
+  const placeholders = keys.map(() => '?').join(',');
+  const rows = db.prepare(`
+    SELECT anio, mes, COALESCE(categoria, 'Sin categoría') AS categoria, SUM(importe) AS total
+    FROM personal_gastos_mes
+    WHERE user_id = ? AND (anio * 100 + mes) IN (${placeholders})
+    GROUP BY anio, mes, categoria
+  `).all(userId, ...keys) as Array<{ anio: number; mes: number; categoria: string; total: number }>;
+
+  const cats = db.prepare('SELECT nombre, color FROM personal_categorias WHERE user_id = ? ORDER BY nombre').all(userId) as Array<{ nombre: string; color: string }>;
+  const colorMap = Object.fromEntries(cats.map(c => [c.nombre, c.color]));
+  const PALETTE = ['#f97316','#10b981','#8b5cf6','#0ea5e9','#f59e0b','#ec4899','#6366f1','#06b6d4'];
+
+  const allCatNames = cats.map(c => c.nombre);
+  const catNamesFromGastos = [...new Set(rows.map(r => r.categoria))];
+  const catNames = [...new Set([...allCatNames, ...catNamesFromGastos])];
+
+  const categorias: CategoriaStats[] = catNames.map((cat, i) => {
+    const totalesPorMes = meses.map(m => rows.find(r => r.anio === m.anio && r.mes === m.mes && r.categoria === cat)?.total ?? 0);
+    const total = totalesPorMes.reduce((s, v) => s + v, 0);
+    return {
+      categoria: cat,
+      color: colorMap[cat] ?? PALETTE[i % PALETTE.length],
+      totalesPorMes,
+      total,
+      promedio: meses.length > 0 ? total / meses.length : 0,
+    };
+  }).filter(c => c.total > 0).sort((a, b) => b.total - a.total);
+
+  return { mesesLabels: meses.map(m => `${MESES_NOMBRES[m.mes - 1]} ${m.anio}`), categorias };
 }
 
 export function getRegistroLuz(): RegistroLuz[] {
@@ -599,8 +749,9 @@ export interface PersonalCategoria { id: number; user_id: number; nombre: string
 export function getPersonalCategorias(userId: number): PersonalCategoria[] {
   return getDb().prepare('SELECT * FROM personal_categorias WHERE user_id = ? ORDER BY nombre').all(userId) as PersonalCategoria[];
 }
-export function createPersonalCategoria(userId: number, nombre: string, color: string): void {
-  getDb().prepare('INSERT INTO personal_categorias (user_id, nombre, color) VALUES (?, ?, ?)').run(userId, nombre, color);
+export function createPersonalCategoria(userId: number, nombre: string, color: string): number {
+  const result = getDb().prepare('INSERT INTO personal_categorias (user_id, nombre, color) VALUES (?, ?, ?)').run(userId, nombre, color);
+  return Number(result.lastInsertRowid);
 }
 export function updatePersonalCategoria(id: number, userId: number, nombre: string, color: string): void {
   getDb().prepare('UPDATE personal_categorias SET nombre = ?, color = ? WHERE id = ? AND user_id = ?').run(nombre, color, id, userId);
@@ -711,4 +862,177 @@ export function updatePersonalAhorroMes(userId: number, anio: number, mes: numbe
   const row = db.prepare('SELECT id FROM personal_ahorro WHERE user_id = ? AND anio = ?').get(userId, anio) as { id: number } | null;
   if (!row) return;
   db.prepare('INSERT INTO personal_ahorro_mes (ahorro_id, mes, aportado) VALUES (?, ?, ?) ON CONFLICT(ahorro_id, mes) DO UPDATE SET aportado = excluded.aportado').run(row.id, mes, aportado);
+}
+
+// ── Personal: Gastos de mes ────────────────────────────────────────────────
+
+export interface PersonalGastoMes {
+  id: number;
+  user_id: number;
+  anio: number;
+  mes: number;
+  concepto: string;
+  importe: number;
+  categoria: string | null;
+  banco: string | null;
+  fecha: string | null;
+  comentario: string | null;
+  created_at: string;
+}
+
+export function getPersonalGastosMes(userId: number, anio: number, mes: number): PersonalGastoMes[] {
+  return getDb().prepare(
+    'SELECT * FROM personal_gastos_mes WHERE user_id = ? AND anio = ? AND mes = ? ORDER BY fecha ASC NULLS LAST, id ASC'
+  ).all(userId, anio, mes) as PersonalGastoMes[];
+}
+
+export function createPersonalGastoMes(
+  userId: number, anio: number, mes: number,
+  data: Pick<PersonalGastoMes, 'concepto' | 'importe' | 'categoria' | 'banco' | 'fecha' | 'comentario'>
+): void {
+  getDb().prepare(
+    'INSERT INTO personal_gastos_mes (user_id, anio, mes, concepto, importe, categoria, banco, fecha, comentario) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(userId, anio, mes, data.concepto, data.importe, data.categoria, data.banco, data.fecha, data.comentario);
+}
+
+export function updatePersonalGastoMes(
+  id: number, userId: number,
+  data: Pick<PersonalGastoMes, 'concepto' | 'importe' | 'categoria' | 'banco' | 'fecha' | 'comentario'>
+): void {
+  getDb().prepare(
+    'UPDATE personal_gastos_mes SET concepto = ?, importe = ?, categoria = ?, banco = ?, fecha = ?, comentario = ? WHERE id = ? AND user_id = ?'
+  ).run(data.concepto, data.importe, data.categoria, data.banco, data.fecha, data.comentario, id, userId);
+}
+
+export function deletePersonalGastoMes(id: number, userId: number): void {
+  getDb().prepare('DELETE FROM personal_gastos_mes WHERE id = ? AND user_id = ?').run(id, userId);
+}
+
+// ── Personal: Meses creados ────────────────────────────────────────────────
+
+export interface PersonalMes { id: number; user_id: number; mes: number; anio: number; }
+
+export function getPersonalMeses(userId: number): PersonalMes[] {
+  return getDb().prepare(
+    'SELECT * FROM personal_meses WHERE user_id = ? ORDER BY anio DESC, mes DESC'
+  ).all(userId) as PersonalMes[];
+}
+
+export function personalMesExists(userId: number, mes: number, anio: number): boolean {
+  return !!getDb().prepare('SELECT 1 FROM personal_meses WHERE user_id = ? AND mes = ? AND anio = ?').get(userId, mes, anio);
+}
+
+export function createPersonalMes(userId: number, mes: number, anio: number): void {
+  getDb().prepare('INSERT OR IGNORE INTO personal_meses (user_id, mes, anio) VALUES (?, ?, ?)').run(userId, mes, anio);
+}
+
+export function clearPersonalMesGastos(userId: number, mes: number, anio: number): void {
+  getDb().prepare('DELETE FROM personal_gastos_mes WHERE user_id = ? AND mes = ? AND anio = ?').run(userId, mes, anio);
+}
+
+// ── Personal: Ingresos de mes ──────────────────────────────────────────────
+
+export interface PersonalIngresoMes {
+  id: number;
+  user_id: number;
+  anio: number;
+  mes: number;
+  concepto: string;
+  importe: number;
+  fecha: string | null;
+  comentario: string | null;
+  created_at: string;
+}
+
+export function getPersonalIngresosMes(userId: number, anio: number, mes: number): PersonalIngresoMes[] {
+  return getDb().prepare(
+    'SELECT * FROM personal_ingresos_mes WHERE user_id = ? AND anio = ? AND mes = ? ORDER BY fecha ASC NULLS LAST, id ASC'
+  ).all(userId, anio, mes) as PersonalIngresoMes[];
+}
+
+export function createPersonalIngresoMes(
+  userId: number, anio: number, mes: number,
+  data: Pick<PersonalIngresoMes, 'concepto' | 'importe' | 'fecha' | 'comentario'>
+): void {
+  getDb().prepare(
+    'INSERT INTO personal_ingresos_mes (user_id, anio, mes, concepto, importe, fecha, comentario) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run(userId, anio, mes, data.concepto, data.importe, data.fecha, data.comentario);
+}
+
+export function updatePersonalIngresoMes(
+  id: number, userId: number,
+  data: Pick<PersonalIngresoMes, 'concepto' | 'importe' | 'fecha' | 'comentario'>
+): void {
+  getDb().prepare(
+    'UPDATE personal_ingresos_mes SET concepto = ?, importe = ?, fecha = ?, comentario = ? WHERE id = ? AND user_id = ?'
+  ).run(data.concepto, data.importe, data.fecha, data.comentario, id, userId);
+}
+
+export function deletePersonalIngresoMes(id: number, userId: number): void {
+  getDb().prepare('DELETE FROM personal_ingresos_mes WHERE id = ? AND user_id = ?').run(id, userId);
+}
+
+// ── Personal: Evolución histórica ─────────────────────────────────────────
+
+const NOMBRES_MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+export interface PersonalMesEvolucion {
+  anio: number;
+  mes: number;
+  nombre: string;
+  totalIngresos: number;
+  totalGastos: number;
+  balance: number;
+}
+
+export function getPersonalEvolucion(userId: number, limit = 6): PersonalMesEvolucion[] {
+  const db = getDb();
+  const ingresos = db.prepare('SELECT anio, mes, SUM(importe) AS total FROM personal_ingresos_mes WHERE user_id = ? GROUP BY anio, mes').all(userId) as { anio: number; mes: number; total: number }[];
+  const gastos   = db.prepare('SELECT anio, mes, SUM(importe) AS total FROM personal_gastos_mes   WHERE user_id = ? GROUP BY anio, mes').all(userId) as { anio: number; mes: number; total: number }[];
+
+  const ingMap = Object.fromEntries(ingresos.map(r => [`${r.anio}-${r.mes}`, r.total]));
+  const gasMap = Object.fromEntries(gastos.map(r =>   [`${r.anio}-${r.mes}`, r.total]));
+
+  // Generate last `limit` months ending at current month
+  const result: PersonalMesEvolucion[] = [];
+  const now = new Date();
+  let anio = now.getFullYear();
+  let mes  = now.getMonth() + 1;
+
+  for (let i = 0; i < limit; i++) {
+    const key = `${anio}-${mes}`;
+    const totalIngresos = ingMap[key] ?? 0;
+    const totalGastos   = gasMap[key] ?? 0;
+    result.unshift({
+      anio, mes,
+      nombre: `${NOMBRES_MESES_ES[mes - 1].slice(0, 3)} ${anio}`,
+      totalIngresos,
+      totalGastos,
+      balance: totalIngresos - totalGastos,
+    });
+    mes--;
+    if (mes === 0) { mes = 12; anio--; }
+  }
+
+  return result;
+}
+
+// ── Personal: Presupuesto auto-config ─────────────────────────────────────
+
+export interface PresupuestoAutoConfig {
+  tipo: 'suscripciones' | 'ahorro';
+  banco: string | null;
+  categoria: string | null;
+}
+
+export function getPresupuestoAutoConfigs(userId: number): PresupuestoAutoConfig[] {
+  return getDb().prepare(
+    'SELECT tipo, banco, categoria FROM personal_presupuesto_auto WHERE user_id = ?'
+  ).all(userId) as PresupuestoAutoConfig[];
+}
+
+export function upsertPresupuestoAuto(userId: number, tipo: string, banco: string | null, categoria: string | null): void {
+  getDb().prepare(
+    'INSERT INTO personal_presupuesto_auto (user_id, tipo, banco, categoria) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, tipo) DO UPDATE SET banco = excluded.banco, categoria = excluded.categoria'
+  ).run(userId, tipo, banco, categoria);
 }

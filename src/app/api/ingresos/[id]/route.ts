@@ -3,9 +3,9 @@ import { getDb } from '@/lib/db';
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { inquilino, aportacion } = await req.json();
+  const { inquilino, aportacion, comentario } = await req.json();
   const db = getDb();
-  db.prepare('UPDATE ingresos SET inquilino=?, aportacion=? WHERE id=?').run(inquilino, aportacion ?? 0, id);
+  db.prepare('UPDATE ingresos SET inquilino=?, aportacion=?, comentario=? WHERE id=?').run(inquilino, aportacion ?? 0, comentario ?? null, id);
   return NextResponse.json({ ok: true });
 }
 

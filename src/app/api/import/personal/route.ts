@@ -10,8 +10,11 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }); }
   if (body.type !== 'personal') return NextResponse.json({ error: 'El fichero no es de tipo personal' }, { status: 400 });
 
-  const { categorias = [], bancos = [], gastos_fijos = [], suscripciones = [], ahorro = [], ahorro_mes = [] } =
-    (body.data ?? {}) as Record<string, unknown[]>;
+  const {
+    categorias = [], bancos = [], gastos_fijos = [], suscripciones = [],
+    ahorro = [], ahorro_mes = [],
+    meses = [], gastos_mes = [], ingresos_mes = [], presupuesto_auto = [],
+  } = (body.data ?? {}) as Record<string, unknown[]>;
 
   const db = getDb();
   const userId = session.id;
@@ -55,6 +58,41 @@ export async function POST(req: NextRequest) {
         const newId = ahorroIdMap[am.ahorro_id as number];
         if (!newId) continue;
         db.prepare('INSERT OR REPLACE INTO personal_ahorro_mes (ahorro_id, mes, aportado) VALUES (?, ?, ?)').run(newId, am.mes, am.aportado);
+        importado++;
+      }
+
+      // ── Meses (upsert — ignore if already exists) ────────────────────────
+      for (const m of meses as Array<Record<string, unknown>>) {
+        db.prepare('INSERT OR IGNORE INTO personal_meses (user_id, mes, anio) VALUES (?, ?, ?)').run(userId, m.mes, m.anio);
+        importado++;
+      }
+
+      // ── Gastos y ingresos del mes: borrar+reinsertar por (anio,mes) ───────
+      const mesKeysSeen = new Set<string>();
+      for (const g of gastos_mes as Array<Record<string, unknown>>) {
+        const key = `${g.anio}-${g.mes}`;
+        if (!mesKeysSeen.has(key)) {
+          db.prepare('DELETE FROM personal_gastos_mes WHERE user_id = ? AND anio = ? AND mes = ?').run(userId, g.anio, g.mes);
+          mesKeysSeen.add(key);
+        }
+        db.prepare('INSERT INTO personal_gastos_mes (user_id, anio, mes, concepto, importe, categoria, fecha, comentario) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(userId, g.anio, g.mes, g.concepto, g.importe, g.categoria ?? null, g.fecha ?? null, g.comentario ?? null);
+        importado++;
+      }
+
+      const ingKeysSeen = new Set<string>();
+      for (const i of ingresos_mes as Array<Record<string, unknown>>) {
+        const key = `${i.anio}-${i.mes}`;
+        if (!ingKeysSeen.has(key)) {
+          db.prepare('DELETE FROM personal_ingresos_mes WHERE user_id = ? AND anio = ? AND mes = ?').run(userId, i.anio, i.mes);
+          ingKeysSeen.add(key);
+        }
+        db.prepare('INSERT INTO personal_ingresos_mes (user_id, anio, mes, concepto, importe, fecha, comentario) VALUES (?, ?, ?, ?, ?, ?, ?)').run(userId, i.anio, i.mes, i.concepto, i.importe, i.fecha ?? null, i.comentario ?? null);
+        importado++;
+      }
+
+      // ── Presupuesto auto (upsert por user_id+tipo) ───────────────────────
+      for (const p of presupuesto_auto as Array<Record<string, unknown>>) {
+        db.prepare('INSERT INTO personal_presupuesto_auto (user_id, tipo, banco, categoria) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, tipo) DO UPDATE SET banco = excluded.banco, categoria = excluded.categoria').run(userId, p.tipo, p.banco ?? null, p.categoria ?? null);
         importado++;
       }
     })();

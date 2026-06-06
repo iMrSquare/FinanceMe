@@ -3,6 +3,17 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { CalendarIcon, BoltIcon, DropletIcon, GridIcon, ReceiptIcon } from './icons';
+
+function RegistrosIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+      <rect x="9" y="3" width="6" height="4" rx="1"/>
+      <line x1="9" y1="12" x2="15" y2="12"/>
+      <line x1="9" y1="16" x2="13" y2="16"/>
+    </svg>
+  );
+}
 import type { SessionUser } from '@/lib/auth';
 import Image from 'next/image';
 import { APP_VERSION } from '@/lib/constants';
@@ -102,19 +113,23 @@ function BarChartIcon() {
   );
 }
 
-const NAV_HOGAR = [
+interface NavItem { href: string; label: string; shortLabel?: string; icon: React.ReactElement; color: string; }
+
+const NAV_HOGAR: NavItem[] = [
   { href: '/hogar',              label: 'Resumen',      icon: <GridIcon     className="w-[18px] h-[18px]" />, color: '#6366f1' },
   { href: '/hogar/mes',          label: 'Mes',          icon: <CalendarIcon className="w-[18px] h-[18px]" />, color: '#0ea5e9' },
-  { href: '/hogar/luz',          label: 'Luz',          icon: <BoltIcon     className="w-[18px] h-[18px]" />, color: '#f59e0b' },
-  { href: '/hogar/agua',         label: 'Agua',         icon: <DropletIcon  className="w-[18px] h-[18px]" />, color: '#06b6d4' },
-  { href: '/hogar/estadisticas', label: 'Estadísticas', icon: <BarChartIcon />, color: '#8b5cf6' },
+  { href: '/hogar/presupuesto',  label: 'Presupuesto',  icon: <ReceiptIcon  className="w-[18px] h-[18px]" />, color: '#10b981' },
+  { href: '/hogar/registros',    label: 'Registros',    icon: <RegistrosIcon />,                               color: '#f59e0b' },
+  { href: '/hogar/estadisticas', label: 'Estadísticas', icon: <BarChartIcon />,                                color: '#8b5cf6' },
 ];
 
-const NAV_PERSONAL = [
-  { href: '/personal',                   label: 'Resumen',       icon: <PersonalHomeIcon />, color: '#10b981' },
-  { href: '/personal/presupuesto',       label: 'Presupuesto',   icon: <ReceiptIcon className="w-[18px] h-[18px]" />, color: '#ef4444' },
-  { href: '/personal/suscripciones',     label: 'Suscripciones', icon: <SubscriptionIcon />, color: '#8b5cf6' },
-  { href: '/personal/ahorro',            label: 'Ahorro',        icon: <SavingsIcon />,      color: '#10b981' },
+const NAV_PERSONAL: NavItem[] = [
+  { href: '/personal',                label: 'Resumen',       icon: <PersonalHomeIcon />,                           color: '#10b981' },
+  { href: '/personal/mes',            label: 'Mes',           icon: <CalendarIcon className="w-[18px] h-[18px]" />, color: '#f97316' },
+  { href: '/personal/presupuesto',    label: 'Presupuesto',   icon: <ReceiptIcon className="w-[18px] h-[18px]" />,  color: '#ef4444' },
+  { href: '/personal/suscripciones',  label: 'Suscripciones', shortLabel: 'Suscs.', icon: <SubscriptionIcon />,     color: '#8b5cf6' },
+  { href: '/personal/ahorro',         label: 'Ahorro',        icon: <SavingsIcon />,                                color: '#f59e0b' },
+  { href: '/personal/estadisticas',   label: 'Estadísticas',  shortLabel: 'Stats',  icon: <BarChartIcon />,         color: '#a78bfa' },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -513,7 +528,7 @@ export default function Sidebar({ session, hogarInitialized }: Props) {
           height: 'calc(4rem + env(safe-area-inset-bottom, 0px))',
         }}
       >
-        {navItems.map(({ href, label, icon, color }) => {
+        {navItems.map(({ href, label, shortLabel, icon, color }) => {
           const active = isActive(href);
           return (
             <Link
@@ -526,7 +541,7 @@ export default function Sidebar({ session, hogarInitialized }: Props) {
                 className="text-[10px] font-semibold leading-tight"
                 style={{ color: active ? color : 'var(--text-muted)' }}
               >
-                {label}
+                {shortLabel ?? label}
               </span>
             </Link>
           );

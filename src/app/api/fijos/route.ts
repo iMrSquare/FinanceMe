@@ -9,8 +9,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const { tipo, gasto, categoria, importe, comentario } = await req.json();
+  const { tipo, gasto, categoria, banco, importe, comentario, cobro, vencimiento } = await req.json();
   if (!tipo || !gasto) return NextResponse.json({ error: 'tipo y gasto requeridos' }, { status: 400 });
-  const fijo = createFijo(tipo, gasto, categoria ?? null, Number(importe) || 0, comentario ?? null);
+  const fijo = createFijo(tipo, gasto, categoria ?? null, banco ?? null, Number(importe) || 0, comentario ?? null, cobro ?? null, vencimiento ?? null);
   return NextResponse.json(fijo, { status: 201 });
 }

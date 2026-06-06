@@ -1,7 +1,7 @@
 import { seedDatabase } from '@/lib/seed';
 import {
   getMeses, getGastos, getPrestamos, getIngresos,
-  getCategorias, getBalanceHistory, getGastosPorCategoria,
+  getCategorias, getBalanceHistory, getGastosPorCategoria, getFijos,
 } from '@/lib/db';
 import ResumenClient from '../resumen/ResumenClient';
 
@@ -13,12 +13,13 @@ export default function HogarPage() {
   const meses = getMeses();
   const mesActual = meses[0] ?? null;
 
-  const gastos     = mesActual ? getGastos(mesActual.id)           : [];
-  const prestamos  = mesActual ? getPrestamos(mesActual.id)        : [];
-  const ingresos   = mesActual ? getIngresos(mesActual.id)         : [];
-  const catGasto   = getCategorias('gasto');
-  const gastosxCat = mesActual ? getGastosPorCategoria(mesActual.id) : [];
-  const historial  = getBalanceHistory(6);
+  const gastos           = mesActual ? getGastos(mesActual.id)             : [];
+  const prestamos        = mesActual ? getPrestamos(mesActual.id)          : [];
+  const ingresos         = mesActual ? getIngresos(mesActual.id)           : [];
+  const catGasto         = getCategorias('gasto');
+  const gastosxCat       = mesActual ? getGastosPorCategoria(mesActual.id) : [];
+  const historial        = getBalanceHistory(6);
+  const fijosPresupuesto = getFijos('gasto');
 
   return (
     <ResumenClient
@@ -29,6 +30,8 @@ export default function HogarPage() {
       catGasto={catGasto}
       gastosxCat={gastosxCat}
       historial={historial}
+      showPrestamos={false}
+      fijosPresupuesto={fijosPresupuesto}
     />
   );
 }

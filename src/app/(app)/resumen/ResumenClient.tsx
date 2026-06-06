@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import type { Mes, Gasto, Prestamo, Ingreso, Categoria, MesBalance, GastoCatTotal } from '@/lib/db';
+import type { Mes, Gasto, Prestamo, Ingreso, Categoria, MesBalance, GastoCatTotal, Fijo } from '@/lib/db';
 import { BanknoteIcon, ReceiptIcon, BankIcon } from '@/components/icons';
 import {
   Chart, ArcElement, DoughnutController, LineElement, LineController,
@@ -22,6 +22,58 @@ function autoText(hex: string): string {
   return (0.299 * r + 0.587 * g + 0.114 * b) > 145 ? '#1f2937' : '#ffffff';
 }
 
+const MESES_NOMBRES_CAL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DIAS_SEMANA = ['Lu','Ma','Mi','Ju','Vi','Sá','Do'];
+
+interface CalEvHogar { day: number; nombre: string; importe: number; }
+
+function CalendarioHogar({ events }: { events: CalEvHogar[] }) {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDay = (new Date(year, month, 1).getDay() + 6) % 7;
+
+  const byDay: Record<number, CalEvHogar[]> = {};
+  events.forEach(e => { if (!byDay[e.day]) byDay[e.day] = []; byDay[e.day].push(e); });
+
+  const cells: (number | null)[] = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return (
+    <div className="glass-card rounded-3xl p-6">
+      <h3 className="font-bold text-lg mb-1" style={{ color: 'var(--text-primary)' }}>
+        Calendario de pagos — {MESES_NOMBRES_CAL[month]} {year}
+      </h3>
+      <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)' }}>{events.length} pagos este mes</p>
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {DIAS_SEMANA.map(d => (
+          <div key={d} className="text-center text-xs font-semibold py-1" style={{ color: 'var(--text-muted)' }}>{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((day, i) => {
+          if (!day) return <div key={i} />;
+          const evs = byDay[day] ?? [];
+          const isToday = day === today.getDate();
+          return (
+            <div key={i} className="rounded-xl p-1.5 min-h-[52px] flex flex-col"
+              style={{ background: isToday ? 'var(--sidebar-hover-bg)' : evs.length > 0 ? 'var(--bg-page)' : 'transparent', border: isToday ? '1px solid var(--sidebar-hover-c)' : '1px solid transparent' }}>
+              <span className="text-xs font-semibold mb-1" style={{ color: isToday ? 'var(--sidebar-hover-c)' : 'var(--text-secondary)' }}>{day}</span>
+              {evs.slice(0, 2).map((e, j) => (
+                <div key={j} className="rounded px-1 py-0.5 mb-0.5 truncate" style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444', fontSize: '10px' }}>
+                  {e.nombre}
+                </div>
+              ))}
+              {evs.length > 2 && <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>+{evs.length - 2}</span>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 interface Props {
   mesActual: Mes | null;
   gastos: Gasto[];
@@ -30,9 +82,11 @@ interface Props {
   catGasto: Categoria[];
   gastosxCat: GastoCatTotal[];
   historial: MesBalance[];
+  showPrestamos?: boolean;
+  fijosPresupuesto?: Fijo[];
 }
 
-export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, catGasto, gastosxCat, historial }: Props) {
+export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, catGasto, gastosxCat, historial, showPrestamos = true, fijosPresupuesto }: Props) {
   const donutRef = useRef<HTMLCanvasElement>(null);
   const lineRef  = useRef<HTMLCanvasElement>(null);
   const donutChart = useRef<Chart | null>(null);
@@ -130,6 +184,13 @@ export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, 
 
   const recentGastos = [...gastos].sort((a, b) => (b.fecha ?? '').localeCompare(a.fecha ?? '')).slice(0, 5);
 
+  const calToday = new Date();
+  const calDaysInMonth = new Date(calToday.getFullYear(), calToday.getMonth() + 1, 0).getDate();
+  const calEvents: CalEvHogar[] = (fijosPresupuesto ?? [])
+    .filter(f => f.cobro)
+    .map(f => ({ day: Math.min(parseInt(f.cobro!), calDaysInMonth), nombre: f.gasto, importe: f.importe }));
+  const proximos = [...calEvents].sort((a, b) => a.day - b.day).filter(e => e.day >= calToday.getDate()).slice(0, 5);
+
   if (!mesActual) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -160,209 +221,252 @@ export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, 
         </div>
       </div>
 
-      {/* Stats cards — mobile: 2 cols (Ingresos+Balance / Gastos+Préstamos), xl: 4 cols */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 xl:gap-5">
-        {/* Ingresos — row 1 col 1 on mobile, col 1 on xl */}
-        <div className="glass-card rounded-2xl xl:rounded-3xl p-4 xl:p-6 order-1">
+      {/* Stats cards */}
+      <div className={`grid gap-2 md:gap-5 ${showPrestamos ? 'grid-cols-2 xl:grid-cols-4' : 'grid-cols-3'}`}>
+        {/* Ingresos */}
+        <div className="glass-card rounded-2xl md:rounded-3xl p-3 md:p-6">
           <div className="flex items-start justify-between">
             <div>
-              <p className="font-medium text-xs xl:text-sm" style={{ color: 'var(--text-secondary)' }}>Ingresos</p>
-              <h3 className="text-xl xl:text-3xl font-extrabold mt-2 xl:mt-3" style={{ color: 'var(--text-primary)' }}>{fmt(totalIngresos)}</h3>
-              <p className="font-semibold mt-1 xl:mt-2 text-emerald-500 text-xs xl:text-sm">{ingresos.length} inquilino{ingresos.length !== 1 ? 's' : ''}</p>
+              <p className="font-medium text-[10px] md:text-sm" style={{ color: 'var(--text-secondary)' }}>Ingresos</p>
+              <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3" style={{ color: 'var(--text-primary)' }}>{fmt(totalIngresos)}</h3>
+              <p className="hidden md:block font-semibold mt-2 text-emerald-500 text-xs md:text-sm">{ingresos.length} inquilino{ingresos.length !== 1 ? 's' : ''}</p>
             </div>
-            <div className="w-9 h-9 xl:w-12 xl:h-12 rounded-xl xl:rounded-2xl bg-emerald-100 flex items-center justify-center shrink-0">
-              <BanknoteIcon className="w-4 h-4 xl:w-5 xl:h-5 text-emerald-600" />
+            <div className="hidden md:flex w-12 h-12 rounded-2xl bg-emerald-100 items-center justify-center shrink-0">
+              <BanknoteIcon className="w-5 h-5 text-emerald-600" />
             </div>
           </div>
         </div>
 
-        {/* Balance — row 1 col 2 on mobile, col 4 on xl */}
-        <div className={`rounded-2xl xl:rounded-3xl p-4 xl:p-6 text-white shadow-2xl order-2 xl:order-4 ${balance >= 0 ? 'bg-gradient-to-br from-emerald-500 to-green-600 shadow-green-500/20' : 'bg-gradient-to-br from-red-500 to-red-600 shadow-red-500/20'}`}>
+        {/* Gastos */}
+        <div className="glass-card rounded-2xl md:rounded-3xl p-3 md:p-6">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-white/80 font-medium text-xs xl:text-sm">Balance</p>
-              <h3 className="text-xl xl:text-3xl font-extrabold mt-2 xl:mt-3">{fmt(balance)}</h3>
-              <p className="font-semibold mt-1 xl:mt-2 text-xs xl:text-sm">{balance >= 0 ? '✓ Superávit' : '✗ Déficit'}</p>
+              <p className="font-medium text-[10px] md:text-sm" style={{ color: 'var(--text-secondary)' }}>Gastos</p>
+              <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3 text-red-500">-{fmt(totalGastos)}</h3>
+              <p className="hidden md:block font-semibold mt-2 text-amber-500 text-xs md:text-sm">{gastos.length} concepto{gastos.length !== 1 ? 's' : ''}</p>
             </div>
-            <div className="w-9 h-9 xl:w-12 xl:h-12 rounded-xl xl:rounded-2xl bg-white/20 flex items-center justify-center shrink-0 backdrop-blur-md">
-              <svg className="w-4 h-4 xl:w-5 xl:h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+            <div className="hidden md:flex w-12 h-12 rounded-2xl bg-orange-100 items-center justify-center shrink-0">
+              <ReceiptIcon className="w-5 h-5 text-orange-500" />
+            </div>
+          </div>
+        </div>
+
+        {/* Préstamos — solo cuando showPrestamos */}
+        {showPrestamos && (
+          <div className="glass-card rounded-2xl md:rounded-3xl p-3 md:p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="font-medium text-[10px] md:text-sm" style={{ color: 'var(--text-secondary)' }}>Préstamos</p>
+                <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3 text-red-500">-{fmt(totalPrestamos)}</h3>
+                <p className="hidden md:block font-semibold mt-2 text-blue-500 text-xs md:text-sm">{prestamos.length} pago{prestamos.length !== 1 ? 's' : ''} activo{prestamos.length !== 1 ? 's' : ''}</p>
+              </div>
+              <div className="hidden md:flex w-12 h-12 rounded-2xl bg-blue-100 items-center justify-center shrink-0">
+                <BankIcon className="w-5 h-5 text-blue-500" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Balance */}
+        <div className={`rounded-2xl md:rounded-3xl p-3 md:p-6 text-white shadow-2xl ${balance >= 0 ? 'bg-gradient-to-br from-emerald-500 to-green-600 shadow-green-500/20' : 'bg-gradient-to-br from-red-500 to-red-600 shadow-red-500/20'}`}>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-white/80 font-medium text-[10px] md:text-sm">Balance</p>
+              <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3">{fmt(balance)}</h3>
+              <p className="hidden md:block font-semibold mt-2 text-xs md:text-sm">{balance >= 0 ? '✓ Superávit' : '✗ Déficit'}</p>
+            </div>
+            <div className="hidden md:flex w-12 h-12 rounded-2xl bg-white/20 items-center justify-center shrink-0 backdrop-blur-md">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                 <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
               </svg>
             </div>
           </div>
         </div>
-
-        {/* Gastos — row 2 col 1 on mobile, col 2 on xl */}
-        <div className="glass-card rounded-2xl xl:rounded-3xl p-4 xl:p-6 order-3 xl:order-2">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="font-medium text-xs xl:text-sm" style={{ color: 'var(--text-secondary)' }}>Gastos</p>
-              <h3 className="text-xl xl:text-3xl font-extrabold mt-2 xl:mt-3 text-red-500">-{fmt(totalGastos)}</h3>
-              <p className="font-semibold mt-1 xl:mt-2 text-amber-500 text-xs xl:text-sm">{gastos.length} concepto{gastos.length !== 1 ? 's' : ''}</p>
-            </div>
-            <div className="w-9 h-9 xl:w-12 xl:h-12 rounded-xl xl:rounded-2xl bg-orange-100 flex items-center justify-center shrink-0">
-              <ReceiptIcon className="w-4 h-4 xl:w-5 xl:h-5 text-orange-500" />
-            </div>
-          </div>
-        </div>
-
-        {/* Préstamos — row 2 col 2 on mobile, col 3 on xl */}
-        <div className="glass-card rounded-2xl xl:rounded-3xl p-4 xl:p-6 order-4 xl:order-3">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="font-medium text-xs xl:text-sm" style={{ color: 'var(--text-secondary)' }}>Préstamos</p>
-              <h3 className="text-xl xl:text-3xl font-extrabold mt-2 xl:mt-3 text-red-500">-{fmt(totalPrestamos)}</h3>
-              <p className="font-semibold mt-1 xl:mt-2 text-blue-500 text-xs xl:text-sm">{prestamos.length} pago{prestamos.length !== 1 ? 's' : ''} activo{prestamos.length !== 1 ? 's' : ''}</p>
-            </div>
-            <div className="w-9 h-9 xl:w-12 xl:h-12 rounded-xl xl:rounded-2xl bg-blue-100 flex items-center justify-center shrink-0">
-              <BankIcon className="w-4 h-4 xl:w-5 xl:h-5 text-blue-500" />
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Charts row — mobile: Evolución first, Distribución second; xl: Distribución left, Evolución right */}
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-        {/* Donut */}
-        <div className="glass-card rounded-3xl p-6 xl:col-span-2 order-last xl:order-first">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Distribución</h3>
-            <span className="text-xs font-medium px-3 py-1 rounded-xl" style={{ background: 'var(--bg-page)', color: 'var(--text-secondary)' }}>
-              {mesActual.nombre}
-            </span>
-          </div>
-
-          {gastosxCat.length === 0 ? (
-            <p className="text-sm text-center py-16" style={{ color: 'var(--text-muted)' }}>Sin gastos este mes</p>
-          ) : (
-            <>
-              <div className="flex items-center justify-center mb-5" style={{ height: 170 }}>
-                <canvas ref={donutRef} />
-              </div>
+      {/* Calendario de pagos + Próximos pagos — solo Hogar */}
+      {fijosPresupuesto && fijosPresupuesto.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="glass-card rounded-3xl p-6 order-first lg:order-last">
+            <h3 className="font-bold text-lg mb-4" style={{ color: 'var(--text-primary)' }}>Próximos pagos</h3>
+            {proximos.length === 0 ? (
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Sin pagos pendientes este mes</p>
+            ) : (
               <div className="space-y-3">
-                {gastosxCat.map(g => (
-                  <div key={g.categoria} className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: g.color }} />
-                      <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{g.categoria}</span>
+                {proximos.map((e, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
+                      style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
+                      {e.day}
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <div className="h-1.5 rounded-full overflow-hidden" style={{ width: 72, background: 'var(--divider)' }}>
-                        <div className="h-full rounded-full" style={{ width: `${maxGastosCat > 0 ? (g.total / maxGastosCat) * 100 : 0}%`, background: g.color }} />
-                      </div>
-                      <span className="text-sm font-semibold text-right" style={{ minWidth: 72, color: 'var(--text-primary)' }}>
-                        -{fmt(g.total)}
-                      </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{e.nombre}</p>
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Gasto fijo</p>
                     </div>
+                    <span className="text-sm font-bold shrink-0 text-red-500">-{fmt(e.importe)}</span>
                   </div>
                 ))}
               </div>
-            </>
-          )}
-        </div>
-
-        {/* Line chart */}
-        <div className="glass-card rounded-3xl p-6 xl:col-span-3 order-first xl:order-last">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Evolución del balance</h3>
-            <span className="text-xs font-medium px-3 py-1 rounded-xl" style={{ background: 'var(--bg-page)', color: 'var(--text-secondary)' }}>
-              Últimos {historial.length} meses
-            </span>
+            )}
           </div>
-          {historial.length === 0 ? (
-            <p className="text-sm text-center py-16" style={{ color: 'var(--text-muted)' }}>Sin historial de meses</p>
-          ) : (
-            <div style={{ height: 280 }}>
-              <canvas ref={lineRef} />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Tables row */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Recent gastos */}
-        <div className="glass-card rounded-3xl overflow-hidden">
-          <div className="px-6 py-5" style={{ borderBottom: '1px solid var(--divider)' }}>
-            <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Últimos gastos</h3>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>{mesActual.nombre}</p>
+          <div className="lg:col-span-2 order-last lg:order-first">
+            <CalendarioHogar events={calEvents} />
           </div>
-          {recentGastos.length === 0 ? (
-            <p className="text-sm text-center py-10" style={{ color: 'var(--text-muted)' }}>Sin gastos este mes</p>
-          ) : (
-            <table className="theme-table">
-              <thead>
-                <tr>
-                  <th>Concepto</th>
-                  <th>Categoría</th>
-                  <th>Fecha</th>
-                  <th className="text-right">Importe</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentGastos.map(g => {
-                  const cat = catGasto.find(c => c.nombre === g.categoria);
-                  const bg = cat?.color ?? '#e5e7eb';
-                  return (
-                    <tr key={g.id}>
-                      <td className="py-3 px-4 font-semibold text-sm">{g.gasto}</td>
-                      <td className="py-3 px-4 text-sm">
-                        {g.categoria
-                          ? <span style={{ backgroundColor: bg, color: autoText(bg) }} className="px-2 py-0.5 rounded-full text-xs font-semibold">{g.categoria}</span>
-                          : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                      </td>
-                      <td className="py-3 px-4 text-sm" style={{ color: 'var(--text-muted)' }}>{fmtDate(g.fecha)}</td>
-                      <td className="py-3 px-4 text-right font-bold text-sm text-red-500">-{fmt(g.importe)}</td>
+        </div>
+      )}
+
+      {/* Lower content — mobile: Últimos gastos → Distribución → Evolución; xl: Charts row then Tables row */}
+      <div className="flex flex-col gap-6">
+        {/* Tables section — first in DOM = first on mobile; xl: pushed to second via order */}
+        <div className="xl:order-2">
+          <div className={`grid gap-6 ${showPrestamos ? 'xl:grid-cols-2' : ''}`}>
+            {/* Recent gastos */}
+            <div className="glass-card rounded-3xl overflow-hidden">
+              <div className="px-6 py-5" style={{ borderBottom: '1px solid var(--divider)' }}>
+                <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Últimos gastos</h3>
+                <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>{mesActual.nombre}</p>
+              </div>
+              {recentGastos.length === 0 ? (
+                <p className="text-sm text-center py-10" style={{ color: 'var(--text-muted)' }}>Sin gastos este mes</p>
+              ) : (
+                <table className="theme-table">
+                  <thead>
+                    <tr>
+                      <th>Concepto</th>
+                      {showPrestamos && <th>Categoría</th>}
+                      <th>Fecha</th>
+                      <th className="text-right">Importe</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-          <div className="px-6 py-3" style={{ borderTop: '1px solid var(--divider)' }}>
-            <Link href={`/hogar/mes/${mesActual.anio}/${mesActual.mes}`}
-              className="text-sm font-semibold" style={{ color: 'var(--sidebar-hover-c)' }}>
-              Ver todos los gastos →
-            </Link>
+                  </thead>
+                  <tbody>
+                    {recentGastos.map(g => {
+                      const cat = catGasto.find(c => c.nombre === g.categoria);
+                      const bg = cat?.color ?? '#e5e7eb';
+                      return (
+                        <tr key={g.id}>
+                          <td className="py-3 px-4 font-semibold text-sm">{g.gasto}</td>
+                          {showPrestamos && (
+                            <td className="py-3 px-4 text-sm">
+                              {g.categoria
+                                ? <span style={{ backgroundColor: bg, color: autoText(bg) }} className="px-2 py-0.5 rounded-full text-xs font-semibold">{g.categoria}</span>
+                                : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                            </td>
+                          )}
+                          <td className="py-3 px-4 text-sm" style={{ color: 'var(--text-muted)' }}>{fmtDate(g.fecha)}</td>
+                          <td className="py-3 px-4 text-right font-bold text-sm text-red-500">-{fmt(g.importe)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+              <div className="px-6 py-3" style={{ borderTop: '1px solid var(--divider)' }}>
+                <Link href={`/hogar/mes/${mesActual.anio}/${mesActual.mes}`}
+                  className="text-sm font-semibold" style={{ color: 'var(--sidebar-hover-c)' }}>
+                  Ver todos los gastos →
+                </Link>
+              </div>
+            </div>
+
+            {/* Préstamos activos — solo cuando showPrestamos */}
+            {showPrestamos && (
+              <div className="glass-card rounded-3xl overflow-hidden">
+                <div className="px-6 py-5" style={{ borderBottom: '1px solid var(--divider)' }}>
+                  <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Préstamos activos</h3>
+                  <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Pagos del mes</p>
+                </div>
+                {prestamos.length === 0 ? (
+                  <p className="text-sm text-center py-10" style={{ color: 'var(--text-muted)' }}>Sin préstamos este mes</p>
+                ) : (
+                  <div className="px-6 py-5 space-y-5">
+                    {prestamos.map((p, i) => {
+                      const COLORS = ['#6366f1','#ec4899','#0ea5e9','#10b981','#f97316','#8b5cf6'];
+                      const color = COLORS[i % COLORS.length];
+                      const pct = totalPrestamos > 0 ? (p.importe / totalPrestamos) * 100 : 0;
+                      return (
+                        <div key={p.id}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <h4 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{p.gasto}</h4>
+                              {p.categoria && <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{p.categoria}</p>}
+                            </div>
+                            <p className="font-bold text-sm text-red-500">-{fmt(p.importe)}</p>
+                          </div>
+                          <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'var(--divider)' }}>
+                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="px-6 py-3" style={{ borderTop: '1px solid var(--divider)' }}>
+                  <Link href={`/hogar/mes/${mesActual.anio}/${mesActual.mes}`}
+                    className="text-sm font-semibold" style={{ color: 'var(--sidebar-hover-c)' }}>
+                    Ver detalle del mes →
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Préstamos activos */}
-        <div className="glass-card rounded-3xl overflow-hidden">
-          <div className="px-6 py-5" style={{ borderBottom: '1px solid var(--divider)' }}>
-            <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Préstamos activos</h3>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Pagos del mes</p>
-          </div>
-          {prestamos.length === 0 ? (
-            <p className="text-sm text-center py-10" style={{ color: 'var(--text-muted)' }}>Sin préstamos este mes</p>
-          ) : (
-            <div className="px-6 py-5 space-y-5">
-              {prestamos.map((p, i) => {
-                const COLORS = ['#6366f1','#ec4899','#0ea5e9','#10b981','#f97316','#8b5cf6'];
-                const color = COLORS[i % COLORS.length];
-                const pct = totalPrestamos > 0 ? (p.importe / totalPrestamos) * 100 : 0;
-                return (
-                  <div key={p.id}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <h4 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{p.gasto}</h4>
-                        {p.categoria && <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{p.categoria}</p>}
-                      </div>
-                      <p className="font-bold text-sm text-red-500">-{fmt(p.importe)}</p>
-                    </div>
-                    <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'var(--divider)' }}>
-                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
-                    </div>
+        {/* Charts section — second in DOM = second on mobile (after Últimos gastos); xl: pushed to first via order */}
+        <div className="xl:order-1">
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+            {/* Distribución — natural order (first on mobile, left on xl) */}
+            <div className="glass-card rounded-3xl p-6 xl:col-span-2">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Distribución</h3>
+                <span className="text-xs font-medium px-3 py-1 rounded-xl" style={{ background: 'var(--bg-page)', color: 'var(--text-secondary)' }}>
+                  {mesActual.nombre}
+                </span>
+              </div>
+              {gastosxCat.length === 0 ? (
+                <p className="text-sm text-center py-16" style={{ color: 'var(--text-muted)' }}>Sin gastos este mes</p>
+              ) : (
+                <>
+                  <div className="flex items-center justify-center mb-5" style={{ height: 170 }}>
+                    <canvas ref={donutRef} />
                   </div>
-                );
-              })}
+                  <div className="space-y-3">
+                    {gastosxCat.map(g => (
+                      <div key={g.categoria} className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: g.color }} />
+                          <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{g.categoria}</span>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <div className="h-1.5 rounded-full overflow-hidden" style={{ width: 72, background: 'var(--divider)' }}>
+                            <div className="h-full rounded-full" style={{ width: `${maxGastosCat > 0 ? (g.total / maxGastosCat) * 100 : 0}%`, background: g.color }} />
+                          </div>
+                          <span className="text-sm font-semibold text-right" style={{ minWidth: 72, color: 'var(--text-primary)' }}>
+                            -{fmt(g.total)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
-          )}
-          <div className="px-6 py-3" style={{ borderTop: '1px solid var(--divider)' }}>
-            <Link href={`/hogar/mes/${mesActual.anio}/${mesActual.mes}`}
-              className="text-sm font-semibold" style={{ color: 'var(--sidebar-hover-c)' }}>
-              Ver detalle del mes →
-            </Link>
+
+            {/* Evolución — natural order (second on mobile, right on xl) */}
+            <div className="glass-card rounded-3xl p-6 xl:col-span-3">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Evolución del balance</h3>
+                <span className="text-xs font-medium px-3 py-1 rounded-xl" style={{ background: 'var(--bg-page)', color: 'var(--text-secondary)' }}>
+                  Últimos {historial.length} meses
+                </span>
+              </div>
+              {historial.length === 0 ? (
+                <p className="text-sm text-center py-16" style={{ color: 'var(--text-muted)' }}>Sin historial de meses</p>
+              ) : (
+                <div style={{ height: 280 }}>
+                  <canvas ref={lineRef} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

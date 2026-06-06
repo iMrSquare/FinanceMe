@@ -1,6 +1,7 @@
 import { getEstadisticasGastos } from '@/lib/db';
 import EstadisticasClient from '../../estadisticas/EstadisticasClient';
 
+export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Estadísticas — FinanceMe Hogar' };
 
 export default function HogarEstadisticasPage() {

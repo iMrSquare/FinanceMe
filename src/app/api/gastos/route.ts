@@ -12,11 +12,11 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { mes_id, gasto, fecha, categoria, importe, comentario } = body;
+  const { mes_id, gasto, fecha, categoria, banco, importe, comentario } = body;
   if (!mes_id || !gasto) return NextResponse.json({ error: 'mes_id y gasto requeridos' }, { status: 400 });
   const db = getDb();
   const result = db.prepare(
-    'INSERT INTO gastos (mes_id, gasto, fecha, categoria, importe, comentario) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(mes_id, gasto, fecha ?? null, categoria ?? null, importe ?? 0, comentario ?? null);
+    'INSERT INTO gastos (mes_id, gasto, fecha, categoria, banco, importe, comentario) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run(mes_id, gasto, fecha ?? null, categoria ?? null, banco ?? null, importe ?? 0, comentario ?? null);
   return NextResponse.json({ id: result.lastInsertRowid }, { status: 201 });
 }

@@ -14,8 +14,8 @@ export async function POST(request: NextRequest) {
   const { nombre, color } = await request.json();
   if (!nombre?.trim()) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 });
   try {
-    createPersonalCategoria(session.id, nombre.trim(), color || '#6366f1');
-    return NextResponse.json({ ok: true });
+    const id = createPersonalCategoria(session.id, nombre.trim(), color || '#6366f1');
+    return NextResponse.json({ ok: true, id });
   } catch {
     return NextResponse.json({ error: 'Ya existe una categoría con ese nombre' }, { status: 409 });
   }

@@ -15,7 +15,7 @@ const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', curren
 const fmtNextDate = (cobro: string | null, periodicidad: string) =>
   cobro ? nextBillingDate(cobro, periodicidad).toLocaleDateString('es-ES') : '—';
 
-const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/50 border transition-colors';
+const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/50 border transition-colors appearance-none';
 const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
 
 type SortKey = 'nombre' | 'importe' | 'periodicidad' | 'cobro';
@@ -28,7 +28,7 @@ function SuscModal({ form, setForm, onClose, onSave, saving }: { form: SuscForm;
   const set = (k: keyof SuscForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm({ ...form, [k]: e.target.value });
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="glass-card rounded-3xl p-8 w-full max-w-md">
+      <div className="glass-card rounded-3xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-bold text-xl" style={{ color: 'var(--text-primary)' }}>{form.id ? 'Editar suscripción' : 'Nueva suscripción'}</h2>
           <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ color: 'var(--text-muted)', background: 'var(--btn-hover)' }}>
@@ -121,7 +121,7 @@ export default function SuscripcionesClient() {
             <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Servicios con cobro recurrente</p>
           </div>
         </div>
-        <button onClick={() => setModal(emptyForm())} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-violet-500/30" style={{ background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)' }}>
+        <button onClick={() => setModal(emptyForm())} className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-violet-500/30" style={{ background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Nueva suscripción
         </button>
@@ -129,22 +129,22 @@ export default function SuscripcionesClient() {
 
       {/* Summary cards */}
       {suscs.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="glass-card rounded-3xl p-5" style={{ background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)' }}>
-            <p className="text-xs font-semibold text-white/70 uppercase tracking-wide mb-1">Coste mensual</p>
-            <p className="text-2xl font-extrabold text-white">{fmt(totalMensual)}</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+          <div className="glass-card rounded-2xl md:rounded-3xl p-3 md:p-5" style={{ background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)' }}>
+            <p className="text-[10px] md:text-xs font-semibold text-white/70 uppercase tracking-wide mb-0.5 md:mb-1">Coste mensual</p>
+            <p className="text-lg md:text-2xl font-extrabold text-white leading-tight">{fmt(totalMensual)}</p>
           </div>
-          <div className="glass-card rounded-3xl p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Coste anual</p>
-            <p className="text-2xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{fmt(totalAnual)}</p>
+          <div className="glass-card rounded-2xl md:rounded-3xl p-3 md:p-5">
+            <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wide mb-0.5 md:mb-1" style={{ color: 'var(--text-muted)' }}>Coste anual</p>
+            <p className="text-lg md:text-2xl font-extrabold leading-tight" style={{ color: 'var(--text-primary)' }}>{fmt(totalAnual)}</p>
           </div>
-          <div className="glass-card rounded-3xl p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Mensuales</p>
-            <p className="text-2xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{suscs.filter(s => s.periodicidad === 'mensual').length}</p>
+          <div className="glass-card rounded-2xl md:rounded-3xl p-3 md:p-5">
+            <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wide mb-0.5 md:mb-1" style={{ color: 'var(--text-muted)' }}>Mensuales</p>
+            <p className="text-lg md:text-2xl font-extrabold leading-tight" style={{ color: 'var(--text-primary)' }}>{suscs.filter(s => s.periodicidad === 'mensual').length}</p>
           </div>
-          <div className="glass-card rounded-3xl p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Anuales</p>
-            <p className="text-2xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{suscs.filter(s => s.periodicidad === 'anual').length}</p>
+          <div className="glass-card rounded-2xl md:rounded-3xl p-3 md:p-5">
+            <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wide mb-0.5 md:mb-1" style={{ color: 'var(--text-muted)' }}>Anuales</p>
+            <p className="text-lg md:text-2xl font-extrabold leading-tight" style={{ color: 'var(--text-primary)' }}>{suscs.filter(s => s.periodicidad === 'anual').length}</p>
           </div>
         </div>
       )}

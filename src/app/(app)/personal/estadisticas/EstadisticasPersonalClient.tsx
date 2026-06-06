@@ -13,7 +13,6 @@ function autoText(hex: string) {
   const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
   return (0.299*r + 0.587*g + 0.114*b) > 145 ? '#1f2937' : '#ffffff';
 }
-
 function hex2rgba(hex: string, alpha: number) {
   const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
   return `rgba(${r},${g},${b},${alpha})`;
@@ -27,7 +26,7 @@ const PERIOD_OPTIONS = [
   { label: 'Todo', value: 999 },
 ];
 
-export default function EstadisticasClient({ data }: Props) {
+export default function EstadisticasPersonalClient({ data }: Props) {
   const [period, setPeriod] = useState(6);
   const stackedRef = useRef<HTMLCanvasElement>(null);
   const stackedChart = useRef<Chart | null>(null);
@@ -145,8 +144,21 @@ export default function EstadisticasClient({ data }: Props) {
 
   if (data.mesesLabels.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Sin datos — añade meses para ver estadísticas</p>
+      <div className="space-y-8">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(249,115,22,0.12)' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Estadísticas</h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Evolución de gastos por categoría</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center h-64">
+          <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Sin datos — añade meses para ver estadísticas</p>
+        </div>
       </div>
     );
   }
@@ -157,41 +169,36 @@ export default function EstadisticasClient({ data }: Props) {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(139,92,246,0.12)' }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Estadísticas</h1>
-              <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Evolución de gastos por categoría</p>
-            </div>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(249,115,22,0.12)' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Estadísticas</h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Evolución de gastos por categoría</p>
           </div>
         </div>
         {/* Period selector */}
         <div className="flex items-center gap-1 p-1 rounded-2xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
-          {PERIOD_OPTIONS.filter(o => o.value >= data.mesesLabels.length || o.value === 999).length > 0
-            ? PERIOD_OPTIONS.map(opt => {
-                const available = opt.value >= data.mesesLabels.length ? data.mesesLabels.length : opt.value;
-                if (available < 1) return null;
-                const active = period === opt.value || (opt.value === 999 && period >= data.mesesLabels.length);
-                return (
-                  <button
-                    key={opt.value}
-                    onClick={() => setPeriod(opt.value)}
-                    className="px-4 py-1.5 text-sm font-semibold rounded-xl transition-all"
-                    style={{
-                      background: active ? 'var(--sidebar-hover-bg)' : 'transparent',
-                      color: active ? 'var(--sidebar-hover-c)' : 'var(--text-muted)',
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })
-            : null}
+          {PERIOD_OPTIONS.map(opt => {
+            if (opt.value !== 999 && opt.value > data.mesesLabels.length) return null;
+            const active = period === opt.value || (opt.value === 999 && period >= data.mesesLabels.length);
+            return (
+              <button
+                key={opt.value}
+                onClick={() => setPeriod(opt.value)}
+                className="px-4 py-1.5 text-sm font-semibold rounded-xl transition-all"
+                style={{
+                  background: active ? 'rgba(249,115,22,0.15)' : 'transparent',
+                  color: active ? '#f97316' : 'var(--text-muted)',
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -226,7 +233,7 @@ export default function EstadisticasClient({ data }: Props) {
         </div>
       </div>
 
-      {/* Per-category cards */}
+      {/* Per-category detail cards */}
       <div>
         <h2 className="font-bold text-lg mb-4" style={{ color: 'var(--text-primary)' }}>Detalle por categoría</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -234,28 +241,23 @@ export default function EstadisticasClient({ data }: Props) {
             const max = Math.max(...c.totalesPorMes, 1);
             return (
               <div key={c.categoria} className="glass-card rounded-3xl p-6">
-                {/* Category header */}
                 <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <span
-                      style={{ backgroundColor: c.color, color: autoText(c.color) }}
-                      className="px-3 py-1 rounded-full text-xs font-bold"
-                    >
-                      {c.categoria}
-                    </span>
-                  </div>
+                  <span
+                    style={{ backgroundColor: c.color, color: autoText(c.color) }}
+                    className="px-3 py-1 rounded-full text-xs font-bold"
+                  >
+                    {c.categoria}
+                  </span>
                   <div className="text-right">
                     <p className="font-extrabold text-lg" style={{ color: 'var(--text-primary)' }}>{fmt(c.total)}</p>
                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>~{fmt(c.promedio)}/mes</p>
                   </div>
                 </div>
 
-                {/* Mini bar chart */}
                 <div style={{ height: 140 }}>
                   <canvas ref={el => { miniRefs.current[i] = el; }} />
                 </div>
 
-                {/* Monthly breakdown mini table */}
                 <div className="mt-4 space-y-1.5">
                   {labels.map((label, mi) => {
                     const val = c.totalesPorMes[mi];
