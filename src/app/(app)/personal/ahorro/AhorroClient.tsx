@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
+import InfoExpand from '@/components/InfoExpand';
 import type { PersonalAhorro, PersonalAhorroMes } from '@/lib/db';
 
 const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -137,6 +138,9 @@ export default function AhorroClient() {
             <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Ahorro</h1>
             <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Seguimiento de tu objetivo de ahorro anual</p>
           </div>
+          <InfoExpand title="¿Qué es Ahorro?">
+            <p>Ajusta aquí tu objetivo de ahorro anual y sigue tus aportaciones mes a mes. También puedes crear objetivos de ahorro concretos en la pestaña «Objetivos». Lo recomendable es configurarlo después de tu Presupuesto y tus Suscripciones.</p>
+          </InfoExpand>
         </div>
         {/* Year selector */}
         <div className="flex items-center gap-2">

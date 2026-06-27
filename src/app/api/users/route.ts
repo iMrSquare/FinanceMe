@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, hashPassword } from '@/lib/auth';
-import { getAllUsers, createUser, deleteUser, countAdminUsers, getUserById } from '@/lib/db';
+import { getAllUsers, createUser, deleteUser, countAdminUsers, getUserById, updateUserRole, resetUserPassword } from '@/lib/db';
 import { validateUsername, validatePassword } from '@/lib/validation';
 
 export async function GET() {
@@ -37,6 +37,37 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'El nombre de usuario ya existe' }, { status: 409 });
   }
+}
+
+export async function PATCH(request: NextRequest) {
+  const session = await getSession();
+  if (!session || session.role !== 'admin') {
+    return NextResponse.json({ error: 'Sin permisos' }, { status: 403 });
+  }
+
+  const { id, role, password } = await request.json();
+  if (!id) return NextResponse.json({ error: 'ID requerido' }, { status: 400 });
+
+  const target = getUserById(id);
+  if (!target) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
+
+  if (role !== undefined) {
+    if (!['admin', 'editor', 'visor'].includes(role)) {
+      return NextResponse.json({ error: 'Rol no válido' }, { status: 400 });
+    }
+    if (target.role === 'admin' && role !== 'admin' && countAdminUsers() <= 1) {
+      return NextResponse.json({ error: 'No se puede quitar el rol al último administrador' }, { status: 400 });
+    }
+    updateUserRole(id, role);
+  }
+
+  if (password !== undefined) {
+    const passwordErr = validatePassword(password);
+    if (passwordErr) return NextResponse.json({ error: passwordErr }, { status: 400 });
+    resetUserPassword(id, hashPassword(password));
+  }
+
+  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(request: NextRequest) {

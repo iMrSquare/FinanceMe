@@ -1,8 +1,12 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import type { PersonalGastoFijo, PersonalCategoria, PersonalBanco, PersonalAhorro, PersonalSuscripcion, PresupuestoAutoConfig } from '@/lib/db';
+import type { PersonalGastoFijo, PersonalIngresoFijo, PersonalCategoria, PersonalBanco, PersonalAhorro, PersonalAhorroObjetivo, PersonalSuscripcion, PresupuestoAutoConfig } from '@/lib/db';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import InfoExpand from '@/components/InfoExpand';
+import { monthlyEquivalent } from '@/lib/billing';
+import { mensualNecesario } from '@/lib/ahorroObjetivos';
+import { useIsMobile } from '@/lib/useIsMobile';
 import GestionClient from '../gestion/GestionClient';
 
 function roundUp5(n: number): number {
@@ -37,6 +41,9 @@ const COL_LABELS: Record<SortKey, string> = { gasto: 'Gasto', importe: 'Importe'
 
 interface GastoForm { id?: number; gasto: string; importe: string; categoria: string; banco: string; cobro: string; vencimiento: string; comentario: string; }
 const emptyForm = (): GastoForm => ({ gasto: '', importe: '', categoria: '', banco: '', cobro: '', vencimiento: '', comentario: '' });
+
+interface IngresoForm { id?: number; concepto: string; importe: string; comentario: string; }
+const emptyIngresoForm = (): IngresoForm => ({ concepto: '', importe: '', comentario: '' });
 
 function TrashIcon() {
   return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
@@ -99,19 +106,59 @@ function GastoModal({ form, setForm, categorias, bancos, onClose, onSave, saving
   );
 }
 
+// ── IngresoModal ────────────────────────────────────────────────────────────
+function IngresoModal({ form, setForm, onClose, onSave, saving }: {
+  form: IngresoForm; setForm: (f: IngresoForm) => void;
+  onClose: () => void; onSave: () => void; saving: boolean;
+}) {
+  const set = (k: keyof IngresoForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm({ ...form, [k]: e.target.value });
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="glass-card rounded-3xl p-8 w-full max-w-md">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="font-bold text-xl" style={{ color: 'var(--text-primary)' }}>{form.id ? 'Editar ingreso' : 'Nuevo ingreso'}</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ color: 'var(--text-muted)', background: 'var(--btn-hover)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Concepto *</label>
+            <input value={form.concepto} onChange={set('concepto')} className={inputCls} style={inputStyle} placeholder="Ej: Nómina" /></div>
+          <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Importe (€) *</label>
+            <input type="number" step="0.01" min="0" value={form.importe} onChange={set('importe')} className={inputCls} style={inputStyle} placeholder="0.00" /></div>
+          <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Comentario</label>
+            <textarea value={form.comentario} onChange={set('comentario')} rows={2} className={inputCls} style={inputStyle} placeholder="Opcional…" /></div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>Cancelar</button>
+          <button onClick={onSave} disabled={saving || !form.concepto.trim() || !form.importe} className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-50 shadow-lg shadow-emerald-500/30" style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
+            {saving ? 'Guardando…' : form.id ? 'Guardar' : 'Crear ingreso'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────
 export default function PresupuestoClient() {
+  const isMobile = useIsMobile();
   const [gastos, setGastos] = useState<PersonalGastoFijo[]>([]);
+  const [ingresosFijos, setIngresosFijos] = useState<PersonalIngresoFijo[]>([]);
   const [categorias, setCategorias] = useState<PersonalCategoria[]>([]);
   const [bancos, setBancos] = useState<PersonalBanco[]>([]);
   const [suscs, setSuscs] = useState<PersonalSuscripcion[]>([]);
   const [ahorro, setAhorro] = useState<PersonalAhorro | null>(null);
+  const [objetivos, setObjetivos] = useState<PersonalAhorroObjetivo[]>([]);
   const [autoConfigs, setAutoConfigs] = useState<PresupuestoAutoConfig[]>([]);
-  const [editingAuto, setEditingAuto] = useState<'suscripciones' | 'ahorro' | null>(null);
+  const [editingAuto, setEditingAuto] = useState<'suscripciones' | 'ahorro' | 'objetivos' | null>(null);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<GastoForm | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [modalIngreso, setModalIngreso] = useState<IngresoForm | null>(null);
+  const [savingIngreso, setSavingIngreso] = useState(false);
+  const [deleteIngresoId, setDeleteIngresoId] = useState<number | null>(null);
   const [filtroCategoria, setFiltroCategoria] = useState('');
   const [filtroBanco, setFiltroBanco] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('gasto');
@@ -119,20 +166,24 @@ export default function PresupuestoClient() {
   const [view, setView] = useState<'main' | 'gestion'>('main');
 
   async function fetchAll() {
-    const [g, c, b, s, a, ac] = await Promise.all([
+    const [g, ig, c, b, s, a, ac, ob] = await Promise.all([
       fetch('/api/personal/gastos').then(r => r.json()),
+      fetch('/api/personal/ingresos').then(r => r.json()),
       fetch('/api/personal/categorias').then(r => r.json()),
       fetch('/api/personal/bancos').then(r => r.json()),
       fetch('/api/personal/suscripciones').then(r => r.json()),
       fetch(`/api/personal/ahorro?year=${new Date().getFullYear()}`).then(r => r.json()),
       fetch('/api/personal/presupuesto/auto').then(r => r.json()),
+      fetch('/api/personal/ahorro/objetivos').then(r => r.json()),
     ]);
     setGastos(Array.isArray(g) ? g : []);
+    setIngresosFijos(Array.isArray(ig) ? ig : []);
     setCategorias(Array.isArray(c) ? c : []);
     setBancos(Array.isArray(b) ? b : []);
     setSuscs(Array.isArray(s) ? s : []);
     setAhorro(a && typeof a === 'object' && 'objetivo_anual' in a ? a : null);
     setAutoConfigs(Array.isArray(ac) ? ac : []);
+    setObjetivos(Array.isArray(ob) ? ob : []);
     setLoading(false);
   }
   useEffect(() => { fetchAll(); }, []);
@@ -154,11 +205,28 @@ export default function PresupuestoClient() {
     setDeleteId(null); fetchAll();
   }
 
+  async function handleSaveIngreso() {
+    if (!modalIngreso) return;
+    setSavingIngreso(true);
+    const body = { concepto: modalIngreso.concepto, importe: Number(modalIngreso.importe), comentario: modalIngreso.comentario || null };
+    if (modalIngreso.id) {
+      await fetch(`/api/personal/ingresos/${modalIngreso.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    } else {
+      await fetch('/api/personal/ingresos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    }
+    setSavingIngreso(false); setModalIngreso(null); fetchAll();
+  }
+
+  async function handleDeleteIngreso(id: number) {
+    await fetch(`/api/personal/ingresos/${id}`, { method: 'DELETE' });
+    setDeleteIngresoId(null); fetchAll();
+  }
+
   function toggleSort(k: SortKey) { if (sortKey === k) setSortAsc(!sortAsc); else { setSortKey(k); setSortAsc(true); } }
 
   const catColor = (n: string) => categorias.find(c => c.nombre === n)?.color ?? '#64748b';
   const bancoColor = (n: string) => bancos.find(b => b.nombre === n)?.color ?? '#64748b';
-  const autoConfig = (tipo: 'suscripciones' | 'ahorro') => autoConfigs.find(c => c.tipo === tipo) ?? { tipo, banco: null, categoria: null };
+  const autoConfig = (tipo: 'suscripciones' | 'ahorro' | 'objetivos') => autoConfigs.find(c => c.tipo === tipo) ?? { tipo, banco: null, categoria: null };
 
   const filtered = gastos
     .filter(g => !filtroCategoria || g.categoria === filtroCategoria)
@@ -170,22 +238,28 @@ export default function PresupuestoClient() {
 
   const totalGeneral = gastos.reduce((s, g) => s + g.importe, 0);
   const totalFiltrado = filtered.reduce((s, g) => s + g.importe, 0);
+  const totalIngresosFijos = ingresosFijos.reduce((s, i) => s + i.importe, 0);
 
-  const suscMensualReal = suscs.reduce((s, sub) => s + (sub.periodicidad === 'anual' ? sub.importe / 12 : sub.importe), 0);
+  const suscMensualReal = suscs.reduce((s, sub) => s + monthlyEquivalent(sub.importe, sub.periodicidad), 0);
   const suscVirtual = suscMensualReal > 0 ? roundUp5(suscMensualReal) : 0;
   const ahorroMensualReal = ahorro ? ahorro.objetivo_anual / 12 : 0;
   const ahorroVirtual = ahorroMensualReal > 0 ? ahorroMensualReal : 0;
-  const totalConVirtuales = totalGeneral + suscVirtual + ahorroVirtual;
+  const objetivosMensualReal = objetivos.reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
+  const objetivosVirtual = objetivosMensualReal > 0 ? objetivosMensualReal : 0;
+  const totalConVirtuales = totalGeneral + suscVirtual + ahorroVirtual + objetivosVirtual;
 
   const suscCfg  = autoConfig('suscripciones');
   const ahorroCfg = autoConfig('ahorro');
+  const objetivosCfg = autoConfig('objetivos');
 
   const suscMatchesFiltro  = (!filtroCategoria || suscCfg.categoria  === filtroCategoria) && (!filtroBanco || suscCfg.banco  === filtroBanco);
   const ahorroMatchesFiltro = (!filtroCategoria || ahorroCfg.categoria === filtroCategoria) && (!filtroBanco || ahorroCfg.banco === filtroBanco);
+  const objetivosMatchesFiltro = (!filtroCategoria || objetivosCfg.categoria === filtroCategoria) && (!filtroBanco || objetivosCfg.banco === filtroBanco);
 
   const totalFiltradoConVirtuales = totalFiltrado
     + (suscVirtual  > 0 && suscMatchesFiltro  ? suscVirtual  : 0)
-    + (ahorroVirtual > 0 && ahorroMatchesFiltro ? ahorroVirtual : 0);
+    + (ahorroVirtual > 0 && ahorroMatchesFiltro ? ahorroVirtual : 0)
+    + (objetivosVirtual > 0 && objetivosMatchesFiltro ? objetivosVirtual : 0);
 
   const selectStyle = { ...inputStyle, paddingTop: '8px', paddingBottom: '8px' };
 
@@ -215,6 +289,9 @@ export default function PresupuestoClient() {
             <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Presupuesto</h1>
             <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Tus gastos fijos mensuales</p>
           </div>
+          <InfoExpand title="¿Qué es Presupuesto?">
+            <p>El Presupuesto son tus gastos fijos de cada mes y tus ingresos. Antes de añadirlos, crea tus categorías y bancos en Gestión: los filtros y las estadísticas se nutren de ellos. Al crear un nuevo Mes, estos datos se importan automáticamente.</p>
+          </InfoExpand>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <button onClick={() => setView('gestion')} className="flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-sm font-semibold border transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'var(--bg-card)' }}>
@@ -229,14 +306,14 @@ export default function PresupuestoClient() {
       </div>
 
       {/* 3 cards principales */}
-      {(gastos.length > 0 || suscVirtual > 0 || ahorroVirtual > 0) && (
+      {(gastos.length > 0 || suscVirtual > 0 || ahorroVirtual > 0 || objetivosVirtual > 0) && (
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
           {/* Total mensual */}
           <div className="rounded-2xl sm:rounded-3xl p-3 sm:p-6 text-white shadow-2xl shadow-red-500/20" style={{ background: 'linear-gradient(135deg,#ef4444,#dc2626)' }}>
             <p className="text-[10px] sm:text-xs font-semibold text-white/70 uppercase tracking-wide mb-1 sm:mb-2">Total</p>
             <p className="text-sm sm:text-3xl font-extrabold leading-tight">{fmt(totalConVirtuales)}</p>
-            {(suscVirtual > 0 || ahorroVirtual > 0) && (
-              <p className="hidden sm:block text-xs text-white/60 mt-1">{fmt(totalGeneral)} fijos + {fmt(suscVirtual + ahorroVirtual)} auto</p>
+            {(suscVirtual > 0 || ahorroVirtual > 0 || objetivosVirtual > 0) && (
+              <p className="hidden sm:block text-xs text-white/60 mt-1">{fmt(totalGeneral)} fijos + {fmt(suscVirtual + ahorroVirtual + objetivosVirtual)} auto</p>
             )}
           </div>
           {/* Suscripciones */}
@@ -297,11 +374,18 @@ export default function PresupuestoClient() {
 
       {/* Table */}
       <div className="glass-card rounded-3xl overflow-hidden">
+        <div className="px-6 py-4 bg-orange-600">
+          <h2 className="font-bold text-base text-white">
+            Gastos fijos
+            <span className="ml-2 text-sm font-normal text-white/80">{gastos.length} concepto{gastos.length !== 1 ? 's' : ''}</span>
+          </h2>
+        </div>
         <div className="overflow-x-auto">
           {(() => {
             const hasVisibleRows = filtered.length > 0
               || (suscVirtual > 0 && suscMatchesFiltro)
-              || (ahorroVirtual > 0 && ahorroMatchesFiltro);
+              || (ahorroVirtual > 0 && ahorroMatchesFiltro)
+              || (objetivosVirtual > 0 && objetivosMatchesFiltro);
             return loading ? (
               <p className="py-16 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Cargando…</p>
             ) : !hasVisibleRows ? (
@@ -309,7 +393,7 @@ export default function PresupuestoClient() {
             ) : (
             <table className="w-full min-w-[700px] text-sm">
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--divider)' }}>
+                <tr style={{ borderBottom: '1px solid var(--divider)', background: 'var(--bg-page)' }}>
                   {(Object.keys(COL_LABELS) as SortKey[]).map(col => (
                     <th key={col} onClick={() => toggleSort(col)} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>
                       {COL_LABELS[col]} {sortKey === col ? (sortAsc ? '↑' : '↓') : ''}
@@ -320,7 +404,8 @@ export default function PresupuestoClient() {
               </thead>
               <tbody>
                 {filtered.map(g => (
-                  <tr key={g.id} style={{ borderBottom: '1px solid var(--divider)' }}
+                  <tr key={g.id} style={{ borderBottom: '1px solid var(--divider)', cursor: isMobile ? 'pointer' : undefined }}
+                    onClick={() => { if (isMobile) setModal({ id: g.id, gasto: g.gasto, importe: String(g.importe), categoria: g.categoria ?? '', banco: g.banco ?? '', cobro: extractDay(g.cobro), vencimiento: g.vencimiento ?? '', comentario: g.comentario ?? '' }); }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-page)'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
                     <td className="px-4 py-3">
@@ -338,10 +423,10 @@ export default function PresupuestoClient() {
                     <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>{fmtDate(g.vencimiento)}</td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => setModal({ id: g.id, gasto: g.gasto, importe: String(g.importe), categoria: g.categoria ?? '', banco: g.banco ?? '', cobro: extractDay(g.cobro), vencimiento: g.vencimiento ?? '', comentario: g.comentario ?? '' })} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                        <button onClick={e => { e.stopPropagation(); setModal({ id: g.id, gasto: g.gasto, importe: String(g.importe), categoria: g.categoria ?? '', banco: g.banco ?? '', cobro: extractDay(g.cobro), vencimiento: g.vencimiento ?? '', comentario: g.comentario ?? '' }); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                           onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                           onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                        <button onClick={() => setDeleteId(g.id)} className="p-1.5 rounded-lg transition-colors" style={{ color: '#ef4444' }}
+                        <button onClick={e => { e.stopPropagation(); setDeleteId(g.id); }} className="p-1.5 rounded-lg transition-colors" style={{ color: '#ef4444' }}
                           onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
                           onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
                       </div>
@@ -418,6 +503,41 @@ export default function PresupuestoClient() {
                     </tr>
                   );
                 })()}
+
+                {/* Fila virtual: Objetivos de ahorro */}
+                {objetivosVirtual > 0 && objetivosMatchesFiltro && (() => {
+                  const cfg = objetivosCfg;
+                  return (
+                    <tr style={{ background: 'rgba(245,158,11,0.04)' }}>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Objetivos de ahorro</span>
+                          <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>Auto</span>
+                        </div>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Suma de objetivos en progreso</p>
+                      </td>
+                      <td className="px-4 py-3 font-mono font-bold" style={{ color: '#f59e0b' }}>{fmt(objetivosVirtual)}</td>
+                      <td className="px-4 py-3">
+                        {cfg.categoria
+                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: catColor(cfg.categoria) }}>{cfg.categoria}</span>
+                          : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        {cfg.banco
+                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: bancoColor(cfg.banco) }}>{cfg.banco}</span>
+                          : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                      </td>
+                      <td className="px-4 py-3" colSpan={2} />
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => setEditingAuto('objetivos')} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
+                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })()}
               </tbody>
             </table>
             );
@@ -425,7 +545,61 @@ export default function PresupuestoClient() {
         </div>
       </div>
 
+      {/* Tabla de ingresos fijos */}
+      <div className="glass-card rounded-3xl overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 bg-emerald-700">
+          <h2 className="font-bold text-base text-white">
+            Ingresos
+            <span className="ml-2 text-sm font-normal text-white/80">{ingresosFijos.length} entrada{ingresosFijos.length !== 1 ? 's' : ''}{totalIngresosFijos > 0 ? ` · ${fmt(totalIngresosFijos)}` : ''}</span>
+          </h2>
+          <button onClick={() => setModalIngreso(emptyIngresoForm())} className="flex items-center gap-1.5 py-1.5 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-2xl transition-colors px-3 text-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nuevo
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          {ingresosFijos.length === 0 ? (
+            <p className="py-14 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Sin ingresos — pulsa &quot;+ Nuevo&quot; para añadir</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--divider)', background: 'var(--bg-page)' }}>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Concepto</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Importe</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ingresosFijos.map(i => (
+                  <tr key={i.id} style={{ borderBottom: '1px solid var(--divider)', cursor: isMobile ? 'pointer' : undefined }}
+                    onClick={() => { if (isMobile) setModalIngreso({ id: i.id, concepto: i.concepto, importe: String(i.importe), comentario: i.comentario ?? '' }); }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-page)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
+                    <td className="px-4 py-3">
+                      <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{i.concepto}</span>
+                      {i.comentario && <p className="text-xs truncate max-w-xs" style={{ color: 'var(--text-muted)' }}>{i.comentario}</p>}
+                    </td>
+                    <td className="px-4 py-3 font-mono font-bold" style={{ color: '#10b981' }}>{fmt(i.importe)}</td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={e => { e.stopPropagation(); setModalIngreso({ id: i.id, concepto: i.concepto, importe: String(i.importe), comentario: i.comentario ?? '' }); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
+                        <button onClick={e => { e.stopPropagation(); setDeleteIngresoId(i.id); }} className="p-1.5 rounded-lg transition-colors" style={{ color: '#ef4444' }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
       {modal && <GastoModal form={modal} setForm={setModal} categorias={categorias} bancos={bancos} onClose={() => setModal(null)} onSave={handleSave} saving={saving} />}
+      {modalIngreso && <IngresoModal form={modalIngreso} setForm={setModalIngreso} onClose={() => setModalIngreso(null)} onSave={handleSaveIngreso} saving={savingIngreso} />}
       {editingAuto && (
         <AutoConfigModal
           tipo={editingAuto}
@@ -451,6 +625,14 @@ export default function PresupuestoClient() {
           onCancel={() => setDeleteId(null)}
         />
       )}
+
+      {deleteIngresoId !== null && (
+        <ConfirmDialog
+          message="¿Eliminar ingreso?"
+          onConfirm={() => handleDeleteIngreso(deleteIngresoId)}
+          onCancel={() => setDeleteIngresoId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -458,7 +640,7 @@ export default function PresupuestoClient() {
 // ── Modal configuración automáticos ──────────────────────────────────────────
 
 function AutoConfigModal({ tipo, current, categorias, bancos, onClose, onSave }: {
-  tipo: 'suscripciones' | 'ahorro';
+  tipo: 'suscripciones' | 'ahorro' | 'objetivos';
   current: { banco: string | null; categoria: string | null };
   categorias: PersonalCategoria[];
   bancos: PersonalBanco[];
@@ -469,7 +651,7 @@ function AutoConfigModal({ tipo, current, categorias, bancos, onClose, onSave }:
   const [categoria, setCategoria] = useState(current.categoria ?? '');
   const [saving, setSaving] = useState(false);
 
-  const titulo = tipo === 'suscripciones' ? 'Suscripciones' : 'Ahorro mensual';
+  const titulo = tipo === 'suscripciones' ? 'Suscripciones' : tipo === 'ahorro' ? 'Ahorro mensual' : 'Objetivos de ahorro';
   const color  = tipo === 'suscripciones' ? '#8b5cf6' : '#f59e0b';
 
   async function handleSave(e: React.FormEvent) {

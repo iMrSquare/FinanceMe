@@ -13,6 +13,7 @@ export interface SessionUser {
   role: Role;
   avatarUrl: string | null;
   mustChangePassword?: boolean;
+  tutorialSeen?: boolean;
 }
 
 export async function createToken(user: SessionUser): Promise<string> {
@@ -23,6 +24,7 @@ export async function createToken(user: SessionUser): Promise<string> {
     role: user.role,
     avatarUrl: user.avatarUrl,
     mustChangePassword: user.mustChangePassword ?? false,
+    tutorialSeen: user.tutorialSeen ?? false,
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -40,6 +42,7 @@ export async function verifyToken(token: string): Promise<SessionUser | null> {
       role: payload.role as Role,
       avatarUrl: (payload.avatarUrl as string | null) ?? null,
       mustChangePassword: (payload.mustChangePassword as boolean) ?? false,
+      tutorialSeen: (payload.tutorialSeen as boolean) ?? false,
     };
   } catch {
     return null;

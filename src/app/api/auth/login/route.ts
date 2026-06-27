@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
     role: user.role,
     avatarUrl: user.avatar_url,
     mustChangePassword,
+    tutorialSeen: user.tutorial_seen === 1,
   });
 
   const response = NextResponse.json({ ok: true, role: user.role, mustChangePassword });

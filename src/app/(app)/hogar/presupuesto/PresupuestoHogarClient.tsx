@@ -1,9 +1,12 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Fijo, Categoria } from '@/lib/db';
+import type { Fijo, Categoria, AhorroObjetivo, PresupuestoAutoConfig } from '@/lib/db';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import InfoExpand from '@/components/InfoExpand';
 import { PencilIcon, TrashIcon, SettingsIcon } from '@/components/icons';
+import { useIsMobile } from '@/lib/useIsMobile';
+import { mensualNecesario } from '@/lib/ahorroObjetivos';
 import GestionHogarClient from '../gestion/GestionHogarClient';
 
 const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -144,6 +147,8 @@ interface Props {
   ingresosFijos: Fijo[];
   catGasto: Categoria[];
   catPrestamo: Categoria[];
+  objetivosAhorro: AhorroObjetivo[];
+  autoConfigs: PresupuestoAutoConfig[];
   canEdit: boolean;
 }
 
@@ -152,13 +157,18 @@ export default function PresupuestoHogarClient({
   ingresosFijos: initIngresos,
   catGasto: initCatGasto,
   catPrestamo: initCatPrestamo,
+  objetivosAhorro,
+  autoConfigs: initAutoConfigs,
   canEdit,
 }: Props) {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [gastos, setGastos] = useState<Fijo[]>(initGastos);
   const [ingresos, setIngresos] = useState<Fijo[]>(initIngresos);
   const [catGasto, setCatGasto] = useState<Categoria[]>(initCatGasto);
   const [catPrestamo, setCatPrestamo] = useState<Categoria[]>(initCatPrestamo);
+  const [autoConfigs, setAutoConfigs] = useState<PresupuestoAutoConfig[]>(initAutoConfigs);
+  const [editingAuto, setEditingAuto] = useState<'objetivos' | null>(null);
   const [view, setView] = useState<'main' | 'gestion'>('main');
   const [modal, setModal] = useState<FijoForm | null>(null);
   const [saving, setSaving] = useState(false);
@@ -188,6 +198,10 @@ export default function PresupuestoHogarClient({
   const totalGastos   = gastos.reduce((s, f) => s + f.importe, 0);
   const totalIngresos = ingresos.reduce((s, f) => s + f.importe, 0);
   const totalFiltrado = gastosFiltered.reduce((s, f) => s + f.importe, 0);
+
+  const objetivosVirtual = objetivosAhorro.reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
+  const objetivosCfg = autoConfigs.find(c => c.tipo === 'objetivos') ?? { tipo: 'objetivos' as const, banco: null, categoria: null };
+  const objetivosMatchesFiltro = (!filtroCategoria || objetivosCfg.categoria === filtroCategoria) && (!filtroBanco || objetivosCfg.banco === filtroBanco);
 
   async function handleSave() {
     if (!modal) return;
@@ -264,11 +278,16 @@ export default function PresupuestoHogarClient({
             <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Presupuesto</h1>
             <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Entradas fijas que se importan al crear un nuevo mes</p>
           </div>
+          <InfoExpand title="¿Qué es Presupuesto?">
+            <p>El Presupuesto son los gastos fijos del Hogar que se repiten cada mes, junto a los ingresos. Crea primero las categorías y bancos en Gestión, ya que de ahí se nutren los filtros y las estadísticas. Al crear un nuevo Mes, estos datos se importan automáticamente.</p>
+          </InfoExpand>
         </div>
         <div className="flex gap-2 items-center">
-          <button onClick={() => setView('gestion')} className="flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-sm font-semibold border transition-colors shrink-0" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'var(--bg-card)' }}>
-            <SettingsIcon className="w-4 h-4" /> <span className="hidden sm:inline">Gestión</span>
-          </button>
+          {canEdit && (
+            <button onClick={() => setView('gestion')} className="flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-sm font-semibold border transition-colors shrink-0" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'var(--bg-card)' }}>
+              <SettingsIcon className="w-4 h-4" /> <span className="hidden sm:inline">Gestión</span>
+            </button>
+          )}
           {canEdit && (
             <button onClick={() => setModal(emptyGasto())} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold text-white shadow-lg shadow-indigo-500/30" style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -315,21 +334,21 @@ export default function PresupuestoHogarClient({
 
       {/* ── Tabla de gastos fijos ── */}
       <div className="glass-card rounded-3xl overflow-hidden">
-        <div className="px-6 py-4" style={{ borderBottom: '1px solid var(--divider)' }}>
-          <h2 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>
+        <div className="px-6 py-4 bg-orange-600">
+          <h2 className="font-bold text-base text-white">
             Gastos fijos
-            <span className="ml-2 text-sm font-normal" style={{ color: 'var(--text-muted)' }}>{gastos.length} concepto{gastos.length !== 1 ? 's' : ''}</span>
+            <span className="ml-2 text-sm font-normal text-white/80">{gastos.length} concepto{gastos.length !== 1 ? 's' : ''}</span>
           </h2>
         </div>
         <div className="overflow-x-auto">
-          {gastosFiltered.length === 0 ? (
+          {gastosFiltered.length === 0 && !(objetivosVirtual > 0 && objetivosMatchesFiltro) ? (
             <p className="py-14 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
               {gastos.length === 0 ? 'Sin gastos fijos — pulsa "+ Nuevo" para añadir' : 'Ningún gasto coincide con el filtro.'}
             </p>
           ) : (
             <table className="w-full min-w-[700px] text-sm">
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--divider)' }}>
+                <tr style={{ borderBottom: '1px solid var(--divider)', background: 'var(--bg-page)' }}>
                   <SortTh label="Gasto"       sk="gasto"       sortKey={sortKey} sortAsc={sortAsc} onClick={() => toggleSort('gasto')} />
                   <SortTh label="Importe"     sk="importe"     sortKey={sortKey} sortAsc={sortAsc} onClick={() => toggleSort('importe')} />
                   <PlainTh label="Categoría" />
@@ -341,7 +360,8 @@ export default function PresupuestoHogarClient({
               </thead>
               <tbody>
                 {gastosFiltered.map(f => (
-                  <tr key={f.id} style={{ borderBottom: '1px solid var(--divider)' }}
+                  <tr key={f.id} style={{ borderBottom: '1px solid var(--divider)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
+                    onClick={() => { if (isMobile && canEdit) openEdit(f); }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-page)'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
                     <td className="px-4 py-3">
@@ -360,10 +380,10 @@ export default function PresupuestoHogarClient({
                     {canEdit && (
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => openEdit(f)} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                          <button onClick={e => { e.stopPropagation(); openEdit(f); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                          <button onClick={() => setDeleteId(f.id)} className="p-1.5 rounded-lg transition-colors text-red-400"
+                          <button onClick={e => { e.stopPropagation(); setDeleteId(f.id); }} className="p-1.5 rounded-lg transition-colors text-red-400"
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
                         </div>
@@ -371,6 +391,32 @@ export default function PresupuestoHogarClient({
                     )}
                   </tr>
                 ))}
+
+                {/* Fila virtual: Objetivos de ahorro */}
+                {objetivosVirtual > 0 && objetivosMatchesFiltro && (
+                  <tr style={{ background: 'rgba(245,158,11,0.04)' }}>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Objetivos de ahorro</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>Auto</span>
+                      </div>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Suma de objetivos en progreso</p>
+                    </td>
+                    <td className="px-4 py-3 font-mono font-bold" style={{ color: '#f59e0b' }}>-{fmt(objetivosVirtual)}</td>
+                    <td className="px-4 py-3"><CategoryBadge nombre={objetivosCfg.categoria} categorias={catGasto} /></td>
+                    <td className="px-4 py-3"><CategoryBadge nombre={objetivosCfg.banco} categorias={catPrestamo} /></td>
+                    <td className="px-4 py-3" colSpan={2} />
+                    {canEdit && (
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => setEditingAuto('objetivos')} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
+                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                )}
               </tbody>
             </table>
           )}
@@ -379,13 +425,13 @@ export default function PresupuestoHogarClient({
 
       {/* ── Tabla de ingresos ── */}
       <div className="glass-card rounded-3xl overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid var(--divider)' }}>
-          <h2 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>
+        <div className="flex items-center justify-between px-6 py-4 bg-emerald-700">
+          <h2 className="font-bold text-base text-white">
             Ingresos
-            <span className="ml-2 text-sm font-normal" style={{ color: 'var(--text-muted)' }}>{ingresos.length} entrada{ingresos.length !== 1 ? 's' : ''}</span>
+            <span className="ml-2 text-sm font-normal text-white/80">{ingresos.length} entrada{ingresos.length !== 1 ? 's' : ''}</span>
           </h2>
           {canEdit && (
-            <button onClick={() => setModal(emptyIngreso())} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold text-white" style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
+            <button onClick={() => setModal(emptyIngreso())} className="flex items-center gap-1.5 py-1.5 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-2xl transition-colors px-3 text-sm">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Nuevo
             </button>
@@ -397,7 +443,7 @@ export default function PresupuestoHogarClient({
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--divider)' }}>
+                <tr style={{ borderBottom: '1px solid var(--divider)', background: 'var(--bg-page)' }}>
                   <PlainTh label="Concepto" />
                   <PlainTh label="Importe" />
                   {canEdit && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Acciones</th>}
@@ -405,7 +451,8 @@ export default function PresupuestoHogarClient({
               </thead>
               <tbody>
                 {ingresos.map(f => (
-                  <tr key={f.id} style={{ borderBottom: '1px solid var(--divider)' }}
+                  <tr key={f.id} style={{ borderBottom: '1px solid var(--divider)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
+                    onClick={() => { if (isMobile && canEdit) openEdit(f); }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-page)'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
                     <td className="px-4 py-3">
@@ -416,10 +463,10 @@ export default function PresupuestoHogarClient({
                     {canEdit && (
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => openEdit(f)} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                          <button onClick={e => { e.stopPropagation(); openEdit(f); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                          <button onClick={() => setDeleteId(f.id)} className="p-1.5 rounded-lg transition-colors text-red-400"
+                          <button onClick={e => { e.stopPropagation(); setDeleteId(f.id); }} className="p-1.5 rounded-lg transition-colors text-red-400"
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
                         </div>
@@ -445,6 +492,81 @@ export default function PresupuestoHogarClient({
         <ConfirmDialog message="¿Eliminar esta entrada fija?" onConfirm={() => handleDelete(deleteId)} onCancel={() => setDeleteId(null)} />
       )}
 
+      {editingAuto && (
+        <AutoConfigModalHogar
+          current={objetivosCfg}
+          catGasto={catGasto}
+          catPrestamo={catPrestamo}
+          onClose={() => setEditingAuto(null)}
+          onSave={async (banco, categoria) => {
+            await fetch('/api/presupuesto/auto', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: 'objetivos', banco, categoria }) });
+            setAutoConfigs(prev => {
+              const next = prev.filter(c => c.tipo !== 'objetivos');
+              return [...next, { tipo: 'objetivos' as const, banco, categoria }];
+            });
+            setEditingAuto(null);
+          }}
+        />
+      )}
+
+    </div>
+  );
+}
+
+// ── Modal configuración automática (Objetivos de ahorro) ──────────────────────
+
+function AutoConfigModalHogar({ current, catGasto, catPrestamo, onClose, onSave }: {
+  current: { banco: string | null; categoria: string | null };
+  catGasto: Categoria[];
+  catPrestamo: Categoria[];
+  onClose: () => void;
+  onSave: (banco: string | null, categoria: string | null) => Promise<void>;
+}) {
+  const [banco, setBanco] = useState(current.banco ?? '');
+  const [categoria, setCategoria] = useState(current.categoria ?? '');
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    await onSave(banco || null, categoria || null);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="glass-card rounded-3xl p-6 w-full max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>Objetivos de ahorro</span>
+            <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Configurar</h3>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-xl" style={{ color: 'var(--text-muted)', background: 'var(--btn-hover)' }}>×</button>
+        </div>
+        <form onSubmit={handleSave} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Categoría</label>
+            <select value={categoria} onChange={e => setCategoria(e.target.value)} className={inputCls} style={inputStyle}>
+              <option value="">Sin categoría</option>
+              {catGasto.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Banco</label>
+            <select value={banco} onChange={e => setBanco(e.target.value)} className={inputCls} style={inputStyle}>
+              <option value="">Sin banco</option>
+              {catPrestamo.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
+            </select>
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-50 shadow-lg" style={{ background: 'linear-gradient(135deg, #f59e0b, #f59e0bcc)' }}>
+              {saving ? 'Guardando…' : 'Guardar'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { mensualNecesario } from './ahorroObjetivos';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'financeme.db');
 
@@ -98,6 +99,7 @@ function initSchema(db: Database.Database) {
       role TEXT NOT NULL DEFAULT 'visor' CHECK(role IN ('admin', 'editor', 'visor')),
       avatar_url TEXT,
       must_change_password INTEGER NOT NULL DEFAULT 0,
+      tutorial_seen INTEGER NOT NULL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -198,6 +200,46 @@ function initSchema(db: Database.Database) {
       comentario TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS personal_ingresos_fijos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      concepto TEXT NOT NULL,
+      importe REAL NOT NULL DEFAULT 0,
+      comentario TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS personal_ahorro_objetivos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      nombre TEXT NOT NULL,
+      objetivo REAL NOT NULL DEFAULT 0,
+      fecha_objetivo TEXT NOT NULL,
+      aportado REAL NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS ahorro_objetivos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nombre TEXT NOT NULL,
+      objetivo REAL NOT NULL DEFAULT 0,
+      fecha_objetivo TEXT NOT NULL,
+      aportado REAL NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS presupuesto_auto (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tipo TEXT NOT NULL UNIQUE,
+      banco TEXT,
+      categoria TEXT
+    );
   `);
 }
 
@@ -271,6 +313,18 @@ function runMigrations(db: Database.Database) {
   // Migration: add must_change_password column to existing databases
   try {
     db.exec('ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0');
+  } catch {}
+
+  // Migration: add tutorial_seen column to existing databases
+  try {
+    db.exec('ALTER TABLE users ADD COLUMN tutorial_seen INTEGER NOT NULL DEFAULT 0');
+  } catch {}
+
+  // Migration: add version_seen column to existing databases.
+  // Backfilled to an old version so existing users see the "new version"
+  // badge once when this feature itself is deployed.
+  try {
+    db.exec("ALTER TABLE users ADD COLUMN version_seen TEXT NOT NULL DEFAULT 'v1.0.0'");
   } catch {}
 
   // Migration: add banco column to personal_gastos_mes
@@ -510,6 +564,11 @@ export function applyFijosToMes(mesId: number, mes: number, anio: number) {
     if (isVencido(f)) continue;
     insertIngreso.run(mesId, f.gasto, f.importe, f.comentario);
   }
+
+  const objetivosMensual = getAhorroObjetivos().reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
+  if (objetivosMensual > 0) {
+    insertGasto.run(mesId, 'Objetivos de ahorro', null, null, null, objetivosMensual, 'Aportación mensual necesaria para los objetivos de ahorro en progreso');
+  }
 }
 
 export interface MesBalance {
@@ -670,6 +729,8 @@ export interface DbUser {
   role: 'admin' | 'editor' | 'visor';
   avatar_url: string | null;
   must_change_password: number;
+  tutorial_seen: number;
+  version_seen: string;
   created_at: string;
 }
 
@@ -717,9 +778,29 @@ export function updateUserPassword(id: number, passwordHash: string): void {
   db.prepare('UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?').run(passwordHash, id);
 }
 
+export function resetUserPassword(id: number, passwordHash: string): void {
+  const db = getDb();
+  db.prepare('UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?').run(passwordHash, id);
+}
+
+export function updateUserRole(id: number, role: 'admin' | 'editor' | 'visor'): void {
+  const db = getDb();
+  db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id);
+}
+
 export function clearMustChangePassword(id: number): void {
   const db = getDb();
   db.prepare('UPDATE users SET must_change_password = 0 WHERE id = ?').run(id);
+}
+
+export function markTutorialSeen(id: number): void {
+  const db = getDb();
+  db.prepare('UPDATE users SET tutorial_seen = 1 WHERE id = ?').run(id);
+}
+
+export function markVersionSeen(id: number, version: string): void {
+  const db = getDb();
+  db.prepare('UPDATE users SET version_seen = ? WHERE id = ?').run(version, id);
 }
 
 export function updateUserAvatar(id: number, avatarUrl: string): void {
@@ -732,9 +813,15 @@ export function clearUserAvatar(id: number): void {
   db.prepare('UPDATE users SET avatar_url = NULL WHERE id = ?').run(id);
 }
 
-export function isHogarInitialized(): boolean {
+export function isHogarActivated(): boolean {
   const db = getDb();
-  return ((db.prepare('SELECT COUNT(*) as n FROM meses').get() as { n: number }).n) > 0;
+  const row = db.prepare("SELECT value FROM app_settings WHERE key = 'hogar_activated'").get() as { value: string } | undefined;
+  return row?.value === '1';
+}
+
+export function activateHogar(): void {
+  const db = getDb();
+  db.prepare("INSERT INTO app_settings (key, value) VALUES ('hogar_activated', '1') ON CONFLICT(key) DO UPDATE SET value = '1'").run();
 }
 
 export function updateUserProfile(id: number, nombre: string): void {
@@ -803,11 +890,35 @@ export function deletePersonalGasto(id: number, userId: number): void {
   getDb().prepare('DELETE FROM personal_gastos_fijos WHERE id = ? AND user_id = ?').run(id, userId);
 }
 
+// ── Personal: Ingresos Fijos ──────────────────────────────────────────────
+
+export interface PersonalIngresoFijo {
+  id: number; user_id: number; concepto: string; importe: number;
+  comentario: string | null; created_at: string;
+}
+
+export function getPersonalIngresosFijos(userId: number): PersonalIngresoFijo[] {
+  return getDb().prepare('SELECT * FROM personal_ingresos_fijos WHERE user_id = ? ORDER BY concepto').all(userId) as PersonalIngresoFijo[];
+}
+export function createPersonalIngresoFijo(userId: number, data: Omit<PersonalIngresoFijo, 'id' | 'user_id' | 'created_at'>): void {
+  getDb().prepare(
+    'INSERT INTO personal_ingresos_fijos (user_id, concepto, importe, comentario) VALUES (?, ?, ?, ?)'
+  ).run(userId, data.concepto, data.importe, data.comentario);
+}
+export function updatePersonalIngresoFijo(id: number, userId: number, data: Omit<PersonalIngresoFijo, 'id' | 'user_id' | 'created_at'>): void {
+  getDb().prepare(
+    'UPDATE personal_ingresos_fijos SET concepto = ?, importe = ?, comentario = ? WHERE id = ? AND user_id = ?'
+  ).run(data.concepto, data.importe, data.comentario, id, userId);
+}
+export function deletePersonalIngresoFijo(id: number, userId: number): void {
+  getDb().prepare('DELETE FROM personal_ingresos_fijos WHERE id = ? AND user_id = ?').run(id, userId);
+}
+
 // ── Personal: Suscripciones ────────────────────────────────────────────────
 
 export interface PersonalSuscripcion {
   id: number; user_id: number; nombre: string; importe: number;
-  cobro: string | null; periodicidad: 'mensual' | 'anual'; comentario: string | null;
+  cobro: string | null; periodicidad: 'mensual' | 'trimestral' | 'anual'; comentario: string | null;
   created_at: string;
 }
 
@@ -862,6 +973,60 @@ export function updatePersonalAhorroMes(userId: number, anio: number, mes: numbe
   const row = db.prepare('SELECT id FROM personal_ahorro WHERE user_id = ? AND anio = ?').get(userId, anio) as { id: number } | null;
   if (!row) return;
   db.prepare('INSERT INTO personal_ahorro_mes (ahorro_id, mes, aportado) VALUES (?, ?, ?) ON CONFLICT(ahorro_id, mes) DO UPDATE SET aportado = excluded.aportado').run(row.id, mes, aportado);
+}
+
+// ── Personal: Objetivos de ahorro ──────────────────────────────────────────
+
+export interface PersonalAhorroObjetivo {
+  id: number; user_id: number; nombre: string; objetivo: number;
+  fecha_objetivo: string; aportado: number; created_at: string;
+}
+
+export function getPersonalAhorroObjetivos(userId: number): PersonalAhorroObjetivo[] {
+  return getDb().prepare('SELECT * FROM personal_ahorro_objetivos WHERE user_id = ? ORDER BY fecha_objetivo').all(userId) as PersonalAhorroObjetivo[];
+}
+export function createPersonalAhorroObjetivo(userId: number, data: { nombre: string; objetivo: number; fecha_objetivo: string }): void {
+  getDb().prepare(
+    'INSERT INTO personal_ahorro_objetivos (user_id, nombre, objetivo, fecha_objetivo) VALUES (?, ?, ?, ?)'
+  ).run(userId, data.nombre, data.objetivo, data.fecha_objetivo);
+}
+export function updatePersonalAhorroObjetivoDatos(id: number, userId: number, data: { nombre: string; objetivo: number; fecha_objetivo: string }): void {
+  getDb().prepare(
+    'UPDATE personal_ahorro_objetivos SET nombre = ?, objetivo = ?, fecha_objetivo = ? WHERE id = ? AND user_id = ?'
+  ).run(data.nombre, data.objetivo, data.fecha_objetivo, id, userId);
+}
+export function updatePersonalAhorroObjetivoAportado(id: number, userId: number, aportado: number): void {
+  getDb().prepare('UPDATE personal_ahorro_objetivos SET aportado = ? WHERE id = ? AND user_id = ?').run(aportado, id, userId);
+}
+export function deletePersonalAhorroObjetivo(id: number, userId: number): void {
+  getDb().prepare('DELETE FROM personal_ahorro_objetivos WHERE id = ? AND user_id = ?').run(id, userId);
+}
+
+// ── Hogar: Objetivos de ahorro ─────────────────────────────────────────────
+
+export interface AhorroObjetivo {
+  id: number; nombre: string; objetivo: number;
+  fecha_objetivo: string; aportado: number; created_at: string;
+}
+
+export function getAhorroObjetivos(): AhorroObjetivo[] {
+  return getDb().prepare('SELECT * FROM ahorro_objetivos ORDER BY fecha_objetivo').all() as AhorroObjetivo[];
+}
+export function createAhorroObjetivo(data: { nombre: string; objetivo: number; fecha_objetivo: string }): void {
+  getDb().prepare(
+    'INSERT INTO ahorro_objetivos (nombre, objetivo, fecha_objetivo) VALUES (?, ?, ?)'
+  ).run(data.nombre, data.objetivo, data.fecha_objetivo);
+}
+export function updateAhorroObjetivoDatos(id: number, data: { nombre: string; objetivo: number; fecha_objetivo: string }): void {
+  getDb().prepare(
+    'UPDATE ahorro_objetivos SET nombre = ?, objetivo = ?, fecha_objetivo = ? WHERE id = ?'
+  ).run(data.nombre, data.objetivo, data.fecha_objetivo, id);
+}
+export function updateAhorroObjetivoAportado(id: number, aportado: number): void {
+  getDb().prepare('UPDATE ahorro_objetivos SET aportado = ? WHERE id = ?').run(aportado, id);
+}
+export function deleteAhorroObjetivo(id: number): void {
+  getDb().prepare('DELETE FROM ahorro_objetivos WHERE id = ?').run(id);
 }
 
 // ── Personal: Gastos de mes ────────────────────────────────────────────────
@@ -928,6 +1093,10 @@ export function createPersonalMes(userId: number, mes: number, anio: number): vo
 
 export function clearPersonalMesGastos(userId: number, mes: number, anio: number): void {
   getDb().prepare('DELETE FROM personal_gastos_mes WHERE user_id = ? AND mes = ? AND anio = ?').run(userId, mes, anio);
+}
+
+export function clearPersonalMesIngresos(userId: number, mes: number, anio: number): void {
+  getDb().prepare('DELETE FROM personal_ingresos_mes WHERE user_id = ? AND mes = ? AND anio = ?').run(userId, mes, anio);
 }
 
 // ── Personal: Ingresos de mes ──────────────────────────────────────────────
@@ -1020,7 +1189,7 @@ export function getPersonalEvolucion(userId: number, limit = 6): PersonalMesEvol
 // ── Personal: Presupuesto auto-config ─────────────────────────────────────
 
 export interface PresupuestoAutoConfig {
-  tipo: 'suscripciones' | 'ahorro';
+  tipo: 'suscripciones' | 'ahorro' | 'objetivos';
   banco: string | null;
   categoria: string | null;
 }
@@ -1035,4 +1204,16 @@ export function upsertPresupuestoAuto(userId: number, tipo: string, banco: strin
   getDb().prepare(
     'INSERT INTO personal_presupuesto_auto (user_id, tipo, banco, categoria) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, tipo) DO UPDATE SET banco = excluded.banco, categoria = excluded.categoria'
   ).run(userId, tipo, banco, categoria);
+}
+
+// ── Hogar: Presupuesto auto-config ─────────────────────────────────────────
+
+export function getPresupuestoAutoConfigsHogar(): PresupuestoAutoConfig[] {
+  return getDb().prepare('SELECT tipo, banco, categoria FROM presupuesto_auto').all() as PresupuestoAutoConfig[];
+}
+
+export function upsertPresupuestoAutoHogar(tipo: string, banco: string | null, categoria: string | null): void {
+  getDb().prepare(
+    'INSERT INTO presupuesto_auto (tipo, banco, categoria) VALUES (?, ?, ?) ON CONFLICT(tipo) DO UPDATE SET banco = excluded.banco, categoria = excluded.categoria'
+  ).run(tipo, banco, categoria);
 }

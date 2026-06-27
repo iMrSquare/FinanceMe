@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb, getCategorias } from '@/lib/db';
+import { getSession, canEdit } from '@/lib/auth';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -9,6 +10,10 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const session = await getSession();
+  if (!session || !canEdit(session.role)) {
+    return NextResponse.json({ error: 'Sin permisos' }, { status: 403 });
+  }
   const { tipo, nombre, color } = await req.json();
   if (!tipo || !nombre) return NextResponse.json({ error: 'tipo y nombre requeridos' }, { status: 400 });
   const db = getDb();

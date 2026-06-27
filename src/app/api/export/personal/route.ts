@@ -18,8 +18,10 @@ export async function GET() {
       categorias:        db.prepare('SELECT * FROM personal_categorias WHERE user_id = ? ORDER BY id').all(userId),
       bancos:            db.prepare('SELECT * FROM personal_bancos WHERE user_id = ? ORDER BY id').all(userId),
       gastos_fijos:      db.prepare('SELECT * FROM personal_gastos_fijos WHERE user_id = ? ORDER BY id').all(userId),
+      ingresos_fijos:    db.prepare('SELECT * FROM personal_ingresos_fijos WHERE user_id = ? ORDER BY id').all(userId),
       suscripciones:     db.prepare('SELECT * FROM personal_suscripciones WHERE user_id = ? ORDER BY id').all(userId),
       ahorro:            db.prepare('SELECT * FROM personal_ahorro WHERE user_id = ? ORDER BY anio').all(userId),
+      ahorro_objetivos:  db.prepare('SELECT * FROM personal_ahorro_objetivos WHERE user_id = ? ORDER BY id').all(userId),
       ahorro_mes:        db.prepare(`
         SELECT pam.* FROM personal_ahorro_mes pam
         JOIN personal_ahorro pa ON pa.id = pam.ahorro_id

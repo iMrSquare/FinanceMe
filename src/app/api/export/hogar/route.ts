@@ -22,6 +22,8 @@ export async function GET() {
       fijos:        db.prepare('SELECT * FROM fijos ORDER BY id').all(),
       registro_luz: db.prepare('SELECT * FROM registro_luz ORDER BY anio, id').all(),
       registro_agua:db.prepare('SELECT * FROM registro_agua ORDER BY anio, id').all(),
+      ahorro_objetivos: db.prepare('SELECT * FROM ahorro_objetivos ORDER BY id').all(),
+      presupuesto_auto: db.prepare('SELECT * FROM presupuesto_auto ORDER BY id').all(),
     },
   };
 

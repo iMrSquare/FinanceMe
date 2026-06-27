@@ -11,8 +11,10 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }); }
   if (body.type !== 'hogar') return NextResponse.json({ error: 'El fichero no es de tipo hogar' }, { status: 400 });
 
-  const { meses = [], ingresos = [], gastos = [], prestamos = [], categorias = [], fijos = [], registro_luz = [], registro_agua = [] } =
-    (body.data ?? {}) as Record<string, unknown[]>;
+  const {
+    meses = [], ingresos = [], gastos = [], prestamos = [], categorias = [], fijos = [],
+    registro_luz = [], registro_agua = [], ahorro_objetivos = [], presupuesto_auto = [],
+  } = (body.data ?? {}) as Record<string, unknown[]>;
 
   const db = getDb();
   let importado = 0;
@@ -27,7 +29,7 @@ export async function POST(req: NextRequest) {
 
       // ── Fijos (siempre insertar) ─────────────────────────────────────────
       for (const f of fijos as Array<Record<string, unknown>>) {
-        db.prepare('INSERT INTO fijos (tipo, gasto, categoria, importe, comentario) VALUES (?, ?, ?, ?, ?)').run(f.tipo, f.gasto, f.categoria ?? null, f.importe, f.comentario ?? null);
+        db.prepare('INSERT INTO fijos (tipo, gasto, categoria, banco, importe, comentario, cobro, vencimiento) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(f.tipo, f.gasto, f.categoria ?? null, f.banco ?? null, f.importe, f.comentario ?? null, f.cobro ?? null, f.vencimiento ?? null);
         importado++;
       }
 
@@ -52,19 +54,19 @@ export async function POST(req: NextRequest) {
       for (const i of ingresos as Array<Record<string, unknown>>) {
         const newMesId = mesIdMap[i.mes_id as number];
         if (!newMesId) continue;
-        db.prepare('INSERT INTO ingresos (mes_id, inquilino, aportacion) VALUES (?, ?, ?)').run(newMesId, i.inquilino, i.aportacion);
+        db.prepare('INSERT INTO ingresos (mes_id, inquilino, aportacion, comentario) VALUES (?, ?, ?, ?)').run(newMesId, i.inquilino, i.aportacion, i.comentario ?? null);
         importado++;
       }
       for (const g of gastos as Array<Record<string, unknown>>) {
         const newMesId = mesIdMap[g.mes_id as number];
         if (!newMesId) continue;
-        db.prepare('INSERT INTO gastos (mes_id, gasto, fecha, categoria, importe, comentario) VALUES (?, ?, ?, ?, ?, ?)').run(newMesId, g.gasto, g.fecha ?? null, g.categoria ?? null, g.importe, g.comentario ?? null);
+        db.prepare('INSERT INTO gastos (mes_id, gasto, fecha, categoria, banco, importe, comentario) VALUES (?, ?, ?, ?, ?, ?, ?)').run(newMesId, g.gasto, g.fecha ?? null, g.categoria ?? null, g.banco ?? null, g.importe, g.comentario ?? null);
         importado++;
       }
       for (const p of prestamos as Array<Record<string, unknown>>) {
         const newMesId = mesIdMap[p.mes_id as number];
         if (!newMesId) continue;
-        db.prepare('INSERT INTO prestamos (mes_id, gasto, fecha, categoria, importe, comentario) VALUES (?, ?, ?, ?, ?, ?)').run(newMesId, p.gasto, p.fecha ?? null, p.categoria ?? null, p.importe, p.comentario ?? null);
+        db.prepare('INSERT INTO prestamos (mes_id, gasto, fecha, categoria, banco, importe, comentario) VALUES (?, ?, ?, ?, ?, ?, ?)').run(newMesId, p.gasto, p.fecha ?? null, p.categoria ?? null, p.banco ?? null, p.importe, p.comentario ?? null);
         importado++;
       }
 
@@ -75,6 +77,18 @@ export async function POST(req: NextRequest) {
       }
       for (const r of registro_agua as Array<Record<string, unknown>>) {
         db.prepare('INSERT INTO registro_agua (anio, nombre, importe, m3, fecha_lectura_inicio, fecha_lectura_fin, fecha_cobro, compania) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(r.anio, r.nombre, r.importe, r.m3 ?? null, r.fecha_lectura_inicio ?? null, r.fecha_lectura_fin ?? null, r.fecha_cobro ?? null, r.compania ?? null);
+        importado++;
+      }
+
+      // ── Objetivos de ahorro (siempre insertar) ──────────────────────────
+      for (const o of ahorro_objetivos as Array<Record<string, unknown>>) {
+        db.prepare('INSERT INTO ahorro_objetivos (nombre, objetivo, fecha_objetivo, aportado) VALUES (?, ?, ?, ?)').run(o.nombre, o.objetivo, o.fecha_objetivo, o.aportado ?? 0);
+        importado++;
+      }
+
+      // ── Presupuesto auto (upsert por tipo) ──────────────────────────────
+      for (const p of presupuesto_auto as Array<Record<string, unknown>>) {
+        db.prepare('INSERT INTO presupuesto_auto (tipo, banco, categoria) VALUES (?, ?, ?) ON CONFLICT(tipo) DO UPDATE SET banco = excluded.banco, categoria = excluded.categoria').run(p.tipo, p.banco ?? null, p.categoria ?? null);
         importado++;
       }
     })();

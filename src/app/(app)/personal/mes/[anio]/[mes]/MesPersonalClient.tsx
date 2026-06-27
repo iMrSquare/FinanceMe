@@ -1,11 +1,13 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import type { PersonalGastoMes, PersonalIngresoMes, PersonalCategoria, PersonalMes, PersonalGastoFijo } from '@/lib/db';
+import type { PersonalGastoMes, PersonalIngresoMes, PersonalCategoria, PersonalMes, PersonalGastoFijo, PersonalIngresoFijo } from '@/lib/db';
 import { BanknoteIcon, ReceiptIcon, BankIcon, PencilIcon, TrashIcon, SettingsIcon } from '@/components/icons';
 import type { PersonalBanco } from '@/lib/db';
 import { autoText } from '@/components/ColorDots';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import InfoExpand from '@/components/InfoExpand';
+import { useIsMobile } from '@/lib/useIsMobile';
 
 const MESES_NOMBRES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -37,6 +39,7 @@ interface Props {
   categorias: PersonalCategoria[];
   bancos: PersonalBanco[];
   gastosFijos: PersonalGastoFijo[];
+  ingresosFijos: PersonalIngresoFijo[];
 }
 
 type ModalState =
@@ -53,8 +56,10 @@ export default function MesPersonalClient({
   categorias: initCats,
   bancos,
   gastosFijos,
+  ingresosFijos,
 }: Props) {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [meses, setMeses] = useState(initMeses);
   const [gastos, setGastos] = useState(initGastos);
   const [ingresos, setIngresos] = useState(initIngresos);
@@ -143,6 +148,7 @@ export default function MesPersonalClient({
         {modal.type === 'nuevoMes' && (
           <NuevoMesModal
             gastosFijos={gastosFijos}
+            ingresosFijos={ingresosFijos}
             mesesCreados={meses}
             onClose={() => setModal({ type: 'none' })}
             onCreate={(a, m) => { setModal({ type: 'none' }); router.push(`/personal/mes/${a}/${m}`); }}
@@ -163,6 +169,9 @@ export default function MesPersonalClient({
             </svg>
           </div>
           <h1 className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>{nombre}</h1>
+          <InfoExpand title="¿Qué es Mes?">
+            <p>Aquí registras todos los gastos del mes con su categoría, fecha y banco. Al crear el mes puedes importar automáticamente los datos de tu Presupuesto para no tener que volver a introducirlos.</p>
+          </InfoExpand>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -255,7 +264,8 @@ export default function MesPersonalClient({
               </thead>
               <tbody>
                 {ingresos.map(i => (
-                  <tr key={i.id} className="group">
+                  <tr key={i.id} className="group" style={{ cursor: isMobile ? 'pointer' : undefined }}
+                    onClick={() => { if (isMobile) setModal({ type: 'ingreso', item: i }); }}>
                     <td className="py-3 px-4">
                       <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{i.concepto}</span>
                       {i.comentario && <p className="text-xs truncate max-w-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{i.comentario}</p>}
@@ -295,7 +305,8 @@ export default function MesPersonalClient({
                 {gastos.map(g => {
                   const banco = bancos.find(b => b.nombre === g.banco);
                   return (
-                    <tr key={g.id} className="group">
+                    <tr key={g.id} className="group" style={{ cursor: isMobile ? 'pointer' : undefined }}
+                      onClick={() => { if (isMobile) setModal({ type: 'gasto', item: g }); }}>
                       <td className="py-3 px-4">
                         <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{g.concepto}</span>
                         {g.comentario && <p className="text-xs truncate max-w-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{g.comentario}</p>}
@@ -350,6 +361,7 @@ export default function MesPersonalClient({
       {modal.type === 'nuevoMes' && (
         <NuevoMesModal
           gastosFijos={gastosFijos}
+          ingresosFijos={ingresosFijos}
           mesesCreados={meses}
           onClose={() => setModal({ type: 'none' })}
           onCreate={(a, m) => { setModal({ type: 'none' }); router.push(`/personal/mes/${a}/${m}`); }}
@@ -412,12 +424,12 @@ function EmptyRow() {
 function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
   return (
     <div className="flex gap-1 justify-end">
-      <button onClick={onEdit} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+      <button onClick={e => { e.stopPropagation(); onEdit(); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
         onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
         onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}>
         <PencilIcon />
       </button>
-      <button onClick={onDelete} className="p-1.5 rounded-lg text-red-400 hover:text-red-600 transition-colors">
+      <button onClick={e => { e.stopPropagation(); onDelete(); }} className="p-1.5 rounded-lg text-red-400 hover:text-red-600 transition-colors">
         <TrashIcon />
       </button>
     </div>
@@ -485,8 +497,9 @@ function FormActions({ loading, onCancel }: { loading: boolean; onCancel: () => 
 
 // ── Modal nuevo mes ───────────────────────────────────────────────────────────
 
-function NuevoMesModal({ gastosFijos, mesesCreados, onClose, onCreate }: {
+function NuevoMesModal({ gastosFijos, ingresosFijos, mesesCreados, onClose, onCreate }: {
   gastosFijos: PersonalGastoFijo[];
+  ingresosFijos: PersonalIngresoFijo[];
   mesesCreados: PersonalMes[];
   onClose: () => void;
   onCreate: (anio: number, mes: number) => void;
@@ -497,7 +510,7 @@ function NuevoMesModal({ gastosFijos, mesesCreados, onClose, onCreate }: {
 
   const [selectedAnio, setSelectedAnio] = useState(currentAnio);
   const [selectedMes,  setSelectedMes]  = useState(currentMes);
-  const [importarFijos, setImportarFijos] = useState(gastosFijos.length > 0);
+  const [importarFijos, setImportarFijos] = useState(gastosFijos.length > 0 || ingresosFijos.length > 0);
   const [sobrescribir, setSobrescribir] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
@@ -569,7 +582,7 @@ function NuevoMesModal({ gastosFijos, mesesCreados, onClose, onCreate }: {
                 </div>
               </label>
             </div>
-          ) : gastosFijos.length > 0 ? (
+          ) : (gastosFijos.length > 0 || ingresosFijos.length > 0) ? (
             <div className="px-6 pb-4" style={{ borderTop: '1px solid var(--divider)' }}>
               <p className="text-xs font-bold uppercase tracking-wide mt-4 mb-3" style={{ color: 'var(--text-muted)' }}>
                 Gastos fijos del presupuesto
@@ -580,7 +593,9 @@ function NuevoMesModal({ gastosFijos, mesesCreados, onClose, onCreate }: {
                 </div>
                 <div>
                   <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Importar presupuesto</span>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{gastosFijos.length} gasto{gastosFijos.length !== 1 ? 's' : ''} fijo{gastosFijos.length !== 1 ? 's' : ''}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    {gastosFijos.length} gasto{gastosFijos.length !== 1 ? 's' : ''} fijo{gastosFijos.length !== 1 ? 's' : ''} · {ingresosFijos.length} ingreso{ingresosFijos.length !== 1 ? 's' : ''} fijo{ingresosFijos.length !== 1 ? 's' : ''}
+                  </p>
                 </div>
               </label>
             </div>

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
+import { monthlyEquivalent } from '@/lib/billing';
+import { mensualNecesario } from '@/lib/ahorroObjetivos';
 import {
   createPersonalMes, getPersonalGastos, createPersonalGastoMes,
-  getPersonalSuscripciones, getPersonalAhorro, getPresupuestoAutoConfigs,
-  personalMesExists, clearPersonalMesGastos,
+  getPersonalIngresosFijos, createPersonalIngresoMes,
+  getPersonalSuscripciones, getPersonalAhorro, getPersonalAhorroObjetivos, getPresupuestoAutoConfigs,
+  personalMesExists, clearPersonalMesGastos, clearPersonalMesIngresos,
 } from '@/lib/db';
 import type { PersonalGastoFijo } from '@/lib/db';
 
@@ -21,6 +24,52 @@ function isVencido(f: PersonalGastoFijo, mes: number, anio: number): boolean {
   if (!f.vencimiento) return false;
   const [vAnio, vMes] = f.vencimiento.split('T')[0].split('-').map(Number);
   return vAnio < anio || (vAnio === anio && vMes < mes);
+}
+
+function applyVirtualRows(userId: number, anioNum: number, mesNum: number) {
+  const autoConfigs = getPresupuestoAutoConfigs(userId);
+
+  const suscs = getPersonalSuscripciones(userId);
+  const suscReal = suscs.reduce((s, sub) => s + monthlyEquivalent(sub.importe, sub.periodicidad), 0);
+  if (suscReal > 0) {
+    const cfg = autoConfigs.find(c => c.tipo === 'suscripciones');
+    createPersonalGastoMes(userId, anioNum, mesNum, {
+      concepto: 'Suscripciones',
+      importe: roundUp5(suscReal),
+      categoria: cfg?.categoria ?? null,
+      banco: cfg?.banco ?? null,
+      fecha: null,
+      comentario: `Total suscripciones redondeado (real: ${suscReal.toFixed(2)} €)`,
+    });
+  }
+
+  const ahorro = getPersonalAhorro(userId, anioNum);
+  const ahorroMensual = ahorro.objetivo_anual / 12;
+  if (ahorroMensual > 0) {
+    const cfg = autoConfigs.find(c => c.tipo === 'ahorro');
+    createPersonalGastoMes(userId, anioNum, mesNum, {
+      concepto: 'Ahorro mensual',
+      importe: ahorroMensual,
+      categoria: cfg?.categoria ?? null,
+      banco: cfg?.banco ?? null,
+      fecha: null,
+      comentario: `Objetivo ${ahorro.objetivo_anual} € / año ÷ 12 redondeado`,
+    });
+  }
+
+  const objetivosMensual = getPersonalAhorroObjetivos(userId)
+    .reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
+  if (objetivosMensual > 0) {
+    const cfg = autoConfigs.find(c => c.tipo === 'objetivos');
+    createPersonalGastoMes(userId, anioNum, mesNum, {
+      concepto: 'Objetivos de ahorro',
+      importe: objetivosMensual,
+      categoria: cfg?.categoria ?? null,
+      banco: cfg?.banco ?? null,
+      fecha: null,
+      comentario: 'Aportación mensual necesaria para tus objetivos de ahorro en progreso',
+    });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -42,6 +91,7 @@ export async function POST(request: NextRequest) {
 
   if (sobrescribir && alreadyExists) {
     clearPersonalMesGastos(session.id, mesNum, anioNum);
+    clearPersonalMesIngresos(session.id, mesNum, anioNum);
     // Import fijos with cobro→fecha conversion
     const fijos = getPersonalGastos(session.id);
     for (const f of fijos) {
@@ -53,6 +103,13 @@ export async function POST(request: NextRequest) {
         comentario: f.comentario,
       });
     }
+    const ingresosFijos = getPersonalIngresosFijos(session.id);
+    for (const i of ingresosFijos) {
+      createPersonalIngresoMes(session.id, anioNum, mesNum, {
+        concepto: i.concepto, importe: i.importe, fecha: null, comentario: i.comentario,
+      });
+    }
+    applyVirtualRows(session.id, anioNum, mesNum);
     return NextResponse.json({ ok: true, anio: anioNum, mes: mesNum });
   }
 
@@ -74,33 +131,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const autoConfigs = getPresupuestoAutoConfigs(session.id);
+    applyVirtualRows(session.id, anioNum, mesNum);
 
-    const suscs = getPersonalSuscripciones(session.id);
-    const suscReal = suscs.reduce((s, sub) => s + (sub.periodicidad === 'anual' ? sub.importe / 12 : sub.importe), 0);
-    if (suscReal > 0) {
-      const cfg = autoConfigs.find(c => c.tipo === 'suscripciones');
-      createPersonalGastoMes(session.id, anioNum, mesNum, {
-        concepto: 'Suscripciones',
-        importe: roundUp5(suscReal),
-        categoria: cfg?.categoria ?? null,
-        banco: cfg?.banco ?? null,
-        fecha: null,
-        comentario: `Total suscripciones redondeado (real: ${suscReal.toFixed(2)} €)`,
-      });
-    }
-
-    const ahorro = getPersonalAhorro(session.id, anioNum);
-    const ahorroMensual = ahorro.objetivo_anual / 12;
-    if (ahorroMensual > 0) {
-      const cfg = autoConfigs.find(c => c.tipo === 'ahorro');
-      createPersonalGastoMes(session.id, anioNum, mesNum, {
-        concepto: 'Ahorro mensual',
-        importe: ahorroMensual,
-        categoria: cfg?.categoria ?? null,
-        banco: cfg?.banco ?? null,
-        fecha: null,
-        comentario: `Objetivo ${ahorro.objetivo_anual} € / año ÷ 12 redondeado`,
+    const ingresosFijos = getPersonalIngresosFijos(session.id);
+    for (const i of ingresosFijos) {
+      createPersonalIngresoMes(session.id, anioNum, mesNum, {
+        concepto: i.concepto, importe: i.importe, fecha: null, comentario: i.comentario,
       });
     }
   }

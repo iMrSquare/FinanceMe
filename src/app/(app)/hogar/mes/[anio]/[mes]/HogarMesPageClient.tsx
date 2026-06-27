@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import type { Mes, Gasto, Ingreso, Categoria } from '@/lib/db';
 import { BanknoteIcon, ReceiptIcon, BankIcon, PencilIcon, TrashIcon } from '@/components/icons';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import InfoExpand from '@/components/InfoExpand';
+import { useIsMobile } from '@/lib/useIsMobile';
 
 const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border transition-colors appearance-none';
@@ -146,14 +148,15 @@ function GastoModal({ form, setForm, catGasto, catBanco, onClose, onSave, saving
 }
 
 // ── Section con cabecera coloreada ───────────────────────────────────────────
-function Section({ title, badge, headerClass, onAdd, children }: {
-  title: string; badge: string; headerClass: string;
+function Section({ title, icon, badge, headerClass, onAdd, children }: {
+  title: string; icon?: React.ReactNode; badge: string; headerClass: string;
   onAdd?: () => void; children: React.ReactNode;
 }) {
   return (
     <div className="glass-card rounded-3xl overflow-hidden">
       <div className={`flex items-center justify-between px-5 py-4 ${headerClass}`}>
         <div className="flex items-center gap-3">
+          {icon && <span className="text-white">{icon}</span>}
           <h2 className="font-bold text-white text-base">{title}</h2>
           <span className="text-sm text-white/80 font-mono">{badge}</span>
         </div>
@@ -169,8 +172,8 @@ function Section({ title, badge, headerClass, onAdd, children }: {
   );
 }
 
-function PlainTh({ label }: { label: string }) {
-  return <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>{label}</th>;
+function Th({ children, align = 'left' }: { children?: React.ReactNode; align?: 'left' | 'right' }) {
+  return <th className={align === 'right' ? 'text-right' : ''}>{children}</th>;
 }
 
 // ── Componente principal ─────────────────────────────────────────────────────
@@ -194,6 +197,7 @@ export default function HogarMesPageClient({
   categoriasGasto, categoriasBanco, meses, nombre, canEdit = true,
 }: Props) {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [gastos, setGastos] = useState<Gasto[]>(initGastos);
   const [ingresos, setIngresos] = useState<Ingreso[]>(initIngresos);
   const [ingresoModal, setIngresoModal] = useState<IngresoForm | null>(null);
@@ -275,6 +279,9 @@ export default function HogarMesPageClient({
             </svg>
           </div>
           <h1 className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>{nombre}</h1>
+          <InfoExpand title="¿Qué es Mes?">
+            <p>Aquí se registran todos los gastos del mes del Hogar con su categoría, fecha y banco. Al crear el mes se pueden importar automáticamente los datos del Presupuesto.</p>
+          </InfoExpand>
         </div>
         <div className="flex items-center gap-3">
           {canEdit && (
@@ -337,23 +344,24 @@ export default function HogarMesPageClient({
       </div>
 
       {/* ── Tabla de Ingresos ── */}
-      <Section title="Ingresos" badge={fmt(totalIngresos)} headerClass="bg-emerald-700"
+      <Section title="Ingresos" icon={<BanknoteIcon className="w-4 h-4" />} badge={fmt(totalIngresos)} headerClass="bg-emerald-700"
         onAdd={canEdit ? () => setIngresoModal(emptyIngreso()) : undefined}>
         <div className="overflow-x-auto">
           {ingresos.length === 0 ? (
             <p className="py-14 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Sin ingresos — pulsa "Añadir" para empezar</p>
           ) : (
-            <table className="w-full text-sm">
+            <table className="theme-table">
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--divider)' }}>
-                  <PlainTh label="Concepto" />
-                  <PlainTh label="Importe" />
-                  {canEdit && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Acciones</th>}
+                <tr>
+                  <Th>Concepto</Th>
+                  <Th>Importe</Th>
+                  {canEdit && <Th align="right">Acciones</Th>}
                 </tr>
               </thead>
               <tbody>
                 {ingresos.map(i => (
-                  <tr key={i.id} style={{ borderBottom: '1px solid var(--divider)' }}
+                  <tr key={i.id} style={{ borderBottom: '1px solid var(--divider)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
+                    onClick={() => { if (isMobile && canEdit) editIngreso(i); }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-page)'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
                     <td className="px-4 py-3">
@@ -364,10 +372,10 @@ export default function HogarMesPageClient({
                     {canEdit && (
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => editIngreso(i)} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                          <button onClick={e => { e.stopPropagation(); editIngreso(i); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                          <button onClick={() => deleteIngreso(i.id)} className="p-1.5 rounded-lg transition-colors text-red-400"
+                          <button onClick={e => { e.stopPropagation(); deleteIngreso(i.id); }} className="p-1.5 rounded-lg transition-colors text-red-400"
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
                         </div>
@@ -382,26 +390,27 @@ export default function HogarMesPageClient({
       </Section>
 
       {/* ── Tabla de Gastos ── */}
-      <Section title="Gastos" badge={fmt(totalGastos)} headerClass="bg-orange-600"
+      <Section title="Gastos" icon={<ReceiptIcon className="w-4 h-4" />} badge={fmt(totalGastos)} headerClass="bg-orange-600"
         onAdd={canEdit ? () => setGastoModal(emptyGasto()) : undefined}>
         <div className="overflow-x-auto">
           {gastosSorted.length === 0 ? (
             <p className="py-14 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Sin gastos — pulsa "Añadir" para empezar</p>
           ) : (
-            <table className="w-full min-w-[620px] text-sm">
+            <table className="theme-table min-w-[620px]">
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--divider)' }}>
-                  <PlainTh label="Gasto" />
-                  <PlainTh label="Fecha" />
-                  <PlainTh label="Importe" />
-                  <PlainTh label="Categoría" />
-                  <PlainTh label="Banco" />
-                  {canEdit && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Acciones</th>}
+                <tr>
+                  <Th>Gasto</Th>
+                  <Th>Fecha</Th>
+                  <Th>Importe</Th>
+                  <Th>Categoría</Th>
+                  <Th>Banco</Th>
+                  {canEdit && <Th align="right">Acciones</Th>}
                 </tr>
               </thead>
               <tbody>
                 {gastosSorted.map(g => (
-                  <tr key={g.id} style={{ borderBottom: '1px solid var(--divider)' }}
+                  <tr key={g.id} style={{ borderBottom: '1px solid var(--divider)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
+                    onClick={() => { if (isMobile && canEdit) editGasto(g); }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-page)'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
                     <td className="px-4 py-3">
@@ -417,10 +426,10 @@ export default function HogarMesPageClient({
                     {canEdit && (
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => editGasto(g)} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                          <button onClick={e => { e.stopPropagation(); editGasto(g); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                          <button onClick={() => deleteGasto(g)} className="p-1.5 rounded-lg transition-colors text-red-400"
+                          <button onClick={e => { e.stopPropagation(); deleteGasto(g); }} className="p-1.5 rounded-lg transition-colors text-red-400"
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
                         </div>

@@ -5,6 +5,8 @@ import type { RegistroAgua, Categoria } from '@/lib/db';
 import { DropletIcon, PencilIcon, TrashIcon, SettingsIcon } from './icons';
 import { CircularColorPicker, autoText } from './ColorDots';
 import { ConfirmDialog } from './ConfirmDialog';
+import InfoExpand from './InfoExpand';
+import { useIsMobile } from '@/lib/useIsMobile';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler } from 'chart.js';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
@@ -53,6 +55,7 @@ interface Props {
 
 export default function RegistroAguaClient({ registros: initRegistros, companias: initCompanias, canEdit = true }: Props) {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [registros, setRegistros] = useState(initRegistros);
   const [companias, setCompanias] = useState(initCompanias);
   const [modal, setModal] = useState<ModalState>({ type: 'none' });
@@ -110,6 +113,9 @@ export default function RegistroAguaClient({ registros: initRegistros, companias
             <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Registro Agua</h1>
             <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Historial de consumo de agua</p>
           </div>
+          <InfoExpand title="¿Qué es Registro Agua?">
+            <p>Apunta aquí manualmente los consumos de agua: primero añade la compañía y después cada lectura o factura para ver un historial del gasto. Estos registros son independientes del Presupuesto y del Mes.</p>
+          </InfoExpand>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {years.length > 0 && (
@@ -217,7 +223,8 @@ export default function RegistroAguaClient({ registros: initRegistros, companias
               </thead>
               <tbody>
                 {(byYear[activeYear] ?? []).map((r) => (
-                  <tr key={r.id}>
+                  <tr key={r.id} style={{ cursor: isMobile && canEdit ? 'pointer' : undefined }}
+                    onClick={() => { if (isMobile && canEdit) setModal({ type: 'edit', item: r }); }}>
                     <td className="py-3 px-4 font-semibold">{r.nombre}</td>
                     <td className="py-3 px-4 text-right font-mono font-semibold">{fmt(r.importe)}</td>
                     <td className="py-3 px-4 text-right font-mono" style={{ color: 'var(--text-secondary)' }}>
@@ -235,8 +242,8 @@ export default function RegistroAguaClient({ registros: initRegistros, companias
                     <td className="py-3 px-4"><CompaniaBadge nombre={r.compania} companias={companias} /></td>
                     <td className="py-3 pr-3 text-right">
                       <div className="flex gap-1 justify-end">
-                        {canEdit && <button onClick={() => setModal({ type: 'edit', item: r })} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'} onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>}
-                        {canEdit && <button onClick={() => del(r.id)} className="p-1.5 rounded-lg text-red-400 hover:text-red-600 transition-colors"><TrashIcon /></button>}
+                        {canEdit && <button onClick={e => { e.stopPropagation(); setModal({ type: 'edit', item: r }); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'} onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>}
+                        {canEdit && <button onClick={e => { e.stopPropagation(); del(r.id); }} className="p-1.5 rounded-lg text-red-400 hover:text-red-600 transition-colors"><TrashIcon /></button>}
                       </div>
                     </td>
                   </tr>

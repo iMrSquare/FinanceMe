@@ -1,3 +1,9 @@
+export function monthlyEquivalent(importe: number, periodicidad: string): number {
+  if (periodicidad === 'anual') return importe / 12;
+  if (periodicidad === 'trimestral') return importe / 3;
+  return importe;
+}
+
 export function nextBillingDate(cobro: string, periodicidad: string): Date {
   // Support day-only format ("15") and legacy ISO date format ("2026-06-15")
   const dayOnly = parseInt(cobro);
@@ -12,21 +18,22 @@ export function nextBillingDate(cobro: string, periodicidad: string): Date {
     return new Date(y, m, Math.min(d, last));
   }
 
-  if (periodicidad === 'mensual') {
-    let y = today.getFullYear();
-    let m = today.getMonth();
-    let candidate = clampDay(y, m, day);
-    if (candidate < today) {
-      m += 1;
-      if (m > 11) { m = 0; y += 1; }
-      candidate = clampDay(y, m, day);
-    }
-    return candidate;
-  } else {
+  if (periodicidad === 'anual') {
     const month = original ? original.getUTCMonth() : today.getMonth();
     let y = today.getFullYear();
     let candidate = clampDay(y, month, day);
     if (candidate < today) candidate = clampDay(y + 1, month, day);
     return candidate;
   }
+
+  const stepMonths = periodicidad === 'trimestral' ? 3 : 1;
+  let y = today.getFullYear();
+  let m = today.getMonth();
+  let candidate = clampDay(y, m, day);
+  if (candidate < today) {
+    m += stepMonths;
+    while (m > 11) { m -= 12; y += 1; }
+    candidate = clampDay(y, m, day);
+  }
+  return candidate;
 }

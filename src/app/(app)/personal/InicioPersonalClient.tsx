@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { nextBillingDate } from '@/lib/billing';
+import { nextBillingDate, monthlyEquivalent } from '@/lib/billing';
+import InfoExpand from '@/components/InfoExpand';
 import type { PersonalGastoFijo, PersonalSuscripcion, PersonalAhorro, PersonalMesEvolucion } from '@/lib/db';
 import {
   Chart, LineElement, LineController, PointElement,
@@ -106,7 +107,7 @@ export default function InicioPersonalClient() {
   }, []);
 
   const totalGastos = gastos.reduce((s, g) => s + g.importe, 0);
-  const totalSuscMensual = suscs.reduce((s, sub) => s + (sub.periodicidad === 'anual' ? sub.importe / 12 : sub.importe), 0);
+  const totalSuscMensual = suscs.reduce((s, sub) => s + monthlyEquivalent(sub.importe, sub.periodicidad), 0);
   const totalAportado = ahorro?.meses.reduce((s, m) => s + m.aportado, 0) ?? 0;
   const objetivoAnual = ahorro?.objetivo_anual ?? 0;
   const porcentaje = objetivoAnual > 0 ? Math.min((totalAportado / objetivoAnual) * 100, 100) : 0;
@@ -203,16 +204,31 @@ export default function InicioPersonalClient() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(16,185,129,0.12)' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(16,185,129,0.12)' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Personal</h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Resumen de tus finanzas personales</p>
+          </div>
+          <InfoExpand title="¿Qué es Resumen?">
+            <p>Aquí tienes una vista general de tus finanzas personales: ingresos, gastos y balance del mes en curso, un calendario de próximos pagos que se alimenta de tu Presupuesto, y acceso a tus Estadísticas.</p>
+          </InfoExpand>
+        </div>
+        <Link
+          href="/personal/estadisticas"
+          className="px-4 py-2.5 rounded-2xl text-sm font-semibold border transition-colors"
+          style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'var(--bg-card)' }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, display: 'block' }}>
+            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
           </svg>
-        </div>
-        <div>
-          <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Personal</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Resumen de tus finanzas personales</p>
-        </div>
+          <span>Estadísticas</span>
+        </Link>
       </div>
 
       {/* Summary cards */}

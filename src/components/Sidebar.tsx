@@ -17,6 +17,7 @@ function RegistrosIcon() {
 import type { SessionUser } from '@/lib/auth';
 import Image from 'next/image';
 import { APP_VERSION } from '@/lib/constants';
+import { useVersionNotification } from './VersionProvider';
 
 function SunIcon() {
   return (
@@ -97,14 +98,6 @@ function SubscriptionIcon() {
   );
 }
 
-function PersonalHomeIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-    </svg>
-  );
-}
-
 function BarChartIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -116,21 +109,29 @@ function BarChartIcon() {
 interface NavItem { href: string; label: string; shortLabel?: string; icon: React.ReactElement; color: string; }
 
 const NAV_HOGAR: NavItem[] = [
-  { href: '/hogar',              label: 'Resumen',      icon: <GridIcon     className="w-[18px] h-[18px]" />, color: '#6366f1' },
+  { href: '/hogar',              label: 'Resumen',      icon: <GridIcon     className="w-[18px] h-[18px]" />, color: '#0ea5e9' },
   { href: '/hogar/mes',          label: 'Mes',          icon: <CalendarIcon className="w-[18px] h-[18px]" />, color: '#0ea5e9' },
-  { href: '/hogar/presupuesto',  label: 'Presupuesto',  icon: <ReceiptIcon  className="w-[18px] h-[18px]" />, color: '#10b981' },
-  { href: '/hogar/registros',    label: 'Registros',    icon: <RegistrosIcon />,                               color: '#f59e0b' },
-  { href: '/hogar/estadisticas', label: 'Estadísticas', icon: <BarChartIcon />,                                color: '#8b5cf6' },
+  { href: '/hogar/presupuesto',  label: 'Presupuesto',  icon: <ReceiptIcon  className="w-[18px] h-[18px]" />, color: '#0ea5e9' },
+  { href: '/hogar/registros',    label: 'Registros',    icon: <RegistrosIcon />,                               color: '#0ea5e9' },
+  { href: '/hogar/ahorro',       label: 'Ahorro',       icon: <SavingsIcon />,                                 color: '#0ea5e9' },
 ];
 
 const NAV_PERSONAL: NavItem[] = [
-  { href: '/personal',                label: 'Resumen',       icon: <PersonalHomeIcon />,                           color: '#10b981' },
-  { href: '/personal/mes',            label: 'Mes',           icon: <CalendarIcon className="w-[18px] h-[18px]" />, color: '#f97316' },
-  { href: '/personal/presupuesto',    label: 'Presupuesto',   icon: <ReceiptIcon className="w-[18px] h-[18px]" />,  color: '#ef4444' },
-  { href: '/personal/suscripciones',  label: 'Suscripciones', shortLabel: 'Suscs.', icon: <SubscriptionIcon />,     color: '#8b5cf6' },
-  { href: '/personal/ahorro',         label: 'Ahorro',        icon: <SavingsIcon />,                                color: '#f59e0b' },
-  { href: '/personal/estadisticas',   label: 'Estadísticas',  shortLabel: 'Stats',  icon: <BarChartIcon />,         color: '#a78bfa' },
+  { href: '/personal',                label: 'Resumen',       icon: <GridIcon className="w-[18px] h-[18px]" />,    color: '#10b981' },
+  { href: '/personal/mes',            label: 'Mes',           icon: <CalendarIcon className="w-[18px] h-[18px]" />, color: '#10b981' },
+  { href: '/personal/presupuesto',    label: 'Presupuesto',   icon: <ReceiptIcon className="w-[18px] h-[18px]" />,  color: '#10b981' },
+  { href: '/personal/suscripciones',  label: 'Suscripciones', shortLabel: 'Suscs.', icon: <SubscriptionIcon />,     color: '#10b981' },
+  { href: '/personal/ahorro',         label: 'Ahorro',        icon: <SavingsIcon />,                                color: '#10b981' },
 ];
+
+function withCenterResumen(items: NavItem[]): NavItem[] {
+  const idx = items.findIndex(i => i.label === 'Resumen');
+  if (idx === -1) return items;
+  const resumen = items[idx];
+  const rest = items.filter((_, i) => i !== idx);
+  const mid = Math.ceil(rest.length / 2);
+  return [...rest.slice(0, mid), resumen, ...rest.slice(mid)];
+}
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
@@ -138,11 +139,12 @@ const ROLE_LABELS: Record<string, string> = {
   visor: 'Visor',
 };
 
-interface Props { session: SessionUser | null; hogarInitialized: boolean; }
+interface Props { session: SessionUser | null; hogarActivated: boolean; }
 
-export default function Sidebar({ session, hogarInitialized }: Props) {
+export default function Sidebar({ session, hogarActivated }: Props) {
   const pathname = usePathname();
   const router = useRouter();
+  const { show: hasNewVersion } = useVersionNotification();
   const [dark, setDark] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -150,6 +152,7 @@ export default function Sidebar({ session, hogarInitialized }: Props) {
   const [navHidden, setNavHidden] = useState(false);
   const [mode, setMode] = useState<'hogar' | 'personal'>('personal');
   const [showHogarModal, setShowHogarModal] = useState(false);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const lastScrollRef = useRef(0);
 
@@ -169,17 +172,13 @@ export default function Sidebar({ session, hogarInitialized }: Props) {
       localStorage.setItem('app-mode', 'hogar');
     }
     setMobileOpen(false);
+    setPendingHref(null);
   }, [pathname]);
 
   function toggleMode(next: 'hogar' | 'personal') {
-    if (next === 'hogar' && !localStorage.getItem('hogar-activated')) {
-      if (hogarInitialized) {
-        // Another user already activated Hogar — skip the modal and mark locally
-        localStorage.setItem('hogar-activated', '1');
-      } else {
-        setShowHogarModal(true);
-        return;
-      }
+    if (next === 'hogar' && !hogarActivated) {
+      setShowHogarModal(true);
+      return;
     }
     applyMode(next);
   }
@@ -191,11 +190,13 @@ export default function Sidebar({ session, hogarInitialized }: Props) {
     if (next === 'hogar' && pathname.startsWith('/personal')) router.push('/hogar');
   }
 
-  function confirmHogar() {
-    localStorage.setItem('hogar-activated', '1');
+  async function confirmHogar() {
+    const res = await fetch('/api/hogar/activate', { method: 'POST' });
+    if (!res.ok) return;
     setShowHogarModal(false);
     setMobileOpen(false);
     applyMode('hogar');
+    router.refresh();
   }
 
   useEffect(() => {
@@ -273,11 +274,16 @@ export default function Sidebar({ session, hogarInitialized }: Props) {
     return pathname.startsWith(href);
   }
 
+  function isActiveMobile(href: string) {
+    return pendingHref ? pendingHref === href : isActive(href);
+  }
+
   const initials = session
     ? session.nombre.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
     : '??';
 
   const navItems = mode === 'personal' ? NAV_PERSONAL : NAV_HOGAR;
+  const mobileNavItems = withCenterResumen(navItems);
 
   return (
     <>
@@ -330,20 +336,20 @@ export default function Sidebar({ session, hogarInitialized }: Props) {
                 </button>
                 <button
                   onClick={() => toggleMode('hogar')}
-                  disabled={session?.role !== 'admin'}
+                  disabled={!hogarActivated && session?.role !== 'admin'}
                   className="flex-1 py-1.5 rounded-xl text-xs font-bold transition-all"
                   style={mode === 'hogar'
                     ? { background: '#0ea5e9', color: '#fff', boxShadow: '0 2px 8px rgba(14,165,233,0.35)' }
-                    : { background: 'transparent', color: session?.role !== 'admin' ? 'var(--text-muted)' : 'var(--text-muted)', opacity: session?.role !== 'admin' ? 0.4 : 1, cursor: session?.role !== 'admin' ? 'not-allowed' : 'pointer' }
+                    : { background: 'transparent', color: 'var(--text-muted)', opacity: !hogarActivated && session?.role !== 'admin' ? 0.4 : 1, cursor: !hogarActivated && session?.role !== 'admin' ? 'not-allowed' : 'pointer' }
                   }
-                  title={session?.role !== 'admin' ? 'Solo disponible para administradores' : undefined}
+                  title={!hogarActivated && session?.role !== 'admin' ? 'Pendiente de activación por un administrador' : undefined}
                 >
                   Hogar
                 </button>
               </div>
-              {session?.role !== 'admin' && (
+              {!hogarActivated && session?.role !== 'admin' && (
                 <p className="text-[10px] mt-1.5 text-center" style={{ color: 'var(--text-muted)' }}>
-                  Solo Admins pueden activar Hogar
+                  Pendiente de activación por un administrador
                 </p>
               )}
             </div>
@@ -478,7 +484,16 @@ export default function Sidebar({ session, hogarInitialized }: Props) {
             )}
           </div>
           {!collapsed && (
-            <p className="text-center text-xs mt-3" style={{ color: 'var(--text-muted)' }}>{APP_VERSION}</p>
+            <Link href="/changelog" className="flex items-center justify-center gap-1.5 mt-3 text-xs hover:underline">
+              {hasNewVersion ? (
+                <>
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white bg-red-500">new</span>
+                  <span className="px-2 py-0.5 rounded-full font-bold text-white bg-red-500">{APP_VERSION}</span>
+                </>
+              ) : (
+                <span style={{ color: 'var(--text-muted)' }}>{APP_VERSION}</span>
+              )}
+            </Link>
           )}
         </div>
       </aside>
@@ -500,20 +515,30 @@ export default function Sidebar({ session, hogarInitialized }: Props) {
           </div>
         </div>
 
-        <button
-          onClick={() => setMobileOpen(true)}
-          className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center"
-          aria-label="Abrir menú"
-        >
-          {session?.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={session.avatarUrl} alt={session.nombre} width={36} height={36} className="w-9 h-9 object-cover" />
-          ) : (
-            <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
-              {initials}
-            </div>
+        <div className="relative">
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center"
+            aria-label="Abrir menú"
+          >
+            {session?.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={session.avatarUrl} alt={session.nombre} width={36} height={36} className="w-9 h-9 object-cover" />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
+                {initials}
+              </div>
+            )}
+          </button>
+          {hasNewVersion && (
+            <span
+              className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center"
+              style={{ border: '2px solid var(--bg-sidebar)' }}
+            >
+              1
+            </span>
           )}
-        </button>
+        </div>
       </header>
 
       {/* ── MOBILE BOTTOM NAV ───────────────────────────────── */}
@@ -528,15 +553,42 @@ export default function Sidebar({ session, hogarInitialized }: Props) {
           height: 'calc(4rem + env(safe-area-inset-bottom, 0px))',
         }}
       >
-        {navItems.map(({ href, label, shortLabel, icon, color }) => {
-          const active = isActive(href);
+        {mobileNavItems.map(({ href, label, shortLabel, icon, color }) => {
+          const active = isActiveMobile(href);
+          if (label === 'Resumen') {
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setPendingHref(href)}
+                className="flex-1 flex flex-col items-center justify-center active:opacity-70"
+              >
+                <span
+                  className="flex items-center justify-center w-14 h-14 rounded-full -mt-7 shrink-0"
+                  style={{
+                    background: active ? color : 'var(--btn-hover)',
+                    boxShadow: active ? `0 4px 14px ${color}66` : 'none',
+                    border: '4px solid var(--bg-sidebar)',
+                  }}
+                >
+                  <span style={{ color: active ? '#fff' : 'var(--text-muted)' }}>{icon}</span>
+                </span>
+              </Link>
+            );
+          }
           return (
             <Link
               key={href}
               href={href}
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 transition-opacity active:opacity-70"
+              onClick={() => setPendingHref(href)}
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 active:opacity-70"
             >
-              <span style={{ color: active ? color : 'var(--text-muted)' }}>{icon}</span>
+              <span
+                className="flex items-center justify-center w-9 h-9 rounded-full"
+                style={{ background: active ? `${color}1f` : 'transparent' }}
+              >
+                <span style={{ color: active ? color : 'var(--text-muted)' }}>{icon}</span>
+              </span>
               <span
                 className="text-[10px] font-semibold leading-tight"
                 style={{ color: active ? color : 'var(--text-muted)' }}
@@ -595,20 +647,20 @@ export default function Sidebar({ session, hogarInitialized }: Props) {
                 </button>
                 <button
                   onClick={() => { toggleMode('hogar'); setMobileOpen(false); }}
-                  disabled={session?.role !== 'admin'}
+                  disabled={!hogarActivated && session?.role !== 'admin'}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
                   style={mode === 'hogar'
                     ? { background: '#0ea5e9', color: '#fff', boxShadow: '0 2px 8px rgba(14,165,233,0.35)' }
-                    : { background: 'transparent', color: 'var(--text-muted)', opacity: session?.role !== 'admin' ? 0.4 : 1, cursor: session?.role !== 'admin' ? 'not-allowed' : 'pointer' }
+                    : { background: 'transparent', color: 'var(--text-muted)', opacity: !hogarActivated && session?.role !== 'admin' ? 0.4 : 1, cursor: !hogarActivated && session?.role !== 'admin' ? 'not-allowed' : 'pointer' }
                   }
-                  title={session?.role !== 'admin' ? 'Solo disponible para administradores' : undefined}
+                  title={!hogarActivated && session?.role !== 'admin' ? 'Pendiente de activación por un administrador' : undefined}
                 >
                   Hogar
                 </button>
               </div>
-              {session?.role !== 'admin' && (
+              {!hogarActivated && session?.role !== 'admin' && (
                 <p className="text-xs mt-1.5 text-center" style={{ color: 'var(--text-muted)' }}>
-                  Solo Admins pueden activar Hogar
+                  Pendiente de activación por un administrador
                 </p>
               )}
             </div>
@@ -664,7 +716,16 @@ export default function Sidebar({ session, hogarInitialized }: Props) {
               </button>
             </div>
 
-            <p className="text-center text-xs pt-1" style={{ color: 'var(--text-muted)' }}>{APP_VERSION}</p>
+            <Link href="/changelog" onClick={() => setMobileOpen(false)} className="flex items-center justify-center gap-1.5 pt-1 text-xs hover:underline">
+              {hasNewVersion ? (
+                <>
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white bg-red-500">new</span>
+                  <span className="px-2 py-0.5 rounded-full font-bold text-white bg-red-500">{APP_VERSION}</span>
+                </>
+              ) : (
+                <span style={{ color: 'var(--text-muted)' }}>{APP_VERSION}</span>
+              )}
+            </Link>
           </div>
         </>
       )}

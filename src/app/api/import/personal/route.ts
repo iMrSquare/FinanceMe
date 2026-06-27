@@ -11,8 +11,8 @@ export async function POST(req: NextRequest) {
   if (body.type !== 'personal') return NextResponse.json({ error: 'El fichero no es de tipo personal' }, { status: 400 });
 
   const {
-    categorias = [], bancos = [], gastos_fijos = [], suscripciones = [],
-    ahorro = [], ahorro_mes = [],
+    categorias = [], bancos = [], gastos_fijos = [], ingresos_fijos = [], suscripciones = [],
+    ahorro = [], ahorro_mes = [], ahorro_objetivos = [],
     meses = [], gastos_mes = [], ingresos_mes = [], presupuesto_auto = [],
   } = (body.data ?? {}) as Record<string, unknown[]>;
 
@@ -40,6 +40,12 @@ export async function POST(req: NextRequest) {
         importado++;
       }
 
+      // ── Ingresos fijos (siempre insertar) ───────────────────────────────
+      for (const i of ingresos_fijos as Array<Record<string, unknown>>) {
+        db.prepare('INSERT INTO personal_ingresos_fijos (user_id, concepto, importe, comentario) VALUES (?, ?, ?, ?)').run(userId, i.concepto, i.importe, i.comentario ?? null);
+        importado++;
+      }
+
       // ── Suscripciones (siempre insertar) ────────────────────────────────
       for (const s of suscripciones as Array<Record<string, unknown>>) {
         db.prepare('INSERT INTO personal_suscripciones (user_id, nombre, importe, cobro, periodicidad, comentario) VALUES (?, ?, ?, ?, ?, ?)').run(userId, s.nombre, s.importe, s.cobro ?? null, s.periodicidad, s.comentario ?? null);
@@ -61,6 +67,12 @@ export async function POST(req: NextRequest) {
         importado++;
       }
 
+      // ── Objetivos de ahorro (siempre insertar) ──────────────────────────
+      for (const o of ahorro_objetivos as Array<Record<string, unknown>>) {
+        db.prepare('INSERT INTO personal_ahorro_objetivos (user_id, nombre, objetivo, fecha_objetivo, aportado) VALUES (?, ?, ?, ?, ?)').run(userId, o.nombre, o.objetivo, o.fecha_objetivo, o.aportado ?? 0);
+        importado++;
+      }
+
       // ── Meses (upsert — ignore if already exists) ────────────────────────
       for (const m of meses as Array<Record<string, unknown>>) {
         db.prepare('INSERT OR IGNORE INTO personal_meses (user_id, mes, anio) VALUES (?, ?, ?)').run(userId, m.mes, m.anio);
@@ -75,7 +87,7 @@ export async function POST(req: NextRequest) {
           db.prepare('DELETE FROM personal_gastos_mes WHERE user_id = ? AND anio = ? AND mes = ?').run(userId, g.anio, g.mes);
           mesKeysSeen.add(key);
         }
-        db.prepare('INSERT INTO personal_gastos_mes (user_id, anio, mes, concepto, importe, categoria, fecha, comentario) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(userId, g.anio, g.mes, g.concepto, g.importe, g.categoria ?? null, g.fecha ?? null, g.comentario ?? null);
+        db.prepare('INSERT INTO personal_gastos_mes (user_id, anio, mes, concepto, importe, categoria, banco, fecha, comentario) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(userId, g.anio, g.mes, g.concepto, g.importe, g.categoria ?? null, g.banco ?? null, g.fecha ?? null, g.comentario ?? null);
         importado++;
       }
 

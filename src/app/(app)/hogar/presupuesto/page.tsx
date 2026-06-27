@@ -1,4 +1,4 @@
-import { getFijos, getCategorias } from '@/lib/db';
+import { getFijos, getCategorias, getAhorroObjetivos, getPresupuestoAutoConfigsHogar } from '@/lib/db';
 import { getSession, canEdit } from '@/lib/auth';
 import PresupuestoHogarClient from './PresupuestoHogarClient';
 
@@ -12,6 +12,8 @@ export default async function HogarPresupuestoPage() {
   const ingresosFijos = getFijos('ingreso');
   const catGasto = getCategorias('gasto');
   const catPrestamo = getCategorias('prestamo');
+  const objetivosAhorro = getAhorroObjetivos();
+  const autoConfigs = getPresupuestoAutoConfigsHogar();
 
   return (
     <PresupuestoHogarClient
@@ -19,6 +21,8 @@ export default async function HogarPresupuestoPage() {
       ingresosFijos={ingresosFijos}
       catGasto={catGasto}
       catPrestamo={catPrestamo}
+      objetivosAhorro={objetivosAhorro}
+      autoConfigs={autoConfigs}
       canEdit={editable}
     />
   );

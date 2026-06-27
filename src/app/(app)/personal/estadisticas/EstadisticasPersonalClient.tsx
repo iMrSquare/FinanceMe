@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import Link from 'next/link';
 import type { EstadisticasData } from '@/lib/db';
 import {
   Chart, BarElement, BarController, LineElement, LineController,
@@ -19,6 +20,15 @@ function hex2rgba(hex: string, alpha: number) {
 }
 
 interface Props { data: EstadisticasData; }
+
+function BackToResumen() {
+  return (
+    <Link href="/personal" className="text-sm font-semibold" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, display: 'block' }}><polyline points="15 18 9 12 15 6"/></svg>
+      <span>Volver a Resumen</span>
+    </Link>
+  );
+}
 
 const PERIOD_OPTIONS = [
   { label: '3 meses', value: 3 },
@@ -145,6 +155,7 @@ export default function EstadisticasPersonalClient({ data }: Props) {
   if (data.mesesLabels.length === 0) {
     return (
       <div className="space-y-8">
+        <BackToResumen />
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(249,115,22,0.12)' }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -167,6 +178,7 @@ export default function EstadisticasPersonalClient({ data }: Props) {
 
   return (
     <div className="space-y-8">
+      <BackToResumen />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">

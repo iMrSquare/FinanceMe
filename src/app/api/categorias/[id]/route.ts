@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
+import { getSession, canEdit } from '@/lib/auth';
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession();
+  if (!session || !canEdit(session.role)) {
+    return NextResponse.json({ error: 'Sin permisos' }, { status: 403 });
+  }
   const { id } = await params;
   const { nombre, color, nombreAnterior, tipo } = await req.json();
   const db = getDb();
@@ -15,6 +20,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession();
+  if (!session || !canEdit(session.role)) {
+    return NextResponse.json({ error: 'Sin permisos' }, { status: 403 });
+  }
   const { id } = await params;
   const db = getDb();
   db.prepare('DELETE FROM categorias WHERE id=?').run(id);

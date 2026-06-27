@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { nextBillingDate } from '@/lib/billing';
 import type { PersonalSuscripcion } from '@/lib/db';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import InfoExpand from '@/components/InfoExpand';
+import { useIsMobile } from '@/lib/useIsMobile';
 
 function PencilIcon() {
   return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
@@ -18,10 +20,13 @@ const fmtNextDate = (cobro: string | null, periodicidad: string) =>
 const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/50 border transition-colors appearance-none';
 const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
 
+const PERIODICIDAD_LABEL: Record<PersonalSuscripcion['periodicidad'], string> = { mensual: 'Mensual', trimestral: 'Trimestral', anual: 'Anual' };
+const PERIODICIDAD_COLOR: Record<PersonalSuscripcion['periodicidad'], string> = { mensual: '#8b5cf6', trimestral: '#0ea5e9', anual: '#f59e0b' };
+
 type SortKey = 'nombre' | 'importe' | 'periodicidad' | 'cobro';
 const COL_LABELS: Record<SortKey, string> = { nombre: 'Suscripción', importe: 'Importe', periodicidad: 'Periodicidad', cobro: 'Próximo cobro' };
 
-interface SuscForm { id?: number; nombre: string; importe: string; cobro: string; periodicidad: 'mensual' | 'anual'; comentario: string; }
+interface SuscForm { id?: number; nombre: string; importe: string; cobro: string; periodicidad: 'mensual' | 'trimestral' | 'anual'; comentario: string; }
 const emptyForm = (): SuscForm => ({ nombre: '', importe: '', cobro: '', periodicidad: 'mensual', comentario: '' });
 
 function SuscModal({ form, setForm, onClose, onSave, saving }: { form: SuscForm; setForm: (f: SuscForm) => void; onClose: () => void; onSave: () => void; saving: boolean; }) {
@@ -44,6 +49,7 @@ function SuscModal({ form, setForm, onClose, onSave, saving }: { form: SuscForm;
             <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Periodicidad</label>
               <select value={form.periodicidad} onChange={set('periodicidad')} className={inputCls} style={inputStyle}>
                 <option value="mensual">Mensual</option>
+                <option value="trimestral">Trimestral</option>
                 <option value="anual">Anual</option>
               </select></div>
           </div>
@@ -64,6 +70,7 @@ function SuscModal({ form, setForm, onClose, onSave, saving }: { form: SuscForm;
 }
 
 export default function SuscripcionesClient() {
+  const isMobile = useIsMobile();
   const [suscs, setSuscs] = useState<PersonalSuscripcion[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<SuscForm | null>(null);
@@ -103,8 +110,10 @@ export default function SuscripcionesClient() {
     return sortAsc ? va.localeCompare(vb, 'es') : vb.localeCompare(va, 'es');
   });
 
-  const totalMensual = suscs.reduce((s, sub) => s + (sub.periodicidad === 'anual' ? sub.importe / 12 : sub.importe), 0);
-  const totalAnual = suscs.reduce((s, sub) => s + (sub.periodicidad === 'mensual' ? sub.importe * 12 : sub.importe), 0);
+  const mensualEquivalente = (sub: PersonalSuscripcion) =>
+    sub.periodicidad === 'anual' ? sub.importe / 12 : sub.periodicidad === 'trimestral' ? sub.importe / 3 : sub.importe;
+  const totalMensual = suscs.reduce((s, sub) => s + mensualEquivalente(sub), 0);
+  const totalAnual = totalMensual * 12;
 
   return (
     <div className="space-y-6">
@@ -120,6 +129,9 @@ export default function SuscripcionesClient() {
             <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Suscripciones</h1>
             <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Servicios con cobro recurrente</p>
           </div>
+          <InfoExpand title="¿Qué son las Suscripciones?">
+            <p>Apunta aquí tus suscripciones recurrentes (mensuales, trimestrales o anuales). Lo ideal es añadirlas después de crear tu Presupuesto, para tener una visión completa de tus gastos antes de ajustar tu objetivo de ahorro.</p>
+          </InfoExpand>
         </div>
         <button onClick={() => setModal(emptyForm())} className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-violet-500/30" style={{ background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -129,7 +141,7 @@ export default function SuscripcionesClient() {
 
       {/* Summary cards */}
       {suscs.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-4">
           <div className="glass-card rounded-2xl md:rounded-3xl p-3 md:p-5" style={{ background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)' }}>
             <p className="text-[10px] md:text-xs font-semibold text-white/70 uppercase tracking-wide mb-0.5 md:mb-1">Coste mensual</p>
             <p className="text-lg md:text-2xl font-extrabold text-white leading-tight">{fmt(totalMensual)}</p>
@@ -138,11 +150,15 @@ export default function SuscripcionesClient() {
             <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wide mb-0.5 md:mb-1" style={{ color: 'var(--text-muted)' }}>Coste anual</p>
             <p className="text-lg md:text-2xl font-extrabold leading-tight" style={{ color: 'var(--text-primary)' }}>{fmt(totalAnual)}</p>
           </div>
-          <div className="glass-card rounded-2xl md:rounded-3xl p-3 md:p-5">
+          <div className="hidden md:block glass-card rounded-2xl md:rounded-3xl p-3 md:p-5">
             <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wide mb-0.5 md:mb-1" style={{ color: 'var(--text-muted)' }}>Mensuales</p>
             <p className="text-lg md:text-2xl font-extrabold leading-tight" style={{ color: 'var(--text-primary)' }}>{suscs.filter(s => s.periodicidad === 'mensual').length}</p>
           </div>
-          <div className="glass-card rounded-2xl md:rounded-3xl p-3 md:p-5">
+          <div className="hidden md:block glass-card rounded-2xl md:rounded-3xl p-3 md:p-5">
+            <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wide mb-0.5 md:mb-1" style={{ color: 'var(--text-muted)' }}>Trimestrales</p>
+            <p className="text-lg md:text-2xl font-extrabold leading-tight" style={{ color: 'var(--text-primary)' }}>{suscs.filter(s => s.periodicidad === 'trimestral').length}</p>
+          </div>
+          <div className="hidden md:block glass-card rounded-2xl md:rounded-3xl p-3 md:p-5">
             <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wide mb-0.5 md:mb-1" style={{ color: 'var(--text-muted)' }}>Anuales</p>
             <p className="text-lg md:text-2xl font-extrabold leading-tight" style={{ color: 'var(--text-primary)' }}>{suscs.filter(s => s.periodicidad === 'anual').length}</p>
           </div>
@@ -171,24 +187,25 @@ export default function SuscripcionesClient() {
               </thead>
               <tbody>
                 {sorted.map(s => (
-                  <tr key={s.id} style={{ borderBottom: '1px solid var(--divider)' }}
+                  <tr key={s.id} style={{ borderBottom: '1px solid var(--divider)', cursor: isMobile ? 'pointer' : undefined }}
+                    onClick={() => { if (isMobile) setModal({ id: s.id, nombre: s.nombre, importe: String(s.importe), cobro: s.cobro ?? '', periodicidad: s.periodicidad, comentario: s.comentario ?? '' }); }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-page)'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
                     <td className="px-4 py-3 font-semibold" style={{ color: 'var(--text-primary)' }}>{s.nombre}</td>
                     <td className="px-4 py-3 font-mono font-bold" style={{ color: '#8b5cf6' }}>{fmt(s.importe)}</td>
                     <td className="px-4 py-3">
-                      <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: s.periodicidad === 'mensual' ? 'rgba(139,92,246,0.15)' : 'rgba(245,158,11,0.15)', color: s.periodicidad === 'mensual' ? '#8b5cf6' : '#f59e0b' }}>
-                        {s.periodicidad === 'mensual' ? 'Mensual' : 'Anual'}
+                      <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: `${PERIODICIDAD_COLOR[s.periodicidad]}26`, color: PERIODICIDAD_COLOR[s.periodicidad] }}>
+                        {PERIODICIDAD_LABEL[s.periodicidad]}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>{fmtNextDate(s.cobro, s.periodicidad)}</td>
                     <td className="px-4 py-3 text-sm truncate max-w-xs" style={{ color: 'var(--text-muted)' }}>{s.comentario || '—'}</td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => setModal({ id: s.id, nombre: s.nombre, importe: String(s.importe), cobro: s.cobro ?? '', periodicidad: s.periodicidad, comentario: s.comentario ?? '' })} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                        <button onClick={e => { e.stopPropagation(); setModal({ id: s.id, nombre: s.nombre, importe: String(s.importe), cobro: s.cobro ?? '', periodicidad: s.periodicidad, comentario: s.comentario ?? '' }); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                           onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                           onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                        <button onClick={() => setDeleteId(s.id)} className="p-1.5 rounded-lg transition-colors" style={{ color: '#ef4444' }}
+                        <button onClick={e => { e.stopPropagation(); setDeleteId(s.id); }} className="p-1.5 rounded-lg transition-colors" style={{ color: '#ef4444' }}
                           onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
                           onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
                       </div>

@@ -31,10 +31,10 @@ export default function LoginClient() {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center p-4 gap-0"
+      className="min-h-screen min-h-[100dvh] flex flex-col items-center justify-center p-4"
       style={{ background: 'var(--bg-page)' }}
     >
-      <div className="w-full max-w-sm flex-1 flex flex-col justify-center">
+      <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-16 h-16 rounded-2xl overflow-hidden mb-4 shadow-xl">
@@ -46,16 +46,21 @@ export default function LoginClient() {
 
         {/* Card */}
         <div className="glass-card rounded-3xl p-8">
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} action="/api/auth/login" method="post" autoComplete="on" className="space-y-5">
             <div>
-              <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+              <label htmlFor="username" className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
                 Usuario
               </label>
               <input
+                id="username"
+                name="username"
                 type="text"
                 autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 value={username}
-                onChange={e => setUsername(e.target.value)}
+                onChange={e => setUsername(e.target.value.toLowerCase())}
                 required
                 className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border transition-colors"
                 style={{ background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' }}
@@ -63,10 +68,12 @@ export default function LoginClient() {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+              <label htmlFor="password" className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
                 Contraseña
               </label>
               <input
+                id="password"
+                name="password"
                 type="password"
                 autoComplete="current-password"
                 value={password}
@@ -92,10 +99,11 @@ export default function LoginClient() {
             </button>
           </form>
         </div>
+
+        <footer className="mt-8 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+          FinanceMe &copy; {new Date().getFullYear()} — imrsquare.com
+        </footer>
       </div>
-      <footer className="pb-6 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-        FinanceMe &copy; {new Date().getFullYear()} — imrsquare.com
-      </footer>
     </div>
   );
 }

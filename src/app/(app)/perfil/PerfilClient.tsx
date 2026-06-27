@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import type { SessionUser } from '@/lib/auth';
 import { validatePassword } from '@/lib/validation';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useTutorial } from '@/components/TutorialProvider';
+import { HelpIcon } from '@/components/icons';
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
@@ -22,6 +24,7 @@ interface Props { session: SessionUser; }
 export default function PerfilClient({ session }: Props) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
+  const tutorial = useTutorial();
 
   const [nombre, setNombre] = useState(session.nombre);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(session.avatarUrl);
@@ -170,7 +173,7 @@ export default function PerfilClient({ session }: Props) {
   const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
+    <div className="max-w-5xl mx-auto space-y-8">
       <div>
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(99,102,241,0.12)' }}>
@@ -184,6 +187,10 @@ export default function PerfilClient({ session }: Props) {
           </div>
         </div>
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+      {/* Columna izquierda */}
+      <div className="space-y-6 lg:space-y-8">
 
       {/* Profile card */}
       <div className="glass-card rounded-3xl p-8">
@@ -323,6 +330,28 @@ export default function PerfilClient({ session }: Props) {
         )}
       </div>
 
+      </div>{/* fin columna izquierda */}
+
+      {/* Columna derecha */}
+      <div className="space-y-6 lg:space-y-8">
+
+      {/* Tutorial card */}
+      <div className="glass-card rounded-3xl p-6">
+        <div className="flex items-center gap-2.5 mb-1" style={{ color: '#6366f1' }}>
+          <HelpIcon className="w-[18px] h-[18px]" />
+          <h2 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>Tutorial de la aplicación</h2>
+        </div>
+        <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>Vuelve a ver la guía de bienvenida con el flujo de trabajo recomendado de la aplicación.</p>
+        <button
+          onClick={() => tutorial.open()}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold border-2 transition-colors"
+          style={{ borderColor: 'var(--btn-border)', color: 'var(--text-secondary)', background: 'var(--bg-page)' }}
+        >
+          <HelpIcon className="w-4 h-4" />
+          Ver tutorial de nuevo
+        </button>
+      </div>
+
       {/* Change password card */}
       <div className="glass-card rounded-3xl p-8">
         <h2 className="font-bold text-lg mb-6" style={{ color: 'var(--text-primary)' }}>Cambiar contraseña</h2>
@@ -401,6 +430,13 @@ export default function PerfilClient({ session }: Props) {
           </button>
         </form>
       </div>
+
+      </div>{/* fin columna derecha */}
+      </div>{/* fin grid */}
+
+      <footer className="mt-10 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+        FinanceMe &copy; {new Date().getFullYear()} — <a href="https://imrsquare.com" target="_blank" rel="noopener noreferrer" className="hover:underline">imrsquare.com</a>
+      </footer>
       {pendingImport && (
         <ConfirmDialog
           message="¿Importar datos personales?"

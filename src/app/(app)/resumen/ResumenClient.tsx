@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import type { Mes, Gasto, Prestamo, Ingreso, Categoria, MesBalance, GastoCatTotal, Fijo } from '@/lib/db';
 import { BanknoteIcon, ReceiptIcon, BankIcon } from '@/components/icons';
+import InfoExpand from '@/components/InfoExpand';
 import {
   Chart, ArcElement, DoughnutController, LineElement, LineController,
   PointElement, CategoryScale, LinearScale, Filler, Tooltip,
@@ -84,9 +85,10 @@ interface Props {
   historial: MesBalance[];
   showPrestamos?: boolean;
   fijosPresupuesto?: Fijo[];
+  estadisticasHref?: string;
 }
 
-export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, catGasto, gastosxCat, historial, showPrestamos = true, fijosPresupuesto }: Props) {
+export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, catGasto, gastosxCat, historial, showPrestamos = true, fijosPresupuesto, estadisticasHref }: Props) {
   const donutRef = useRef<HTMLCanvasElement>(null);
   const lineRef  = useRef<HTMLCanvasElement>(null);
   const donutChart = useRef<Chart | null>(null);
@@ -206,19 +208,36 @@ export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <p className="font-medium text-sm" style={{ color: 'var(--text-secondary)' }}>{mesActual.nombre}</p>
-        <div className="flex items-center gap-4 mt-1">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(99,102,241,0.12)' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
-            </svg>
-          </div>
-          <div>
-            <h2 className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Resumen</h2>
-            <p className="mt-0.5 text-sm" style={{ color: 'var(--text-secondary)' }}>Vista general del mes en curso y evolución histórica.</p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <p className="font-medium text-sm" style={{ color: 'var(--text-secondary)' }}>{mesActual.nombre}</p>
+          <div className="flex items-center gap-4 mt-1">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(99,102,241,0.12)' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Resumen</h2>
+              <p className="mt-0.5 text-sm" style={{ color: 'var(--text-secondary)' }}>Vista general del mes en curso y evolución histórica.</p>
+            </div>
+            <InfoExpand title="¿Qué es Resumen?">
+              <p>Vista general del mes en curso del Hogar: ingresos, gastos y balance, un calendario de próximos pagos que se alimenta del Presupuesto, y acceso directo a las Estadísticas.</p>
+            </InfoExpand>
           </div>
         </div>
+        {estadisticasHref && (
+          <Link
+            href={estadisticasHref}
+            className="px-4 py-2.5 rounded-2xl text-sm font-semibold border transition-colors"
+            style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'var(--bg-card)' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, display: 'block' }}>
+              <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+            <span>Estadísticas</span>
+          </Link>
+        )}
       </div>
 
       {/* Stats cards */}

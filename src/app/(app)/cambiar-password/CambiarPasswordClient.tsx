@@ -66,11 +66,6 @@ export default function CambiarPasswordClient({ forced }: { forced: boolean }) {
           style={{ background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' }}
           placeholder="••••••••"
         />
-        {forced && (
-          <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
-            Contraseña por defecto: <span className="font-mono font-semibold">admin123</span>
-          </p>
-        )}
       </div>
 
       <div>

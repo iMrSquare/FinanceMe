@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { PublicUser } from '@/lib/db';
 import { validateUsername, validatePassword } from '@/lib/validation';
-import { APP_VERSION } from '@/lib/constants';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import Image from 'next/image';
 
@@ -31,6 +30,11 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
   const [deleting, setDeleting] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [confirmState, setConfirmState] = useState<{ msg: string; fn: () => Promise<void> } | null>(null);
+  const [changingRole, setChangingRole] = useState<number | null>(null);
+  const [resetTarget, setResetTarget] = useState<PublicUser | null>(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetting, setResetting] = useState(false);
+  const [resetErr, setResetErr] = useState('');
 
   // Import / Export (Hogar only — Personal lives in Perfil)
   const [ioSeccion] = useState<'hogar'>('hogar');
@@ -98,13 +102,15 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
   const usernameErr = username ? validateUsername(username) : null;
   const passwordErr = password ? validatePassword(password) : null;
 
-  const pwdChecks = [
-    { ok: password.length >= 8, label: '8 caracteres mínimo' },
-    { ok: /[a-z]/.test(password), label: 'Una minúscula' },
-    { ok: /[A-Z]/.test(password), label: 'Una mayúscula' },
-    { ok: /[0-9]/.test(password), label: 'Un número' },
-    { ok: /[^a-zA-Z0-9]/.test(password), label: 'Un carácter especial' },
+  const pwdChecksFor = (pwd: string) => [
+    { ok: pwd.length >= 8, label: '8 caracteres mínimo' },
+    { ok: /[a-z]/.test(pwd), label: 'Una minúscula' },
+    { ok: /[A-Z]/.test(pwd), label: 'Una mayúscula' },
+    { ok: /[0-9]/.test(pwd), label: 'Un número' },
+    { ok: /[^a-zA-Z0-9]/.test(pwd), label: 'Un carácter especial' },
   ];
+  const pwdChecks = pwdChecksFor(password);
+  const resetPasswordErr = resetPassword ? validatePassword(resetPassword) : null;
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -143,6 +149,45 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
       setUsers(u => u.filter(u => u.id !== id));
     } finally {
       setDeleting(null);
+    }
+  }
+
+  async function handleRoleChange(id: number, role: 'admin' | 'editor' | 'visor') {
+    setError('');
+    setChangingRole(id);
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, role }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error); return; }
+      setUsers(u => u.map(x => x.id === id ? { ...x, role } : x));
+    } finally {
+      setChangingRole(null);
+    }
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!resetTarget) return;
+    setResetErr('');
+    const err = validatePassword(resetPassword);
+    if (err) { setResetErr(err); return; }
+    setResetting(true);
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: resetTarget.id, password: resetPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setResetErr(data.error); return; }
+      setResetTarget(null);
+      setResetPassword('');
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -228,12 +273,36 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
                 <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{u.nombre}</p>
                 <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>@{u.username}</p>
               </div>
-              <span
-                className="px-3 py-0.5 rounded-full text-xs font-bold text-white shrink-0"
+              <select
+                value={u.role}
+                onChange={e => {
+                  const newRole = e.target.value as 'admin' | 'editor' | 'visor';
+                  if (u.id === currentUserId && newRole !== 'admin') {
+                    setConfirmState({ msg: `¿Quitarte el rol de administrador a ti mismo (${u.nombre})?`, fn: async () => handleRoleChange(u.id, newRole) });
+                  } else {
+                    handleRoleChange(u.id, newRole);
+                  }
+                }}
+                disabled={changingRole === u.id}
+                className="px-2.5 py-1 rounded-full text-xs font-bold text-white shrink-0 border-0 cursor-pointer disabled:opacity-50"
                 style={{ background: ROLE_COLORS[u.role] }}
               >
-                {ROLE_LABELS[u.role]}
-              </span>
+                <option value="admin" style={{ color: '#000' }}>{ROLE_LABELS.admin}</option>
+                <option value="editor" style={{ color: '#000' }}>{ROLE_LABELS.editor}</option>
+                <option value="visor" style={{ color: '#000' }}>{ROLE_LABELS.visor}</option>
+              </select>
+              <button
+                onClick={() => { setResetTarget(u); setResetPassword(''); setResetErr(''); }}
+                className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors shrink-0"
+                style={{ color: '#6366f1', background: 'rgba(99,102,241,0.08)' }}
+                title="Restablecer contraseña"
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.15)'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.08)'}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                </svg>
+              </button>
               {u.id !== currentUserId && (
                 <button
                   onClick={() => setConfirmState({ msg: `¿Eliminar a ${u.nombre}?`, fn: async () => handleDelete(u.id) })}
@@ -352,6 +421,71 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
           </div>
         </div>
       )}
+      {/* Reset password modal */}
+      {resetTarget && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={e => { if (e.target === e.currentTarget) setResetTarget(null); }}
+        >
+          <div className="glass-card rounded-3xl p-8 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-bold text-xl" style={{ color: 'var(--text-primary)' }}>Restablecer contraseña</h2>
+              <button onClick={() => setResetTarget(null)} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ color: 'var(--text-muted)', background: 'var(--btn-hover)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+              Nueva contraseña para <strong>{resetTarget.nombre}</strong>. Se le pedirá cambiarla al iniciar sesión.
+            </p>
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Nueva contraseña</label>
+                <input
+                  type="password"
+                  value={resetPassword}
+                  onChange={e => setResetPassword(e.target.value)}
+                  required
+                  autoFocus
+                  className={inputCls}
+                  style={{ ...inputStyle, borderColor: resetPasswordErr ? '#ef4444' : (resetPassword && !resetPasswordErr ? '#10b981' : 'var(--btn-border)') }}
+                  placeholder="Mínimo 8 caracteres"
+                />
+                {resetPassword && (
+                  <div className="mt-2 grid grid-cols-2 gap-1">
+                    {pwdChecksFor(resetPassword).map(c => (
+                      <div key={c.label} className="flex items-center gap-1.5">
+                        <span style={{ color: c.ok ? '#10b981' : '#94a3b8' }}>
+                          {c.ok
+                            ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+                          }
+                        </span>
+                        <span className="text-xs" style={{ color: c.ok ? '#10b981' : 'var(--text-muted)' }}>{c.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {resetErr && <p className="text-sm text-red-500 font-medium">{resetErr}</p>}
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setResetTarget(null)} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={resetting || !!resetPasswordErr || !resetPassword}
+                  className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-indigo-500/30 disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}
+                >
+                  {resetting ? 'Guardando…' : 'Restablecer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {/* Import / Export */}
       <div className="glass-card rounded-3xl p-6">
         <div className="flex items-center gap-2.5 mb-1">
@@ -393,7 +527,7 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
       </div>
 
       <footer className="mt-10 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-        FinanceMe {APP_VERSION} &copy; {new Date().getFullYear()} — imrsquare.com
+        FinanceMe &copy; {new Date().getFullYear()} — <a href="https://imrsquare.com" target="_blank" rel="noopener noreferrer" className="hover:underline">imrsquare.com</a>
       </footer>
       {confirmState && (
         <ConfirmDialog

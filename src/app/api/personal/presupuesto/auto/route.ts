@@ -13,7 +13,7 @@ export async function PUT(request: NextRequest) {
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
 
   const { tipo, banco, categoria } = await request.json();
-  if (!['suscripciones', 'ahorro'].includes(tipo)) {
+  if (!['suscripciones', 'ahorro', 'objetivos'].includes(tipo)) {
     return NextResponse.json({ error: 'Tipo inválido' }, { status: 400 });
   }
 

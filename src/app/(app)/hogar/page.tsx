@@ -32,6 +32,7 @@ export default function HogarPage() {
       historial={historial}
       showPrestamos={false}
       fijosPresupuesto={fijosPresupuesto}
+      estadisticasHref="/hogar/estadisticas"
     />
   );
 }

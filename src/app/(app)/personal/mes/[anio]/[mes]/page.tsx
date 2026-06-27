@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import {
   getPersonalMeses, personalMesExists,
   getPersonalGastosMes, getPersonalIngresosMes,
-  getPersonalCategorias, getPersonalBancos, getPersonalGastos,
+  getPersonalCategorias, getPersonalBancos, getPersonalGastos, getPersonalIngresosFijos,
 } from '@/lib/db';
 import MesPersonalClient from './MesPersonalClient';
 
@@ -36,6 +36,7 @@ export default async function MesPersonalPage({ params }: Props) {
   const categorias  = getPersonalCategorias(session.id);
   const bancos      = getPersonalBancos(session.id);
   const gastosFijos = getPersonalGastos(session.id);
+  const ingresosFijos = getPersonalIngresosFijos(session.id);
 
   return (
     <MesPersonalClient
@@ -48,6 +49,7 @@ export default async function MesPersonalPage({ params }: Props) {
       categorias={categorias}
       bancos={bancos}
       gastosFijos={gastosFijos}
+      ingresosFijos={ingresosFijos}
     />
   );
 }
