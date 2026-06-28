@@ -130,7 +130,7 @@ export default function SuscripcionesClient() {
             <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Servicios con cobro recurrente</p>
           </div>
           <InfoExpand title="¿Qué son las Suscripciones?">
-            <p>Apunta aquí tus suscripciones recurrentes (mensuales, trimestrales o anuales). Lo ideal es añadirlas después de crear tu Presupuesto, para tener una visión completa de tus gastos antes de ajustar tu objetivo de ahorro.</p>
+            <p>Apunta aquí tus suscripciones recurrentes (mensuales, trimestrales o anuales). Lo ideal es añadirlas después de crear tu Presupuesto, para tener una visión completa de tus gastos antes de ajustar tu objetivo de ahorro. En el Presupuesto, la fila automática &quot;Suscripciones&quot; redondea por defecto el total mensual al múltiplo de 5€ superior; puedes desactivar este redondeo desde el botón de editar de esa fila.</p>
           </InfoExpand>
         </div>
         <button onClick={() => setModal(emptyForm())} className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-violet-500/30" style={{ background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)' }}>

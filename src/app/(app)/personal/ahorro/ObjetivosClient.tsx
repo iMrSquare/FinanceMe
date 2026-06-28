@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import type { PersonalAhorroObjetivo } from '@/lib/db';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useIsMobile } from '@/lib/useIsMobile';
+import { MonthYearInput } from '@/components/MonthYearInput';
 import { type EstadoObjetivo, estadoObjetivo, mensualNecesario, fmtMesAnio } from '@/lib/ahorroObjetivos';
 
 const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -43,7 +44,7 @@ function ObjetivoModal({ form, setForm, onClose, onSave, saving }: {
           <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Importe objetivo (€) *</label>
             <input type="number" step="0.01" min="0" value={form.objetivo} onChange={set('objetivo')} className={inputCls} style={inputStyle} placeholder="0.00" /></div>
           <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Mes y año objetivo *</label>
-            <input type="month" value={form.fecha_objetivo} onChange={set('fecha_objetivo')} className={inputCls} style={inputStyle} /></div>
+            <MonthYearInput value={form.fecha_objetivo} onChange={v => setForm({ ...form, fecha_objetivo: v })} className={inputCls} style={inputStyle} /></div>
         </div>
         <div className="flex gap-3 mt-6">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>Cancelar</button>

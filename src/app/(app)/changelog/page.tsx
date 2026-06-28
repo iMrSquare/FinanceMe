@@ -25,9 +25,36 @@ const TIPO_META: Record<Tipo, { color: string; emoji: string }> = {
 
 const RELEASES: Release[] = [
   {
+    version: 'v1.4.2',
+    fecha: '28 de junio de 2026',
+    destacado: true,
+    intro: 'Límite de creación de meses, redondeo configurable en Suscripciones y un repaso de fiabilidad en Presupuesto y Objetivos de ahorro.',
+    grupos: [
+      {
+        tipo: 'Novedades',
+        items: [
+          'Mes: solo se puede crear el mes actual o, como máximo, el siguiente; el resto se van habilitando a medida que avanza el calendario.',
+          'Suscripciones: nuevo interruptor para activar o desactivar el redondeo al alza del total mensual en la fila automática del Presupuesto.',
+          'Presupuesto: los gastos con fecha de vencimiento se eliminan automáticamente en cuanto esa fecha queda atrás.',
+        ],
+      },
+      {
+        tipo: 'Correcciones',
+        items: [
+          'Gestión: al crear o editar una categoría o banco y volver a Presupuesto, la lista se actualiza al instante sin recargar la página.',
+          'Vencimiento: formato de fecha unificado (DD-MM-AAAA) en los presupuestos de Personal y Hogar.',
+          'Presupuesto: las categorías y bancos con fondo claro ya muestran el texto en color oscuro para mejorar la legibilidad.',
+          'Objetivos de ahorro: el selector de mes y año vuelve a funcionar correctamente en Safari.',
+          'Hogar: la fila automática de Objetivos de ahorro ya se suma al total de Gastos Fijos.',
+          'En móvil, las filas automáticas del Presupuesto (Suscripciones, Ahorro, Objetivos) ya se pueden editar tocándolas, igual que el resto de filas.',
+          'El contador de conceptos de la tabla de Gastos Fijos ya tiene en cuenta las filas automáticas.',
+        ],
+      },
+    ],
+  },
+  {
     version: 'v1.4.0',
     fecha: '27 de junio de 2026',
-    destacado: true,
     intro: 'Objetivos de ahorro, tutorial de bienvenida y un buen repaso de import/export y diseño.',
     grupos: [
       {

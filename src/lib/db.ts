@@ -5,6 +5,11 @@ import { mensualNecesario } from './ahorroObjetivos';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'financeme.db');
 
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 let db: Database.Database;
 
 export function getDb(): Database.Database {
@@ -186,6 +191,7 @@ function initSchema(db: Database.Database) {
       tipo TEXT NOT NULL,
       banco TEXT,
       categoria TEXT,
+      redondeo INTEGER NOT NULL DEFAULT 1,
       UNIQUE(user_id, tipo)
     );
 
@@ -318,6 +324,11 @@ function runMigrations(db: Database.Database) {
   // Migration: add tutorial_seen column to existing databases
   try {
     db.exec('ALTER TABLE users ADD COLUMN tutorial_seen INTEGER NOT NULL DEFAULT 0');
+  } catch {}
+
+  // Migration: add redondeo column to personal_presupuesto_auto
+  try {
+    db.exec('ALTER TABLE personal_presupuesto_auto ADD COLUMN redondeo INTEGER NOT NULL DEFAULT 1');
   } catch {}
 
   // Migration: add version_seen column to existing databases.
@@ -510,6 +521,7 @@ export function getCategorias(tipo: 'gasto' | 'prestamo' | 'luz' | 'agua'): Cate
 
 export function getFijos(tipo: 'gasto' | 'prestamo' | 'ingreso'): Fijo[] {
   const db = getDb();
+  db.prepare("DELETE FROM fijos WHERE vencimiento IS NOT NULL AND substr(vencimiento, 1, 10) < ?").run(todayIso());
   return db.prepare('SELECT * FROM fijos WHERE tipo = ? ORDER BY id ASC').all(tipo) as Fijo[];
 }
 
@@ -874,7 +886,9 @@ export interface PersonalGastoFijo {
 }
 
 export function getPersonalGastos(userId: number): PersonalGastoFijo[] {
-  return getDb().prepare('SELECT * FROM personal_gastos_fijos WHERE user_id = ? ORDER BY gasto').all(userId) as PersonalGastoFijo[];
+  const db = getDb();
+  db.prepare("DELETE FROM personal_gastos_fijos WHERE user_id = ? AND vencimiento IS NOT NULL AND substr(vencimiento, 1, 10) < ?").run(userId, todayIso());
+  return db.prepare('SELECT * FROM personal_gastos_fijos WHERE user_id = ? ORDER BY gasto').all(userId) as PersonalGastoFijo[];
 }
 export function createPersonalGasto(userId: number, data: Omit<PersonalGastoFijo, 'id' | 'user_id' | 'created_at'>): void {
   getDb().prepare(
@@ -1192,18 +1206,21 @@ export interface PresupuestoAutoConfig {
   tipo: 'suscripciones' | 'ahorro' | 'objetivos';
   banco: string | null;
   categoria: string | null;
+  redondeo: number;
 }
 
 export function getPresupuestoAutoConfigs(userId: number): PresupuestoAutoConfig[] {
   return getDb().prepare(
-    'SELECT tipo, banco, categoria FROM personal_presupuesto_auto WHERE user_id = ?'
+    'SELECT tipo, banco, categoria, redondeo FROM personal_presupuesto_auto WHERE user_id = ?'
   ).all(userId) as PresupuestoAutoConfig[];
 }
 
-export function upsertPresupuestoAuto(userId: number, tipo: string, banco: string | null, categoria: string | null): void {
+export function upsertPresupuestoAuto(userId: number, tipo: string, banco: string | null, categoria: string | null, redondeo?: boolean): void {
   getDb().prepare(
-    'INSERT INTO personal_presupuesto_auto (user_id, tipo, banco, categoria) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, tipo) DO UPDATE SET banco = excluded.banco, categoria = excluded.categoria'
-  ).run(userId, tipo, banco, categoria);
+    `INSERT INTO personal_presupuesto_auto (user_id, tipo, banco, categoria, redondeo) VALUES (?, ?, ?, ?, COALESCE(?, 1))
+     ON CONFLICT(user_id, tipo) DO UPDATE SET banco = excluded.banco, categoria = excluded.categoria,
+       redondeo = CASE WHEN ? IS NULL THEN redondeo ELSE excluded.redondeo END`
+  ).run(userId, tipo, banco, categoria, redondeo === undefined ? null : (redondeo ? 1 : 0), redondeo === undefined ? null : (redondeo ? 1 : 0));
 }
 
 // ── Hogar: Presupuesto auto-config ─────────────────────────────────────────

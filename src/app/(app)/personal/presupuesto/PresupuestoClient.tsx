@@ -7,6 +7,7 @@ import InfoExpand from '@/components/InfoExpand';
 import { monthlyEquivalent } from '@/lib/billing';
 import { mensualNecesario } from '@/lib/ahorroObjetivos';
 import { useIsMobile } from '@/lib/useIsMobile';
+import { autoText } from '@/components/ColorDots';
 import GestionClient from '../gestion/GestionClient';
 
 function roundUp5(n: number): number {
@@ -14,7 +15,10 @@ function roundUp5(n: number): number {
 }
 
 const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
-const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString('es-ES') : '—';
+const fmtDate = (d: string | null) => {
+  const m = d?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : '—';
+};
 
 function fmtCobro(c: string | null): string {
   if (!c) return '—';
@@ -226,7 +230,7 @@ export default function PresupuestoClient() {
 
   const catColor = (n: string) => categorias.find(c => c.nombre === n)?.color ?? '#64748b';
   const bancoColor = (n: string) => bancos.find(b => b.nombre === n)?.color ?? '#64748b';
-  const autoConfig = (tipo: 'suscripciones' | 'ahorro' | 'objetivos') => autoConfigs.find(c => c.tipo === tipo) ?? { tipo, banco: null, categoria: null };
+  const autoConfig = (tipo: 'suscripciones' | 'ahorro' | 'objetivos') => autoConfigs.find(c => c.tipo === tipo) ?? { tipo, banco: null, categoria: null, redondeo: 1 };
 
   const filtered = gastos
     .filter(g => !filtroCategoria || g.categoria === filtroCategoria)
@@ -240,17 +244,17 @@ export default function PresupuestoClient() {
   const totalFiltrado = filtered.reduce((s, g) => s + g.importe, 0);
   const totalIngresosFijos = ingresosFijos.reduce((s, i) => s + i.importe, 0);
 
+  const suscCfg  = autoConfig('suscripciones');
+  const ahorroCfg = autoConfig('ahorro');
+  const objetivosCfg = autoConfig('objetivos');
+
   const suscMensualReal = suscs.reduce((s, sub) => s + monthlyEquivalent(sub.importe, sub.periodicidad), 0);
-  const suscVirtual = suscMensualReal > 0 ? roundUp5(suscMensualReal) : 0;
+  const suscVirtual = suscMensualReal > 0 ? (suscCfg.redondeo ? roundUp5(suscMensualReal) : suscMensualReal) : 0;
   const ahorroMensualReal = ahorro ? ahorro.objetivo_anual / 12 : 0;
   const ahorroVirtual = ahorroMensualReal > 0 ? ahorroMensualReal : 0;
   const objetivosMensualReal = objetivos.reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
   const objetivosVirtual = objetivosMensualReal > 0 ? objetivosMensualReal : 0;
   const totalConVirtuales = totalGeneral + suscVirtual + ahorroVirtual + objetivosVirtual;
-
-  const suscCfg  = autoConfig('suscripciones');
-  const ahorroCfg = autoConfig('ahorro');
-  const objetivosCfg = autoConfig('objetivos');
 
   const suscMatchesFiltro  = (!filtroCategoria || suscCfg.categoria  === filtroCategoria) && (!filtroBanco || suscCfg.banco  === filtroBanco);
   const ahorroMatchesFiltro = (!filtroCategoria || ahorroCfg.categoria === filtroCategoria) && (!filtroBanco || ahorroCfg.banco === filtroBanco);
@@ -261,12 +265,17 @@ export default function PresupuestoClient() {
     + (ahorroVirtual > 0 && ahorroMatchesFiltro ? ahorroVirtual : 0)
     + (objetivosVirtual > 0 && objetivosMatchesFiltro ? objetivosVirtual : 0);
 
+  const conceptosTotal = gastos.length
+    + (suscVirtual > 0 ? 1 : 0)
+    + (ahorroVirtual > 0 ? 1 : 0)
+    + (objetivosVirtual > 0 ? 1 : 0);
+
   const selectStyle = { ...inputStyle, paddingTop: '8px', paddingBottom: '8px' };
 
   if (view === 'gestion') {
     return (
       <div className="space-y-6">
-        <button onClick={() => setView('main')} className="flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-xl border transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'var(--bg-card)' }}>
+        <button onClick={() => { setView('main'); fetchAll(); }} className="flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-xl border transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'var(--bg-card)' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           Volver a Presupuesto
         </button>
@@ -290,7 +299,7 @@ export default function PresupuestoClient() {
             <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Tus gastos fijos mensuales</p>
           </div>
           <InfoExpand title="¿Qué es Presupuesto?">
-            <p>El Presupuesto son tus gastos fijos de cada mes y tus ingresos. Antes de añadirlos, crea tus categorías y bancos en Gestión: los filtros y las estadísticas se nutren de ellos. Al crear un nuevo Mes, estos datos se importan automáticamente.</p>
+            <p>El Presupuesto son tus gastos fijos de cada mes y tus ingresos. Antes de añadirlos, crea tus categorías y bancos en Gestión: los filtros y las estadísticas se nutren de ellos. Al crear un nuevo Mes, estos datos se importan automáticamente. Si un gasto tiene fecha de vencimiento, se eliminará automáticamente del Presupuesto en cuanto esa fecha quede atrás.</p>
           </InfoExpand>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
@@ -328,9 +337,11 @@ export default function PresupuestoClient() {
             <p className="text-sm sm:text-3xl font-extrabold leading-tight" style={{ color: suscVirtual > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
               {suscVirtual > 0 ? fmt(suscVirtual) : '—'}
             </p>
-            {suscVirtual > 0 && (
+            {suscVirtual > 0 && suscCfg.redondeo ? (
               <p className="hidden sm:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Real {fmt(suscMensualReal)} → redondeado</p>
-            )}
+            ) : suscVirtual > 0 ? (
+              <p className="hidden sm:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Sin redondear</p>
+            ) : null}
           </div>
           {/* Ahorro mensual */}
           <div className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6">
@@ -377,7 +388,7 @@ export default function PresupuestoClient() {
         <div className="px-6 py-4 bg-orange-600">
           <h2 className="font-bold text-base text-white">
             Gastos fijos
-            <span className="ml-2 text-sm font-normal text-white/80">{gastos.length} concepto{gastos.length !== 1 ? 's' : ''}</span>
+            <span className="ml-2 text-sm font-normal text-white/80">{conceptosTotal} concepto{conceptosTotal !== 1 ? 's' : ''}</span>
           </h2>
         </div>
         <div className="overflow-x-auto">
@@ -414,10 +425,10 @@ export default function PresupuestoClient() {
                     </td>
                     <td className="px-4 py-3 font-mono font-bold" style={{ color: '#ef4444' }}>{fmt(g.importe)}</td>
                     <td className="px-4 py-3">
-                      {g.categoria ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: catColor(g.categoria) }}>{g.categoria}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                      {g.categoria ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: catColor(g.categoria), color: autoText(catColor(g.categoria)) }}>{g.categoria}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
                     <td className="px-4 py-3">
-                      {g.banco ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: bancoColor(g.banco) }}>{g.banco}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                      {g.banco ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: bancoColor(g.banco), color: autoText(bancoColor(g.banco)) }}>{g.banco}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
                     <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>{fmtCobro(g.cobro)}</td>
                     <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>{fmtDate(g.vencimiento)}</td>
@@ -438,29 +449,30 @@ export default function PresupuestoClient() {
                 {suscVirtual > 0 && suscMatchesFiltro && (() => {
                   const cfg = suscCfg;
                   return (
-                    <tr style={{ borderBottom: '1px solid var(--divider)', background: 'rgba(139,92,246,0.04)' }}>
+                    <tr style={{ borderBottom: '1px solid var(--divider)', background: 'rgba(139,92,246,0.04)', cursor: isMobile ? 'pointer' : undefined }}
+                      onClick={() => { if (isMobile) setEditingAuto('suscripciones'); }}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Suscripciones</span>
                           <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }}>Auto</span>
                         </div>
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{fmt(suscMensualReal)}/mes real → redondeado al alza</p>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{fmt(suscMensualReal)}/mes real{cfg.redondeo ? ' → redondeado al alza' : ''}</p>
                       </td>
                       <td className="px-4 py-3 font-mono font-bold" style={{ color: '#8b5cf6' }}>{fmt(suscVirtual)}</td>
                       <td className="px-4 py-3">
                         {cfg.categoria
-                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: catColor(cfg.categoria) }}>{cfg.categoria}</span>
+                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: catColor(cfg.categoria), color: autoText(catColor(cfg.categoria)) }}>{cfg.categoria}</span>
                           : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                       </td>
                       <td className="px-4 py-3">
                         {cfg.banco
-                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: bancoColor(cfg.banco) }}>{cfg.banco}</span>
+                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: bancoColor(cfg.banco), color: autoText(bancoColor(cfg.banco)) }}>{cfg.banco}</span>
                           : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                       </td>
                       <td className="px-4 py-3" colSpan={2} />
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => setEditingAuto('suscripciones')} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                          <button onClick={e => { e.stopPropagation(); setEditingAuto('suscripciones'); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
                         </div>
@@ -473,7 +485,8 @@ export default function PresupuestoClient() {
                 {ahorroVirtual > 0 && ahorroMatchesFiltro && (() => {
                   const cfg = ahorroCfg;
                   return (
-                    <tr style={{ background: 'rgba(245,158,11,0.04)' }}>
+                    <tr style={{ background: 'rgba(245,158,11,0.04)', cursor: isMobile ? 'pointer' : undefined }}
+                      onClick={() => { if (isMobile) setEditingAuto('ahorro'); }}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Ahorro mensual</span>
@@ -484,18 +497,18 @@ export default function PresupuestoClient() {
                       <td className="px-4 py-3 font-mono font-bold" style={{ color: '#f59e0b' }}>{fmt(ahorroVirtual)}</td>
                       <td className="px-4 py-3">
                         {cfg.categoria
-                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: catColor(cfg.categoria) }}>{cfg.categoria}</span>
+                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: catColor(cfg.categoria), color: autoText(catColor(cfg.categoria)) }}>{cfg.categoria}</span>
                           : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                       </td>
                       <td className="px-4 py-3">
                         {cfg.banco
-                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: bancoColor(cfg.banco) }}>{cfg.banco}</span>
+                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: bancoColor(cfg.banco), color: autoText(bancoColor(cfg.banco)) }}>{cfg.banco}</span>
                           : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                       </td>
                       <td className="px-4 py-3" colSpan={2} />
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => setEditingAuto('ahorro')} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                          <button onClick={e => { e.stopPropagation(); setEditingAuto('ahorro'); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
                         </div>
@@ -508,7 +521,8 @@ export default function PresupuestoClient() {
                 {objetivosVirtual > 0 && objetivosMatchesFiltro && (() => {
                   const cfg = objetivosCfg;
                   return (
-                    <tr style={{ background: 'rgba(245,158,11,0.04)' }}>
+                    <tr style={{ background: 'rgba(245,158,11,0.04)', cursor: isMobile ? 'pointer' : undefined }}
+                      onClick={() => { if (isMobile) setEditingAuto('objetivos'); }}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Objetivos de ahorro</span>
@@ -519,18 +533,18 @@ export default function PresupuestoClient() {
                       <td className="px-4 py-3 font-mono font-bold" style={{ color: '#f59e0b' }}>{fmt(objetivosVirtual)}</td>
                       <td className="px-4 py-3">
                         {cfg.categoria
-                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: catColor(cfg.categoria) }}>{cfg.categoria}</span>
+                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: catColor(cfg.categoria), color: autoText(catColor(cfg.categoria)) }}>{cfg.categoria}</span>
                           : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                       </td>
                       <td className="px-4 py-3">
                         {cfg.banco
-                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold text-white" style={{ background: bancoColor(cfg.banco) }}>{cfg.banco}</span>
+                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: bancoColor(cfg.banco), color: autoText(bancoColor(cfg.banco)) }}>{cfg.banco}</span>
                           : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                       </td>
                       <td className="px-4 py-3" colSpan={2} />
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => setEditingAuto('objetivos')} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                          <button onClick={e => { e.stopPropagation(); setEditingAuto('objetivos'); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
                         </div>
@@ -607,11 +621,12 @@ export default function PresupuestoClient() {
           categorias={categorias}
           bancos={bancos}
           onClose={() => setEditingAuto(null)}
-          onSave={async (banco, categoria) => {
-            await fetch('/api/personal/presupuesto/auto', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: editingAuto, banco, categoria }) });
+          onSave={async (banco, categoria, redondeo) => {
+            await fetch('/api/personal/presupuesto/auto', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: editingAuto, banco, categoria, redondeo }) });
             setAutoConfigs(prev => {
               const next = prev.filter(c => c.tipo !== editingAuto);
-              return [...next, { tipo: editingAuto, banco, categoria }];
+              const redondeoFinal = redondeo !== undefined ? (redondeo ? 1 : 0) : (autoConfig(editingAuto).redondeo ?? 1);
+              return [...next, { tipo: editingAuto, banco, categoria, redondeo: redondeoFinal }];
             });
             setEditingAuto(null);
           }}
@@ -641,14 +656,15 @@ export default function PresupuestoClient() {
 
 function AutoConfigModal({ tipo, current, categorias, bancos, onClose, onSave }: {
   tipo: 'suscripciones' | 'ahorro' | 'objetivos';
-  current: { banco: string | null; categoria: string | null };
+  current: { banco: string | null; categoria: string | null; redondeo?: number };
   categorias: PersonalCategoria[];
   bancos: PersonalBanco[];
   onClose: () => void;
-  onSave: (banco: string | null, categoria: string | null) => Promise<void>;
+  onSave: (banco: string | null, categoria: string | null, redondeo?: boolean) => Promise<void>;
 }) {
   const [banco, setBanco] = useState(current.banco ?? '');
   const [categoria, setCategoria] = useState(current.categoria ?? '');
+  const [redondeo, setRedondeo] = useState((current.redondeo ?? 1) === 1);
   const [saving, setSaving] = useState(false);
 
   const titulo = tipo === 'suscripciones' ? 'Suscripciones' : tipo === 'ahorro' ? 'Ahorro mensual' : 'Objetivos de ahorro';
@@ -657,7 +673,7 @@ function AutoConfigModal({ tipo, current, categorias, bancos, onClose, onSave }:
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    await onSave(banco || null, categoria || null);
+    await onSave(banco || null, categoria || null, tipo === 'suscripciones' ? redondeo : undefined);
   }
 
   return (
@@ -685,6 +701,17 @@ function AutoConfigModal({ tipo, current, categorias, bancos, onClose, onSave }:
               {bancos.map(b => <option key={b.id} value={b.nombre}>{b.nombre}</option>)}
             </select>
           </div>
+          {tipo === 'suscripciones' && (
+            <label className="flex items-center gap-3 cursor-pointer select-none">
+              <div onClick={() => setRedondeo(v => !v)} className="w-10 h-6 rounded-full transition-colors relative shrink-0" style={{ background: redondeo ? color : 'var(--divider)' }}>
+                <div className="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all" style={{ left: redondeo ? '22px' : '4px' }} />
+              </div>
+              <div>
+                <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Redondear al alza</span>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Redondea el total mensual real al múltiplo de 5€ superior</p>
+              </div>
+            </label>
+          )}
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>
               Cancelar

@@ -280,7 +280,7 @@ export default function HogarMesPageClient({
           </div>
           <h1 className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>{nombre}</h1>
           <InfoExpand title="¿Qué es Mes?">
-            <p>Aquí se registran todos los gastos del mes del Hogar con su categoría, fecha y banco. Al crear el mes se pueden importar automáticamente los datos del Presupuesto.</p>
+            <p>Aquí se registran todos los gastos del mes del Hogar con su categoría, fecha y banco. Al crear el mes se pueden importar automáticamente los datos del Presupuesto. Solo puedes crear el mes actual o, como máximo, el siguiente; el resto se irán habilitando a medida que avance el calendario.</p>
           </InfoExpand>
         </div>
         <div className="flex items-center gap-3">
@@ -464,9 +464,12 @@ function NuevoMesModal({ meses, onClose }: { meses: Mes[]; onClose: () => void }
   const today = new Date();
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth() + 1;
+  // Solo se permite crear hasta el mes siguiente al actual
+  const maxAnio = currentMonth === 12 ? currentYear + 1 : currentYear;
+  const maxAnioMes = currentMonth === 12 ? 1 : currentMonth + 1;
   const [selectedAnio, setSelectedAnio] = useState(currentYear);
   const [selectedMes, setSelectedMes] = useState(currentMonth);
-  const maxMes = selectedAnio === currentYear ? currentMonth : 12;
+  const maxMes = selectedAnio === maxAnio ? maxAnioMes : selectedAnio < maxAnio ? 12 : 0;
   const [importarFijos, setImportarFijos] = useState(true);
   const [sobrescribir, setSobrescribir] = useState(false);
   const [fijosCount, setFijosCount] = useState<{ gasto: number; ingreso: number } | null>(null);
@@ -511,8 +514,13 @@ function NuevoMesModal({ meses, onClose }: { meses: Mes[]; onClose: () => void }
             </div>
             <div className="flex-1">
               <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Año</label>
-              <input name="anio" type="number" value={selectedAnio} max={currentYear}
-                onChange={e => { const a = parseInt(e.target.value) || currentYear; setSelectedAnio(a); setSobrescribir(false); if (a === currentYear && selectedMes > currentMonth) setSelectedMes(currentMonth); }}
+              <input name="anio" type="number" value={selectedAnio} max={maxAnio}
+                onChange={e => {
+                  const a = Math.min(parseInt(e.target.value) || currentYear, maxAnio);
+                  setSelectedAnio(a); setSobrescribir(false);
+                  const limite = a === maxAnio ? maxAnioMes : 12;
+                  if (selectedMes > limite) setSelectedMes(limite);
+                }}
                 className={fieldInputCls} style={fieldInputStyle} />
             </div>
           </div>

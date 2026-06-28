@@ -9,6 +9,17 @@ export async function GET() {
 export async function POST(req: Request) {
   const { mes, anio, importarFijos = true, sobrescribir = false } = await req.json();
   if (!mes || !anio) return NextResponse.json({ error: 'mes y anio requeridos' }, { status: 400 });
+
+  const mesNum = Number(mes);
+  const anioNum = Number(anio);
+  const now = new Date();
+  let maxAnio = now.getFullYear();
+  let maxMes = now.getMonth() + 2; // mes actual + 1 (siguiente mes permitido)
+  if (maxMes > 12) { maxMes -= 12; maxAnio += 1; }
+  if (anioNum > maxAnio || (anioNum === maxAnio && mesNum > maxMes)) {
+    return NextResponse.json({ error: 'Solo se puede crear como máximo el mes siguiente al actual' }, { status: 400 });
+  }
+
   const isNew = !getMes(Number(mes), Number(anio));
   const mesObj = getOrCreateMes(Number(mes), Number(anio));
   if (sobrescribir) {

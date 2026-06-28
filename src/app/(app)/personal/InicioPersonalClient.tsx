@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { nextBillingDate, monthlyEquivalent } from '@/lib/billing';
 import InfoExpand from '@/components/InfoExpand';
-import type { PersonalGastoFijo, PersonalSuscripcion, PersonalAhorro, PersonalMesEvolucion } from '@/lib/db';
+import type { PersonalGastoFijo, PersonalSuscripcion, PersonalAhorro, PersonalMesEvolucion, PresupuestoAutoConfig } from '@/lib/db';
 import {
   Chart, LineElement, LineController, PointElement,
   CategoryScale, LinearScale, Filler, Tooltip,
@@ -74,6 +74,7 @@ function Calendario({ events }: { events: CalEvent[] }) {
 export default function InicioPersonalClient() {
   const [gastos, setGastos] = useState<PersonalGastoFijo[]>([]);
   const [suscs, setSuscs] = useState<PersonalSuscripcion[]>([]);
+  const [autoConfigs, setAutoConfigs] = useState<PresupuestoAutoConfig[]>([]);
   const [ahorro, setAhorro] = useState<PersonalAhorro | null>(null);
   const [mesGastos, setMesGastos] = useState<{ importe: number }[]>([]);
   const [mesIngresos, setMesIngresos] = useState<{ importe: number }[]>([]);
@@ -95,9 +96,11 @@ export default function InicioPersonalClient() {
       fetch(`/api/personal/mes/gastos?anio=${anio}&mes=${mes}`).then(r => r.json()),
       fetch(`/api/personal/mes/ingresos?anio=${anio}&mes=${mes}`).then(r => r.json()),
       fetch('/api/personal/evolucion').then(r => r.json()),
-    ]).then(([g, s, a, mg, mi, ev]) => {
+      fetch('/api/personal/presupuesto/auto').then(r => r.json()),
+    ]).then(([g, s, a, mg, mi, ev, ac]) => {
       setGastos(Array.isArray(g) ? g : []);
       setSuscs(Array.isArray(s) ? s : []);
+      setAutoConfigs(Array.isArray(ac) ? ac : []);
       setAhorro(a && typeof a === 'object' && !Array.isArray(a) && 'meses' in a ? a : null);
       setMesGastos(Array.isArray(mg?.gastos) ? mg.gastos : []);
       setMesIngresos(Array.isArray(mi) ? mi : []);
@@ -121,7 +124,8 @@ export default function InicioPersonalClient() {
   const hasMesData = totalMesIngresos > 0 || totalMesGastos > 0;
 
   // Progreso del presupuesto
-  const suscVirtual   = totalSuscMensual > 0 ? roundUp5(totalSuscMensual) : 0;
+  const suscRedondeo  = (autoConfigs.find(c => c.tipo === 'suscripciones')?.redondeo ?? 1) === 1;
+  const suscVirtual   = totalSuscMensual > 0 ? (suscRedondeo ? roundUp5(totalSuscMensual) : totalSuscMensual) : 0;
   const ahorroVirtual = (ahorro?.objetivo_anual ?? 0) > 0 ? ahorro!.objetivo_anual / 12 : 0;
   const presupuestoTotal = totalGastos + suscVirtual + ahorroVirtual;
   const progresoPct = presupuestoTotal > 0 ? (totalMesGastos / presupuestoTotal) * 100 : 0;

@@ -170,7 +170,7 @@ export default function MesPersonalClient({
           </div>
           <h1 className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>{nombre}</h1>
           <InfoExpand title="¿Qué es Mes?">
-            <p>Aquí registras todos los gastos del mes con su categoría, fecha y banco. Al crear el mes puedes importar automáticamente los datos de tu Presupuesto para no tener que volver a introducirlos.</p>
+            <p>Aquí registras todos los gastos del mes con su categoría, fecha y banco. Al crear el mes puedes importar automáticamente los datos de tu Presupuesto para no tener que volver a introducirlos. Solo puedes crear el mes actual o, como máximo, el siguiente; el resto se irán habilitando a medida que avance el calendario.</p>
           </InfoExpand>
         </div>
         <div className="flex items-center gap-3">
@@ -507,6 +507,9 @@ function NuevoMesModal({ gastosFijos, ingresosFijos, mesesCreados, onClose, onCr
   const now = new Date();
   const currentAnio = now.getFullYear();
   const currentMes  = now.getMonth() + 1;
+  // Solo se permite crear hasta el mes siguiente al actual
+  const maxAnio = currentMes === 12 ? currentAnio + 1 : currentAnio;
+  const maxAnioMes = currentMes === 12 ? 1 : currentMes + 1;
 
   const [selectedAnio, setSelectedAnio] = useState(currentAnio);
   const [selectedMes,  setSelectedMes]  = useState(currentMes);
@@ -515,7 +518,7 @@ function NuevoMesModal({ gastosFijos, ingresosFijos, mesesCreados, onClose, onCr
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
 
-  const maxMes = selectedAnio === currentAnio ? currentMes : 12;
+  const maxMes = selectedAnio === maxAnio ? maxAnioMes : selectedAnio < maxAnio ? 12 : 0;
   const alreadyExists = mesesCreados.some(m => m.anio === selectedAnio && m.mes === selectedMes);
 
   async function handleCreate(e: React.FormEvent) {
@@ -555,11 +558,12 @@ function NuevoMesModal({ gastosFijos, ingresosFijos, mesesCreados, onClose, onCr
               <input
                 type="number"
                 value={selectedAnio}
-                max={currentAnio}
+                max={maxAnio}
                 onChange={e => {
-                  const a = Math.min(parseInt(e.target.value) || currentAnio, currentAnio);
+                  const a = Math.min(parseInt(e.target.value) || currentAnio, maxAnio);
                   setSelectedAnio(a); setSobrescribir(false);
-                  if (a === currentAnio && selectedMes > currentMes) setSelectedMes(currentMes);
+                  const limite = a === maxAnio ? maxAnioMes : 12;
+                  if (selectedMes > limite) setSelectedMes(limite);
                 }}
                 className={fieldInputCls} style={fieldInputStyle}
               />

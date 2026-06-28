@@ -1,15 +1,20 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Fijo, Categoria, AhorroObjetivo, PresupuestoAutoConfig } from '@/lib/db';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import InfoExpand from '@/components/InfoExpand';
 import { PencilIcon, TrashIcon, SettingsIcon } from '@/components/icons';
+import { autoText } from '@/components/ColorDots';
 import { useIsMobile } from '@/lib/useIsMobile';
 import { mensualNecesario } from '@/lib/ahorroObjetivos';
 import GestionHogarClient from '../gestion/GestionHogarClient';
 
 const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+const fmtDate = (d: string | null) => {
+  const m = d?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : '—';
+};
 
 const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border transition-colors appearance-none';
 const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
@@ -37,7 +42,7 @@ function CategoryBadge({ nombre, categorias }: { nombre: string | null; categori
   if (!nombre) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
   const cat = categorias.find(c => c.nombre === nombre);
   const bg = cat?.color ?? '#64748b';
-  return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold text-white" style={{ background: bg }}>{nombre}</span>;
+  return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold" style={{ background: bg, color: autoText(bg) }}>{nombre}</span>;
 }
 
 // ── Modal añadir / editar fijo ───────────────────────────────────────────────
@@ -178,6 +183,9 @@ export default function PresupuestoHogarClient({
   const [filtroCategoria, setFiltroCategoria] = useState('');
   const [filtroBanco, setFiltroBanco] = useState('');
 
+  useEffect(() => { setCatGasto(initCatGasto); }, [initCatGasto]);
+  useEffect(() => { setCatPrestamo(initCatPrestamo); }, [initCatPrestamo]);
+
   function toggleSort(k: SortKey) { if (sortKey === k) setSortAsc(!sortAsc); else { setSortKey(k); setSortAsc(true); } }
 
   const catNames   = [...new Set(gastos.map(f => f.categoria).filter(Boolean))] as string[];
@@ -202,6 +210,9 @@ export default function PresupuestoHogarClient({
   const objetivosVirtual = objetivosAhorro.reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
   const objetivosCfg = autoConfigs.find(c => c.tipo === 'objetivos') ?? { tipo: 'objetivos' as const, banco: null, categoria: null };
   const objetivosMatchesFiltro = (!filtroCategoria || objetivosCfg.categoria === filtroCategoria) && (!filtroBanco || objetivosCfg.banco === filtroBanco);
+  const totalGastosConVirtuales = totalGastos + (objetivosVirtual > 0 ? objetivosVirtual : 0);
+  const totalFiltradoConVirtuales = totalFiltrado + (objetivosVirtual > 0 && objetivosMatchesFiltro ? objetivosVirtual : 0);
+  const conceptosTotal = gastos.length + (objetivosVirtual > 0 ? 1 : 0);
 
   async function handleSave() {
     if (!modal) return;
@@ -253,7 +264,7 @@ export default function PresupuestoHogarClient({
   if (view === 'gestion') {
     return (
       <div className="space-y-6">
-        <button onClick={() => setView('main')} className="flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-xl border transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'var(--bg-card)' }}>
+        <button onClick={() => { setView('main'); router.refresh(); }} className="flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-xl border transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'var(--bg-card)' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           Volver a Presupuesto
         </button>
@@ -279,7 +290,7 @@ export default function PresupuestoHogarClient({
             <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Entradas fijas que se importan al crear un nuevo mes</p>
           </div>
           <InfoExpand title="¿Qué es Presupuesto?">
-            <p>El Presupuesto son los gastos fijos del Hogar que se repiten cada mes, junto a los ingresos. Crea primero las categorías y bancos en Gestión, ya que de ahí se nutren los filtros y las estadísticas. Al crear un nuevo Mes, estos datos se importan automáticamente.</p>
+            <p>El Presupuesto son los gastos fijos del Hogar que se repiten cada mes, junto a los ingresos. Crea primero las categorías y bancos en Gestión, ya que de ahí se nutren los filtros y las estadísticas. Al crear un nuevo Mes, estos datos se importan automáticamente. Si un gasto tiene fecha de vencimiento, se eliminará automáticamente del Presupuesto en cuanto esa fecha quede atrás.</p>
           </InfoExpand>
         </div>
         <div className="flex gap-2 items-center">
@@ -301,8 +312,8 @@ export default function PresupuestoHogarClient({
       <div className="grid grid-cols-2 gap-2 md:gap-4">
         <div className="glass-card rounded-2xl md:rounded-3xl p-3 md:p-6">
           <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wide mb-1 md:mb-2" style={{ color: '#f97316' }}>Gastos fijos</p>
-          <p className="text-sm md:text-3xl font-extrabold leading-tight" style={{ color: totalGastos > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>{totalGastos > 0 ? fmt(totalGastos) : '—'}</p>
-          <p className="hidden md:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{gastos.length} concepto{gastos.length !== 1 ? 's' : ''}</p>
+          <p className="text-sm md:text-3xl font-extrabold leading-tight" style={{ color: totalGastosConVirtuales > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>{totalGastosConVirtuales > 0 ? fmt(totalGastosConVirtuales) : '—'}</p>
+          <p className="hidden md:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{conceptosTotal} concepto{conceptosTotal !== 1 ? 's' : ''}</p>
         </div>
         <div className="glass-card rounded-2xl md:rounded-3xl p-3 md:p-6">
           <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wide mb-1 md:mb-2" style={{ color: '#10b981' }}>Ingresos</p>
@@ -326,7 +337,7 @@ export default function PresupuestoHogarClient({
             <button onClick={() => { setFiltroCategoria(''); setFiltroBanco(''); }} className="px-3 py-2 rounded-xl text-sm font-medium border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)' }}>✕ Limpiar</button>
             <div className="ml-auto flex items-center gap-3 px-4 py-2 rounded-2xl" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
               <span className="text-sm font-medium" style={{ color: '#6366f1' }}>{gastosFiltered.length} de {gastos.length}</span>
-              <span className="text-base font-extrabold" style={{ color: '#6366f1' }}>{fmt(totalFiltrado)}</span>
+              <span className="text-base font-extrabold" style={{ color: '#6366f1' }}>{fmt(totalFiltradoConVirtuales)}</span>
             </div>
           </>
         )}
@@ -337,7 +348,7 @@ export default function PresupuestoHogarClient({
         <div className="px-6 py-4 bg-orange-600">
           <h2 className="font-bold text-base text-white">
             Gastos fijos
-            <span className="ml-2 text-sm font-normal text-white/80">{gastos.length} concepto{gastos.length !== 1 ? 's' : ''}</span>
+            <span className="ml-2 text-sm font-normal text-white/80">{conceptosTotal} concepto{conceptosTotal !== 1 ? 's' : ''}</span>
           </h2>
         </div>
         <div className="overflow-x-auto">
@@ -375,7 +386,7 @@ export default function PresupuestoHogarClient({
                       {f.cobro ? `Día ${f.cobro}` : '—'}
                     </td>
                     <td className="px-4 py-3 text-sm" style={{ color: f.vencimiento ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                      {f.vencimiento ?? '—'}
+                      {fmtDate(f.vencimiento)}
                     </td>
                     {canEdit && (
                       <td className="px-4 py-3 text-right whitespace-nowrap">
@@ -394,7 +405,8 @@ export default function PresupuestoHogarClient({
 
                 {/* Fila virtual: Objetivos de ahorro */}
                 {objetivosVirtual > 0 && objetivosMatchesFiltro && (
-                  <tr style={{ background: 'rgba(245,158,11,0.04)' }}>
+                  <tr style={{ background: 'rgba(245,158,11,0.04)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
+                    onClick={() => { if (isMobile && canEdit) setEditingAuto('objetivos'); }}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Objetivos de ahorro</span>
@@ -409,7 +421,7 @@ export default function PresupuestoHogarClient({
                     {canEdit && (
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => setEditingAuto('objetivos')} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                          <button onClick={e => { e.stopPropagation(); setEditingAuto('objetivos'); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
                         </div>
@@ -502,7 +514,7 @@ export default function PresupuestoHogarClient({
             await fetch('/api/presupuesto/auto', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: 'objetivos', banco, categoria }) });
             setAutoConfigs(prev => {
               const next = prev.filter(c => c.tipo !== 'objetivos');
-              return [...next, { tipo: 'objetivos' as const, banco, categoria }];
+              return [...next, { tipo: 'objetivos' as const, banco, categoria, redondeo: 1 }];
             });
             setEditingAuto(null);
           }}

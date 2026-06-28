@@ -33,13 +33,14 @@ function applyVirtualRows(userId: number, anioNum: number, mesNum: number) {
   const suscReal = suscs.reduce((s, sub) => s + monthlyEquivalent(sub.importe, sub.periodicidad), 0);
   if (suscReal > 0) {
     const cfg = autoConfigs.find(c => c.tipo === 'suscripciones');
+    const redondea = (cfg?.redondeo ?? 1) === 1;
     createPersonalGastoMes(userId, anioNum, mesNum, {
       concepto: 'Suscripciones',
-      importe: roundUp5(suscReal),
+      importe: redondea ? roundUp5(suscReal) : suscReal,
       categoria: cfg?.categoria ?? null,
       banco: cfg?.banco ?? null,
       fecha: null,
-      comentario: `Total suscripciones redondeado (real: ${suscReal.toFixed(2)} €)`,
+      comentario: redondea ? `Total suscripciones redondeado (real: ${suscReal.toFixed(2)} €)` : `Total suscripciones (sin redondeo)`,
     });
   }
 
@@ -83,8 +84,11 @@ export async function POST(request: NextRequest) {
   const anioNum = Number(anio);
 
   const now = new Date();
-  if (anioNum > now.getFullYear() || (anioNum === now.getFullYear() && mesNum > now.getMonth() + 1)) {
-    return NextResponse.json({ error: 'No se pueden crear meses futuros' }, { status: 400 });
+  let maxAnio = now.getFullYear();
+  let maxMes = now.getMonth() + 2; // mes actual + 1 (siguiente mes permitido)
+  if (maxMes > 12) { maxMes -= 12; maxAnio += 1; }
+  if (anioNum > maxAnio || (anioNum === maxAnio && mesNum > maxMes)) {
+    return NextResponse.json({ error: 'Solo se puede crear como máximo el mes siguiente al actual' }, { status: 400 });
   }
 
   const alreadyExists = personalMesExists(session.id, mesNum, anioNum);
