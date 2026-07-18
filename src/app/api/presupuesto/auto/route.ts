@@ -12,7 +12,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Sin permisos' }, { status: 403 });
   }
   const { tipo, banco, categoria } = await request.json();
-  if (tipo !== 'objetivos') {
+  if (tipo !== 'objetivos' && tipo !== 'ahorro') {
     return NextResponse.json({ error: 'Tipo inválido' }, { status: 400 });
   }
   upsertPresupuestoAutoHogar(tipo, banco || null, categoria || null);

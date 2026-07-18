@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Fijo, Categoria, AhorroObjetivo, PresupuestoAutoConfig } from '@/lib/db';
+import type { Fijo, Categoria, AhorroObjetivo, Ahorro, PresupuestoAutoConfig } from '@/lib/db';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import InfoExpand from '@/components/InfoExpand';
 import { PencilIcon, TrashIcon, SettingsIcon } from '@/components/icons';
@@ -153,6 +153,7 @@ interface Props {
   catGasto: Categoria[];
   catPrestamo: Categoria[];
   objetivosAhorro: AhorroObjetivo[];
+  ahorro: Ahorro;
   autoConfigs: PresupuestoAutoConfig[];
   canEdit: boolean;
 }
@@ -163,6 +164,7 @@ export default function PresupuestoHogarClient({
   catGasto: initCatGasto,
   catPrestamo: initCatPrestamo,
   objetivosAhorro,
+  ahorro,
   autoConfigs: initAutoConfigs,
   canEdit,
 }: Props) {
@@ -173,7 +175,7 @@ export default function PresupuestoHogarClient({
   const [catGasto, setCatGasto] = useState<Categoria[]>(initCatGasto);
   const [catPrestamo, setCatPrestamo] = useState<Categoria[]>(initCatPrestamo);
   const [autoConfigs, setAutoConfigs] = useState<PresupuestoAutoConfig[]>(initAutoConfigs);
-  const [editingAuto, setEditingAuto] = useState<'objetivos' | null>(null);
+  const [editingAuto, setEditingAuto] = useState<'objetivos' | 'ahorro' | null>(null);
   const [view, setView] = useState<'main' | 'gestion'>('main');
   const [modal, setModal] = useState<FijoForm | null>(null);
   const [saving, setSaving] = useState(false);
@@ -185,11 +187,11 @@ export default function PresupuestoHogarClient({
 
   useEffect(() => { setCatGasto(initCatGasto); }, [initCatGasto]);
   useEffect(() => { setCatPrestamo(initCatPrestamo); }, [initCatPrestamo]);
+  useEffect(() => { setGastos(initGastos); }, [initGastos]);
+  useEffect(() => { setIngresos(initIngresos); }, [initIngresos]);
+  useEffect(() => { setAutoConfigs(initAutoConfigs); }, [initAutoConfigs]);
 
   function toggleSort(k: SortKey) { if (sortKey === k) setSortAsc(!sortAsc); else { setSortKey(k); setSortAsc(true); } }
-
-  const catNames   = [...new Set(gastos.map(f => f.categoria).filter(Boolean))] as string[];
-  const bancoNames = [...new Set(gastos.map(f => f.banco).filter(Boolean))] as string[];
 
   const gastosFiltered = gastos
     .filter(f => !filtroCategoria || f.categoria === filtroCategoria)
@@ -210,9 +212,14 @@ export default function PresupuestoHogarClient({
   const objetivosVirtual = objetivosAhorro.reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
   const objetivosCfg = autoConfigs.find(c => c.tipo === 'objetivos') ?? { tipo: 'objetivos' as const, banco: null, categoria: null };
   const objetivosMatchesFiltro = (!filtroCategoria || objetivosCfg.categoria === filtroCategoria) && (!filtroBanco || objetivosCfg.banco === filtroBanco);
-  const totalGastosConVirtuales = totalGastos + (objetivosVirtual > 0 ? objetivosVirtual : 0);
-  const totalFiltradoConVirtuales = totalFiltrado + (objetivosVirtual > 0 && objetivosMatchesFiltro ? objetivosVirtual : 0);
-  const conceptosTotal = gastos.length + (objetivosVirtual > 0 ? 1 : 0);
+
+  const ahorroVirtual = ahorro.objetivo_anual > 0 ? ahorro.objetivo_anual / 12 : 0;
+  const ahorroCfg = autoConfigs.find(c => c.tipo === 'ahorro') ?? { tipo: 'ahorro' as const, banco: null, categoria: null };
+  const ahorroMatchesFiltro = (!filtroCategoria || ahorroCfg.categoria === filtroCategoria) && (!filtroBanco || ahorroCfg.banco === filtroBanco);
+
+  const totalGastosConVirtuales = totalGastos + (objetivosVirtual > 0 ? objetivosVirtual : 0) + (ahorroVirtual > 0 ? ahorroVirtual : 0);
+  const totalFiltradoConVirtuales = totalFiltrado + (objetivosVirtual > 0 && objetivosMatchesFiltro ? objetivosVirtual : 0) + (ahorroVirtual > 0 && ahorroMatchesFiltro ? ahorroVirtual : 0);
+  const conceptosTotal = gastos.length + (objetivosVirtual > 0 ? 1 : 0) + (ahorroVirtual > 0 ? 1 : 0);
 
   async function handleSave() {
     if (!modal) return;
@@ -326,11 +333,11 @@ export default function PresupuestoHogarClient({
       <div className="flex gap-2 flex-wrap items-center">
         <select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)} className={inputCls.replace('w-full', 'w-auto')} style={selectStyle}>
           <option value="">Todas las categorías</option>
-          {catNames.map(c => <option key={c} value={c}>{c}</option>)}
+          {catGasto.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
         </select>
         <select value={filtroBanco} onChange={e => setFiltroBanco(e.target.value)} className={inputCls.replace('w-full', 'w-auto')} style={selectStyle}>
           <option value="">Todos los bancos</option>
-          {bancoNames.map(b => <option key={b} value={b}>{b}</option>)}
+          {catPrestamo.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
         </select>
         {(filtroCategoria || filtroBanco) && (
           <>
@@ -352,7 +359,7 @@ export default function PresupuestoHogarClient({
           </h2>
         </div>
         <div className="overflow-x-auto">
-          {gastosFiltered.length === 0 && !(objetivosVirtual > 0 && objetivosMatchesFiltro) ? (
+          {gastosFiltered.length === 0 && !(objetivosVirtual > 0 && objetivosMatchesFiltro) && !(ahorroVirtual > 0 && ahorroMatchesFiltro) ? (
             <p className="py-14 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
               {gastos.length === 0 ? 'Sin gastos fijos — pulsa "+ Nuevo" para añadir' : 'Ningún gasto coincide con el filtro.'}
             </p>
@@ -402,6 +409,33 @@ export default function PresupuestoHogarClient({
                     )}
                   </tr>
                 ))}
+
+                {/* Fila virtual: Ahorro mensual */}
+                {ahorroVirtual > 0 && ahorroMatchesFiltro && (
+                  <tr style={{ background: 'rgba(245,158,11,0.04)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
+                    onClick={() => { if (isMobile && canEdit) setEditingAuto('ahorro'); }}>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Ahorro mensual</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>Auto</span>
+                      </div>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{fmt(ahorro.objetivo_anual)}/año ÷ 12</p>
+                    </td>
+                    <td className="px-4 py-3 font-mono font-bold" style={{ color: '#f59e0b' }}>-{fmt(ahorroVirtual)}</td>
+                    <td className="px-4 py-3"><CategoryBadge nombre={ahorroCfg.categoria} categorias={catGasto} /></td>
+                    <td className="px-4 py-3"><CategoryBadge nombre={ahorroCfg.banco} categorias={catPrestamo} /></td>
+                    <td className="px-4 py-3" colSpan={2} />
+                    {canEdit && (
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={e => { e.stopPropagation(); setEditingAuto('ahorro'); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
+                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                )}
 
                 {/* Fila virtual: Objetivos de ahorro */}
                 {objetivosVirtual > 0 && objetivosMatchesFiltro && (
@@ -506,15 +540,16 @@ export default function PresupuestoHogarClient({
 
       {editingAuto && (
         <AutoConfigModalHogar
-          current={objetivosCfg}
+          tipo={editingAuto}
+          current={editingAuto === 'ahorro' ? ahorroCfg : objetivosCfg}
           catGasto={catGasto}
           catPrestamo={catPrestamo}
           onClose={() => setEditingAuto(null)}
           onSave={async (banco, categoria) => {
-            await fetch('/api/presupuesto/auto', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: 'objetivos', banco, categoria }) });
+            await fetch('/api/presupuesto/auto', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: editingAuto, banco, categoria }) });
             setAutoConfigs(prev => {
-              const next = prev.filter(c => c.tipo !== 'objetivos');
-              return [...next, { tipo: 'objetivos' as const, banco, categoria, redondeo: 1 }];
+              const next = prev.filter(c => c.tipo !== editingAuto);
+              return [...next, { tipo: editingAuto, banco, categoria, redondeo: 1 }];
             });
             setEditingAuto(null);
           }}
@@ -525,9 +560,10 @@ export default function PresupuestoHogarClient({
   );
 }
 
-// ── Modal configuración automática (Objetivos de ahorro) ──────────────────────
+// ── Modal configuración automática (Ahorro mensual / Objetivos de ahorro) ─────
 
-function AutoConfigModalHogar({ current, catGasto, catPrestamo, onClose, onSave }: {
+function AutoConfigModalHogar({ tipo, current, catGasto, catPrestamo, onClose, onSave }: {
+  tipo: 'objetivos' | 'ahorro';
   current: { banco: string | null; categoria: string | null };
   catGasto: Categoria[];
   catPrestamo: Categoria[];
@@ -537,6 +573,8 @@ function AutoConfigModalHogar({ current, catGasto, catPrestamo, onClose, onSave 
   const [banco, setBanco] = useState(current.banco ?? '');
   const [categoria, setCategoria] = useState(current.categoria ?? '');
   const [saving, setSaving] = useState(false);
+
+  const titulo = tipo === 'ahorro' ? 'Ahorro mensual' : 'Objetivos de ahorro';
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -549,7 +587,7 @@ function AutoConfigModalHogar({ current, catGasto, catPrestamo, onClose, onSave 
       <div className="glass-card rounded-3xl p-6 w-full max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2.5">
-            <span className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>Objetivos de ahorro</span>
+            <span className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>{titulo}</span>
             <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Configurar</h3>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-xl" style={{ color: 'var(--text-muted)', background: 'var(--btn-hover)' }}>×</button>

@@ -230,13 +230,13 @@ export default function MesPersonalClient({
           </div>
         </div>
 
-        <div className={`rounded-2xl md:rounded-3xl p-3 md:p-6 text-white shadow-2xl ${balance >= 0 ? 'bg-gradient-to-br from-emerald-500 to-green-600 shadow-green-500/20' : 'bg-gradient-to-br from-red-500 to-red-600 shadow-red-500/20'}`}>
+        <div className={`rounded-2xl md:rounded-3xl p-3 md:p-6 text-white shadow-2xl ${balance > 0 ? 'bg-gradient-to-br from-emerald-500 to-green-600 shadow-green-500/20' : balance < 0 ? 'bg-gradient-to-br from-red-500 to-red-600 shadow-red-500/20' : 'bg-gradient-to-br from-slate-400 to-slate-500 shadow-slate-500/20'}`}>
           <div className="flex items-start justify-between">
             <div>
               <p className="text-white/80 font-medium text-[10px] md:text-sm">Balance</p>
               <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3 leading-tight">{fmt(balance)}</h3>
               <p className="hidden md:flex font-semibold mt-2 text-sm items-center gap-1">
-                {balance >= 0 ? '✓ Superávit' : '✗ Déficit'}
+                {balance > 0 ? '✓ Superávit' : balance < 0 ? '✗ Déficit' : '= Neutro'}
               </p>
             </div>
             <div className="hidden md:flex w-12 h-12 rounded-2xl bg-white/20 items-center justify-center shrink-0 backdrop-blur-md">

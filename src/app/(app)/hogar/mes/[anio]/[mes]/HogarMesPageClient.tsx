@@ -6,6 +6,7 @@ import { BanknoteIcon, ReceiptIcon, BankIcon, PencilIcon, TrashIcon } from '@/co
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import InfoExpand from '@/components/InfoExpand';
 import { useIsMobile } from '@/lib/useIsMobile';
+import { autoText } from '@/components/ColorDots';
 
 const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border transition-colors appearance-none';
@@ -35,7 +36,7 @@ function CategoryBadge({ nombre, categorias }: { nombre: string | null; categori
   if (!nombre) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
   const cat = categorias.find(c => c.nombre === nombre);
   const bg = cat?.color ?? '#64748b';
-  return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold text-white" style={{ background: bg }}>{nombre}</span>;
+  return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold" style={{ background: bg, color: autoText(bg) }}>{nombre}</span>;
 }
 
 function CloseBtn({ onClose }: { onClose: () => void }) {
@@ -329,12 +330,12 @@ export default function HogarMesPageClient({
             </div>
           </div>
         </div>
-        <div className={`rounded-2xl md:rounded-3xl p-3 md:p-6 text-white shadow-2xl ${balance >= 0 ? 'bg-gradient-to-br from-emerald-500 to-green-600 shadow-green-500/20' : 'bg-gradient-to-br from-red-500 to-red-600 shadow-red-500/20'}`}>
+        <div className={`rounded-2xl md:rounded-3xl p-3 md:p-6 text-white shadow-2xl ${balance > 0 ? 'bg-gradient-to-br from-emerald-500 to-green-600 shadow-green-500/20' : balance < 0 ? 'bg-gradient-to-br from-red-500 to-red-600 shadow-red-500/20' : 'bg-gradient-to-br from-slate-400 to-slate-500 shadow-slate-500/20'}`}>
           <div className="flex items-start justify-between">
             <div>
               <p className="text-white/80 font-medium text-[10px] md:text-sm">Balance</p>
               <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3 leading-tight">{fmt(balance)}</h3>
-              <p className="hidden md:flex font-semibold mt-2 text-sm items-center gap-1">{balance >= 0 ? '✓ Superávit' : '✗ Déficit'}</p>
+              <p className="hidden md:flex font-semibold mt-2 text-sm items-center gap-1">{balance > 0 ? '✓ Superávit' : balance < 0 ? '✗ Déficit' : '= Neutro'}</p>
             </div>
             <div className="hidden md:flex w-12 h-12 rounded-2xl bg-white/20 items-center justify-center shrink-0 backdrop-blur-md">
               <BankIcon className="w-6 h-6 text-white" />

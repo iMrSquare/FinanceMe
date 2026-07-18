@@ -1,4 +1,4 @@
-import { getFijos, getCategorias, getAhorroObjetivos, getPresupuestoAutoConfigsHogar } from '@/lib/db';
+import { getFijos, getCategorias, getAhorroObjetivos, getAhorro, getPresupuestoAutoConfigsHogar } from '@/lib/db';
 import { getSession, canEdit } from '@/lib/auth';
 import PresupuestoHogarClient from './PresupuestoHogarClient';
 
@@ -13,6 +13,7 @@ export default async function HogarPresupuestoPage() {
   const catGasto = getCategorias('gasto');
   const catPrestamo = getCategorias('prestamo');
   const objetivosAhorro = getAhorroObjetivos();
+  const ahorro = getAhorro(new Date().getFullYear());
   const autoConfigs = getPresupuestoAutoConfigsHogar();
 
   return (
@@ -22,6 +23,7 @@ export default async function HogarPresupuestoPage() {
       catGasto={catGasto}
       catPrestamo={catPrestamo}
       objetivosAhorro={objetivosAhorro}
+      ahorro={ahorro}
       autoConfigs={autoConfigs}
       canEdit={editable}
     />

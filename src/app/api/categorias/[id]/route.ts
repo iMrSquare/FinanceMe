@@ -11,10 +11,18 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const { nombre, color, nombreAnterior, tipo } = await req.json();
   const db = getDb();
   db.prepare('UPDATE categorias SET nombre=?, color=? WHERE id=?').run(nombre, color, id);
-  // Cascade rename to existing rows
+  // Cascade rename to existing rows referencing the old name
   if (nombreAnterior && nombreAnterior !== nombre && tipo) {
-    const table = tipo === 'gasto' ? 'gastos' : 'prestamos';
-    db.prepare(`UPDATE ${table} SET categoria=? WHERE categoria=?`).run(nombre, nombreAnterior);
+    if (tipo === 'gasto') {
+      db.prepare('UPDATE gastos SET categoria=? WHERE categoria=?').run(nombre, nombreAnterior);
+      db.prepare('UPDATE fijos SET categoria=? WHERE categoria=?').run(nombre, nombreAnterior);
+      db.prepare('UPDATE presupuesto_auto SET categoria=? WHERE categoria=?').run(nombre, nombreAnterior);
+    } else {
+      db.prepare('UPDATE prestamos SET categoria=? WHERE categoria=?').run(nombre, nombreAnterior);
+      db.prepare('UPDATE gastos SET banco=? WHERE banco=?').run(nombre, nombreAnterior);
+      db.prepare('UPDATE fijos SET banco=? WHERE banco=?').run(nombre, nombreAnterior);
+      db.prepare('UPDATE presupuesto_auto SET banco=? WHERE banco=?').run(nombre, nombreAnterior);
+    }
   }
   return NextResponse.json({ ok: true });
 }

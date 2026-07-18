@@ -25,9 +25,35 @@ const TIPO_META: Record<Tipo, { color: string; emoji: string }> = {
 
 const RELEASES: Release[] = [
   {
+    version: 'v1.4.9',
+    fecha: '18 de julio de 2026',
+    destacado: true,
+    intro: 'Objetivo anual de ahorro en el Hogar (igual que en Personal), nuevo estado "Neutro" en el Balance y una tanda de correcciones de fiabilidad en Gestión y Presupuesto.',
+    grupos: [
+      {
+        tipo: 'Novedades',
+        items: [
+          'Ahorro (Hogar): nueva pestaña "Objetivo anual", igual que en Personal — define un objetivo de ahorro anual, sigue el desglose mes a mes y visualiza el progreso, junto a los objetivos de ahorro concretos ya existentes.',
+          'Presupuesto (Hogar): nueva fila automática "Ahorro mensual" (objetivo anual ÷ 12), con categoría y banco configurables, igual que en Personal.',
+          'Mes: la tarjeta de Balance añade el estado "Neutro" (gris, con "=") cuando ingresos y gastos coinciden exactamente, junto a Superávit y Déficit.',
+        ],
+      },
+      {
+        tipo: 'Correcciones',
+        items: [
+          'Gestión (móvil): al escribir un nombre largo de categoría o banco, el campo ya no empuja el botón OK fuera de la pantalla.',
+          'Editar una categoría o un banco: el cambio de nombre se propaga ahora a todos los gastos, gastos fijos y configuraciones automáticas que ya lo usaban, tanto en Hogar como en Personal.',
+          'Mes de Hogar: la tabla de Gastos usa el mismo contraste automático de texto que el resto de la app, en vez de texto blanco fijo sobre colores claros.',
+          'Presupuesto de Hogar: al volver de Gestión, la tabla de gastos, los ingresos y las filas automáticas se actualizan al instante sin recargar la página.',
+          'Presupuesto de Hogar: los filtros de categoría y banco muestran ahora todas las categorías y bancos configurados en Gestión, no solo los que ya se usan en algún gasto.',
+          'Mes: al importar el Presupuesto para crear un mes nuevo, las filas automáticas de Ahorro mensual y Objetivos de ahorro ya incluyen la categoría y el banco configurados.',
+        ],
+      },
+    ],
+  },
+  {
     version: 'v1.4.2',
     fecha: '28 de junio de 2026',
-    destacado: true,
     intro: 'Límite de creación de meses, redondeo configurable en Suscripciones y un repaso de fiabilidad en Presupuesto y Objetivos de ahorro.',
     grupos: [
       {

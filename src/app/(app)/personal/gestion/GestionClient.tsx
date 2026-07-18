@@ -64,10 +64,10 @@ function GestionSection({ title, color, items, apiBase, onRefresh }: {
             <div key={item.id} className="rounded-2xl p-3" style={{ border: '1px solid var(--divider)', background: 'var(--bg-page)' }}>
               {editId === item.id ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0" style={{ background: editColor, color: autoText(editColor) }}>{editNombre || '…'}</span>
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0 truncate max-w-[30%]" style={{ background: editColor, color: autoText(editColor) }}>{editNombre || '…'}</span>
                   <input value={editNombre} onChange={e => setEditNombre(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditId(null); }}
-                    className="flex-1 text-sm rounded-xl px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border"
+                    className="flex-1 min-w-0 text-sm rounded-xl px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border"
                     style={inputStyle} autoFocus />
                   <CircularColorPicker value={editColor} onChange={setEditColor} />
                   <button onClick={saveEdit} disabled={saving || !editNombre.trim()}
@@ -101,7 +101,7 @@ function GestionSection({ title, color, items, apiBase, onRefresh }: {
             <input value={newNombre} onChange={e => setNewNombre(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && addNew()}
               placeholder="Nombre…"
-              className="flex-1 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border"
+              className="flex-1 min-w-0 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border"
               style={inputStyle} />
             <CircularColorPicker value={newColor} onChange={setNewColor} />
             <button onClick={addNew} disabled={!newNombre.trim() || saving}
