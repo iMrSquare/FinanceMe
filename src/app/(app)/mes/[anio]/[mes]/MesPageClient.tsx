@@ -11,7 +11,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 function CategoryBadge({ nombre, categorias }: { nombre: string | null; categorias: Categoria[] }) {
   if (!nombre) return null;
   const cat = categorias.find(c => c.nombre === nombre);
-  const bg = cat?.color ?? '#e5e7eb';
+  const bg = cat?.color ?? 'var(--btn-border)';
   return (
     <span
       style={{ backgroundColor: bg, color: autoText(bg) }}
@@ -134,7 +134,7 @@ export default function MesPageClient({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(14,165,233,0.12)' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-hogar)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
           </div>
@@ -152,7 +152,7 @@ export default function MesPageClient({
           )}
           <div className="relative">
             <select
-              className="appearance-none bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-2xl pl-4 pr-8 py-2.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors shadow-lg shadow-indigo-500/30"
+              className="appearance-none bg-accent-primary hover:bg-accent-primary-dark text-white font-semibold text-sm rounded-2xl pl-4 pr-8 py-2.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent-primary transition-colors shadow-lg shadow-accent-primary/30"
               value={`${mesObj.anio}/${mesObj.mes}`}
               onChange={e => {
                 const [a, m] = e.target.value.split('/');
@@ -176,10 +176,10 @@ export default function MesPageClient({
             <div>
               <p className="font-medium text-[10px] md:text-sm" style={{ color: 'var(--text-secondary)' }}>Ingresos</p>
               <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3 leading-tight" style={{ color: 'var(--text-primary)' }}>{fmt(totalIngresos)}</h3>
-              <p className="hidden md:block font-semibold mt-2 text-emerald-500 text-sm">{ingresos.length} inquilino{ingresos.length !== 1 ? 's' : ''}</p>
+              <p className="hidden md:block font-semibold mt-2 text-success text-sm">{ingresos.length} inquilino{ingresos.length !== 1 ? 's' : ''}</p>
             </div>
-            <div className="hidden md:flex w-12 h-12 rounded-2xl bg-emerald-100 items-center justify-center shrink-0">
-              <BanknoteIcon className="w-6 h-6 text-emerald-600" />
+            <div className="hidden md:flex w-12 h-12 rounded-2xl bg-success/10 items-center justify-center shrink-0">
+              <BanknoteIcon className="w-6 h-6 text-success" />
             </div>
           </div>
         </div>
@@ -191,8 +191,8 @@ export default function MesPageClient({
                 <span className="md:hidden">Gastos</span>
                 <span className="hidden md:inline">Gastos totales</span>
               </p>
-              <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3 leading-tight text-red-500">-{fmt(totalGastosGeneral)}</h3>
-              <p className="hidden md:block font-semibold mt-2 text-amber-500 text-sm">{fmt(totalGastos)} gastos · {fmt(totalPrestamos)} préstamos</p>
+              <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3 leading-tight text-error">-{fmt(totalGastosGeneral)}</h3>
+              <p className="hidden md:block font-semibold mt-2 text-warning text-sm">{fmt(totalGastos)} gastos · {fmt(totalPrestamos)} préstamos</p>
             </div>
             <div className="hidden md:flex w-12 h-12 rounded-2xl bg-orange-100 items-center justify-center shrink-0">
               <ReceiptIcon className="w-6 h-6 text-orange-500" />
@@ -200,7 +200,7 @@ export default function MesPageClient({
           </div>
         </div>
         {/* Balance */}
-        <div className={`rounded-2xl md:rounded-3xl p-3 md:p-6 text-white shadow-2xl ${balance >= 0 ? 'bg-gradient-to-br from-emerald-500 to-green-600 shadow-green-500/20' : 'bg-gradient-to-br from-red-500 to-red-600 shadow-red-500/20'}`}>
+        <div className={`rounded-2xl md:rounded-3xl p-3 md:p-6 text-white shadow-2xl ${balance >= 0 ? 'bg-gradient-to-br from-success to-success-dark shadow-success/20' : 'bg-gradient-to-br from-error to-error-dark shadow-error/20'}`}>
           <div className="flex items-start justify-between">
             <div>
               <p className="text-white/80 font-medium text-[10px] md:text-sm">Balance</p>
@@ -219,7 +219,7 @@ export default function MesPageClient({
       {/* ── Ingresos ── */}
       <Section
         title="Ingresos" icon={<BanknoteIcon className="w-4 h-4" />} badge={fmt(totalIngresos)}
-        headerClass="bg-emerald-700"
+        headerClass="bg-success-dark"
         onAdd={canEdit ? () => setModal({ type: 'ingreso' }) : undefined}
       >
         {ingresos.length === 0 ? <EmptyRow /> : (
@@ -236,7 +236,7 @@ export default function MesPageClient({
                 {ingresos.map((i, idx) => (
                   <tr key={i.id} className={rowCls(idx)}>
                     <td className="py-3 px-4 font-semibold">{i.inquilino}</td>
-                    <td className="py-3 px-4 text-right font-mono font-semibold text-emerald-500">{fmt(i.aportacion)}</td>
+                    <td className="py-3 px-4 text-right font-mono font-semibold text-success">{fmt(i.aportacion)}</td>
                     <td className="py-3 pr-3 text-right">
                       {canEdit && <RowActions onEdit={() => setModal({ type: 'ingreso', item: i })} onDelete={() => deleteIngreso(i.id)} />}
                     </td>
@@ -251,7 +251,7 @@ export default function MesPageClient({
       {/* ── Gastos (gastos + préstamos unificados) ── */}
       <Section
         title="Gastos" icon={<ReceiptIcon className="w-4 h-4" />} badge={fmt(totalGastosGeneral)}
-        headerClass="bg-amber-600"
+        headerClass="bg-warning-dark"
         onAdd={canEdit ? () => setModal({ type: 'gasto', subtype: 'gasto' }) : undefined}
         onAdd2={canEdit ? () => setModal({ type: 'gasto', subtype: 'prestamo' }) : undefined}
         add2Label="+ Préstamo"
@@ -277,7 +277,7 @@ export default function MesPageClient({
                     <td className="py-3 px-4 font-semibold">{f.gasto}</td>
                     <td className="py-3 px-4 text-sm" style={{ color: 'var(--text-secondary)' }}>{fmtDate(f.fecha)}</td>
                     <td className="py-3 px-4">
-                      <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: f._tipo === 'gasto' ? 'rgba(245,158,11,0.15)' : 'rgba(59,130,246,0.15)', color: f._tipo === 'gasto' ? '#d97706' : '#3b82f6' }}>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: f._tipo === 'gasto' ? 'rgba(var(--color-warning-rgb),0.15)' : 'rgba(var(--color-info-rgb),0.15)', color: f._tipo === 'gasto' ? 'var(--color-warning)' : 'var(--color-info)' }}>
                         {f._tipo === 'gasto' ? 'Gasto' : 'Préstamo'}
                       </span>
                     </td>
@@ -291,7 +291,7 @@ export default function MesPageClient({
                         ? <CategoryBadge nombre={f.categoria} categorias={catPrestamo} />
                         : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
-                    <td className="py-3 px-4 text-right font-mono font-semibold text-red-500">-{fmt(f.importe)}</td>
+                    <td className="py-3 px-4 text-right font-mono font-semibold text-error">-{fmt(f.importe)}</td>
                     <td className="py-3 px-4 text-xs max-w-[180px] truncate" style={{ color: 'var(--text-muted)' }}>{f.comentario}</td>
                     <td className="py-3 pr-3 text-right">
                       {canEdit && <RowActions onEdit={() => setModal({ type: 'gasto', subtype: f._tipo, item: f })} onDelete={() => deleteGasto(f)} />}
@@ -422,7 +422,7 @@ function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
   return (
     <div className="flex gap-1 justify-end">
       <button onClick={onEdit} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'} onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-      <button onClick={onDelete} className="p-1.5 rounded-lg text-red-400 hover:text-red-600 transition-colors"><TrashIcon /></button>
+      <button onClick={onDelete} className="p-1.5 rounded-lg text-error hover:text-error transition-colors"><TrashIcon /></button>
     </div>
   );
 }
@@ -441,7 +441,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
   );
 }
 
-const fieldInputCls = 'w-full rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border transition-colors';
+const fieldInputCls = 'w-full rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border transition-colors';
 const fieldInputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
 
 function Field({ label, name, type = 'text', defaultValue, required, step }: {
@@ -479,7 +479,7 @@ function FormActions({ loading, onCancel }: { loading: boolean; onCancel: () => 
         Cancelar
       </button>
       <button type="submit" disabled={loading}
-        className="px-4 py-2 text-sm font-bold bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+        className="px-4 py-2 text-sm font-bold bg-accent-primary text-white rounded-2xl shadow-lg shadow-accent-primary/30 hover:bg-accent-primary-dark disabled:opacity-50 transition-colors">
         {loading ? 'Guardando…' : 'Guardar'}
       </button>
     </div>
@@ -570,7 +570,7 @@ function NuevoMesModal({ onClose }: { onClose: () => void }) {
               <div
                 onClick={() => setImportarFijos(v => !v)}
                 className="w-10 h-6 rounded-full transition-colors relative shrink-0"
-                style={{ background: importarFijos ? '#6366f1' : 'var(--divider)' }}
+                style={{ background: importarFijos ? 'var(--accent-primary)' : 'var(--divider)' }}
               >
                 <div className="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all" style={{ left: importarFijos ? '22px' : '4px' }} />
               </div>
@@ -586,7 +586,7 @@ function NuevoMesModal({ onClose }: { onClose: () => void }) {
                 {fijosCount !== null && totalFijos === 0 && (
                   <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                     Sin entradas en el presupuesto —{' '}
-                    <a href="/hogar/presupuesto" className="underline" style={{ color: '#6366f1' }}>configúralo aquí</a>
+                    <a href="/hogar/presupuesto" className="underline" style={{ color: 'var(--accent-primary)' }}>configúralo aquí</a>
                   </p>
                 )}
               </div>
@@ -600,7 +600,7 @@ function NuevoMesModal({ onClose }: { onClose: () => void }) {
               Cancelar
             </button>
             <button type="submit" disabled={creating}
-              className="px-4 py-2 text-sm font-bold bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 disabled:opacity-50">
+              className="px-4 py-2 text-sm font-bold bg-accent-primary text-white rounded-2xl shadow-lg shadow-accent-primary/30 hover:bg-accent-primary-dark disabled:opacity-50">
               {creating ? 'Creando…' : 'Crear mes →'}
             </button>
           </div>

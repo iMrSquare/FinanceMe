@@ -1,4 +1,4 @@
-export type { Role, SessionUser } from './auth-edge';
+export type { Role, SessionUser, ColorMode } from './auth-edge';
 export { createToken, verifyToken } from './auth-edge';
 
 import { createToken } from './auth-edge';

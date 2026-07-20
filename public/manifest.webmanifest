@@ -10,8 +10,8 @@
   "theme_color": "#6366f1",
   "icons": [
     {
-      "src": "/logo_FinanceMe-Hogar.png",
-      "sizes": "any",
+      "src": "/logo_FinanceMe.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     }

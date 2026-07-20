@@ -24,9 +24,9 @@ export function ConfirmDialog({
       >
         <div
           className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
-          style={{ background: 'rgba(239,68,68,0.12)' }}
+          style={{ background: 'rgba(var(--color-error-rgb),0.12)' }}
         >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
           </svg>
         </div>
@@ -42,8 +42,8 @@ export function ConfirmDialog({
           </button>
           <button
             onClick={onConfirm}
-            className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white shadow-lg shadow-red-500/30"
-            style={{ background: 'linear-gradient(135deg,#ef4444,#dc2626)' }}
+            className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white shadow-lg shadow-error/30"
+            style={{ background: 'linear-gradient(135deg, var(--color-error), color-mix(in srgb, var(--color-error) 75%, black))' }}
           >
             {confirmLabel}
           </button>

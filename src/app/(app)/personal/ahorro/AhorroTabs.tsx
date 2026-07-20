@@ -15,7 +15,7 @@ export default function AhorroTabs() {
           onClick={() => setTab('anual')}
           className="px-4 py-1.5 rounded-xl text-sm font-bold transition-all"
           style={tab === 'anual'
-            ? { background: '#f59e0b', color: '#fff', boxShadow: '0 2px 8px rgba(245,158,11,0.35)' }
+            ? { background: 'var(--color-warning)', color: '#fff', boxShadow: '0 2px 8px rgba(var(--color-warning-rgb),0.35)' }
             : { background: 'transparent', color: 'var(--text-muted)' }
           }
         >
@@ -25,7 +25,7 @@ export default function AhorroTabs() {
           onClick={() => setTab('objetivos')}
           className="px-4 py-1.5 rounded-xl text-sm font-bold transition-all"
           style={tab === 'objetivos'
-            ? { background: '#f59e0b', color: '#fff', boxShadow: '0 2px 8px rgba(245,158,11,0.35)' }
+            ? { background: 'var(--color-warning)', color: '#fff', boxShadow: '0 2px 8px rgba(var(--color-warning-rgb),0.35)' }
             : { background: 'transparent', color: 'var(--text-muted)' }
           }
         >

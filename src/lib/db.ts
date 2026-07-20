@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { mensualNecesario } from './ahorroObjetivos';
+import type { SessionUser } from './auth-edge';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'financeme.db');
 
@@ -352,6 +353,14 @@ function runMigrations(db: Database.Database) {
   try {
     db.exec("ALTER TABLE users ADD COLUMN version_seen TEXT NOT NULL DEFAULT 'v1.0.0'");
   } catch {}
+
+  // Migration: add appearance columns (theme system) to existing databases
+  for (const sql of [
+    "ALTER TABLE users ADD COLUMN theme TEXT NOT NULL DEFAULT 'indigo'",
+    "ALTER TABLE users ADD COLUMN color_mode TEXT NOT NULL DEFAULT 'system'",
+    'ALTER TABLE users ADD COLUMN accent_personal TEXT',
+    'ALTER TABLE users ADD COLUMN accent_hogar TEXT',
+  ]) { try { db.exec(sql); } catch { /* already exists */ } }
 
   // Migration: add banco column to personal_gastos_mes
   try { db.exec('ALTER TABLE personal_gastos_mes ADD COLUMN banco TEXT'); } catch {}
@@ -768,6 +777,10 @@ export interface DbUser {
   must_change_password: number;
   tutorial_seen: number;
   version_seen: string;
+  theme: string;
+  color_mode: 'light' | 'dark' | 'system';
+  accent_personal: string | null;
+  accent_hogar: string | null;
   created_at: string;
 }
 
@@ -848,6 +861,35 @@ export function updateUserAvatar(id: number, avatarUrl: string): void {
 export function clearUserAvatar(id: number): void {
   const db = getDb();
   db.prepare('UPDATE users SET avatar_url = NULL WHERE id = ?').run(id);
+}
+
+export interface AppearanceInput {
+  theme: string;
+  colorMode: 'light' | 'dark' | 'system';
+  accentPersonal: string | null;
+  accentHogar: string | null;
+}
+
+export function updateUserAppearance(id: number, appearance: AppearanceInput): void {
+  const db = getDb();
+  db.prepare('UPDATE users SET theme = ?, color_mode = ?, accent_personal = ?, accent_hogar = ? WHERE id = ?')
+    .run(appearance.theme, appearance.colorMode, appearance.accentPersonal, appearance.accentHogar, id);
+}
+
+export function toSessionUser(u: DbUser): SessionUser {
+  return {
+    id: u.id,
+    username: u.username,
+    nombre: u.nombre,
+    role: u.role,
+    avatarUrl: u.avatar_url,
+    mustChangePassword: !!u.must_change_password,
+    tutorialSeen: !!u.tutorial_seen,
+    theme: u.theme,
+    colorMode: u.color_mode,
+    accentPersonal: u.accent_personal,
+    accentHogar: u.accent_hogar,
+  };
 }
 
 export function isHogarActivated(): boolean {

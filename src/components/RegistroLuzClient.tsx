@@ -7,6 +7,7 @@ import { CircularColorPicker, autoText } from './ColorDots';
 import { ConfirmDialog } from './ConfirmDialog';
 import InfoExpand from './InfoExpand';
 import { useIsMobile } from '@/lib/useIsMobile';
+import { useThemeVersion } from '@/lib/useThemeVersion';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler } from 'chart.js';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
@@ -14,7 +15,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip,
 function CompaniaBadge({ nombre, companias }: { nombre: string | null; companias: Categoria[] }) {
   if (!nombre) return <span className="text-xs" style={{ color: 'var(--text-muted)' }}>—</span>;
   const c = companias.find(c => c.nombre === nombre);
-  const bg = c?.color ?? '#e5e7eb';
+  const bg = c?.color ?? 'var(--btn-border)';
   return (
     <span style={{ backgroundColor: bg, color: autoText(bg) }} className="px-2 py-0.5 rounded-full text-xs font-semibold">
       {nombre}
@@ -37,12 +38,12 @@ function KWhBar({ kwh, maxKwh }: { kwh: number | null; maxKwh: number }) {
   const over = kwh > 500;
   return (
     <div className="rounded-full h-1.5 overflow-hidden" style={{ width: 120, background: 'var(--divider)' }}>
-      <div className={`h-1.5 rounded-full transition-all ${over ? 'bg-red-400' : 'bg-yellow-400'}`} style={{ width: `${pct}%` }} />
+      <div className={`h-1.5 rounded-full transition-all ${over ? 'bg-error' : 'bg-warning'}`} style={{ width: `${pct}%` }} />
     </div>
   );
 }
 
-const inputCls = 'w-full rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/50 border';
+const inputCls = 'w-full rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-warning/50 border';
 
 type ModalState = { type: 'none' } | { type: 'add' } | { type: 'edit'; item: RegistroLuz } | { type: 'gestionar' };
 
@@ -55,6 +56,12 @@ interface Props {
 export default function RegistroLuzClient({ registros: initRegistros, companias: initCompanias, canEdit = true }: Props) {
   const router = useRouter();
   const isMobile = useIsMobile();
+  useThemeVersion(); // re-render so the chart below re-reads resolved CSS colors on theme change
+  const cs = typeof document !== 'undefined' ? getComputedStyle(document.documentElement) : null;
+  const chartAccent = cs?.getPropertyValue('--color-warning').trim() || '#f59e0b';
+  const chartAccentRgb = cs?.getPropertyValue('--color-warning-rgb').trim() || '245,158,11';
+  const chartGrid = cs?.getPropertyValue('--sidebar-border').trim() || '#e2e8f0';
+  const chartTick = cs?.getPropertyValue('--text-muted').trim() || '#94a3b8';
   const [registros, setRegistros] = useState(initRegistros);
   const [companias, setCompanias] = useState(initCompanias);
   const [modal, setModal] = useState<ModalState>({ type: 'none' });
@@ -106,8 +113,8 @@ export default function RegistroLuzClient({ registros: initRegistros, companias:
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(245,158,11,0.12)' }}>
-            <BoltIcon className="w-6 h-6 text-amber-500" />
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(var(--color-warning-rgb),0.12)' }}>
+            <BoltIcon className="w-6 h-6 text-warning" />
           </div>
           <div>
             <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Registro Luz</h1>
@@ -123,7 +130,7 @@ export default function RegistroLuzClient({ registros: initRegistros, companias:
               <select
                 value={activeYear ?? ''}
                 onChange={e => setSelectedYear(Number(e.target.value))}
-                className="appearance-none bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm rounded-2xl pl-4 pr-8 py-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors shadow-lg shadow-amber-500/30"
+                className="appearance-none bg-warning hover:bg-warning-dark text-white font-semibold text-sm rounded-2xl pl-4 pr-8 py-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-warning transition-colors shadow-lg shadow-warning/30"
               >
                 {years.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
@@ -141,7 +148,7 @@ export default function RegistroLuzClient({ registros: initRegistros, companias:
               </button>
               <button
                 onClick={() => setModal({ type: 'add' })}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-2xl shadow-lg shadow-amber-500/30 transition-colors"
+                className="px-4 py-2 bg-warning hover:bg-warning-dark text-white text-sm font-bold rounded-2xl shadow-lg shadow-warning/30 transition-colors"
               >
                 + Añadir registro
               </button>
@@ -157,7 +164,7 @@ export default function RegistroLuzClient({ registros: initRegistros, companias:
         </div>
       ) : activeYear != null && (
         <div key={activeYear} className="glass-card rounded-3xl overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 bg-amber-500">
+          <div className="flex items-center gap-2 px-4 py-3 bg-warning">
             <BoltIcon className="w-4 h-4 text-white" />
             <h2 className="font-bold text-white">{activeYear}</h2>
             <span className="text-white/80 text-sm font-mono ml-1">
@@ -172,11 +179,11 @@ export default function RegistroLuzClient({ registros: initRegistros, companias:
                   datasets: [{
                     label: 'Importe',
                     data: (byYear[activeYear] ?? []).map(r => r.importe ?? 0),
-                    borderColor: '#f59e0b',
-                    backgroundColor: 'rgba(245,158,11,0.07)',
+                    borderColor: chartAccent,
+                    backgroundColor: `rgba(${chartAccentRgb},0.07)`,
                     fill: true,
                     tension: 0.4,
-                    pointBackgroundColor: '#f59e0b',
+                    pointBackgroundColor: chartAccent,
                     pointRadius: 4,
                     pointHoverRadius: 6,
                   }],
@@ -190,13 +197,13 @@ export default function RegistroLuzClient({ registros: initRegistros, companias:
                   scales: {
                     x: {
                       grid: { display: false },
-                      ticks: { color: '#94a3b8', font: { size: 11 } },
+                      ticks: { color: chartTick, font: { size: 11 } },
                     },
                     y: {
                       beginAtZero: false,
-                      grid: { color: 'rgba(148,163,184,0.08)' },
+                      grid: { color: chartGrid },
                       ticks: {
-                        color: '#94a3b8',
+                        color: chartTick,
                         font: { size: 11 },
                         callback: v => `${Number(v).toLocaleString('es-ES', { maximumFractionDigits: 0 })}€`,
                       },
@@ -249,7 +256,7 @@ export default function RegistroLuzClient({ registros: initRegistros, companias:
                       <td className="py-3 pr-3 text-right">
                         <div className="flex gap-1 justify-end">
                           {canEdit && <button onClick={e => { e.stopPropagation(); setModal({ type: 'edit', item: r }); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'} onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>}
-                          {canEdit && <button onClick={e => { e.stopPropagation(); del(r.id); }} className="p-1.5 rounded-lg text-red-400 hover:text-red-600 transition-colors"><TrashIcon /></button>}
+                          {canEdit && <button onClick={e => { e.stopPropagation(); del(r.id); }} className="p-1.5 rounded-lg text-error hover:text-error transition-colors"><TrashIcon /></button>}
                         </div>
                       </td>
                     </tr>
@@ -267,7 +274,7 @@ export default function RegistroLuzClient({ registros: initRegistros, companias:
           <div className="glass-card rounded-3xl shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 pt-5 pb-4" style={{ borderBottom: '1px solid var(--divider)' }}>
               <h3 className="font-bold text-lg flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                <BoltIcon className="w-5 h-5 text-amber-500" />
+                <BoltIcon className="w-5 h-5 text-warning" />
                 {editItem ? 'Editar Registro de Luz' : 'Nuevo Registro de Luz'}
               </h3>
               <button onClick={() => setModal({ type: 'none' })} className="w-7 h-7 flex items-center justify-center rounded-full text-lg hover:bg-black/10" style={{ color: 'var(--text-secondary)' }}>×</button>
@@ -340,7 +347,7 @@ export default function RegistroLuzClient({ registros: initRegistros, companias:
                   Cancelar
                 </button>
                 <button type="submit" disabled={loading}
-                  className="px-4 py-2 text-sm font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-2xl shadow-lg shadow-amber-500/30 disabled:opacity-50 transition-colors">
+                  className="px-4 py-2 text-sm font-bold bg-warning hover:bg-warning-dark text-white rounded-2xl shadow-lg shadow-warning/30 disabled:opacity-50 transition-colors">
                   {loading ? 'Guardando…' : 'Guardar'}
                 </button>
               </div>
@@ -384,10 +391,10 @@ function GestionarCompaniasModal({ tipo, titulo, companias: init, onClose, onCha
   const [cats, setCats] = useState(init.map(c => ({ ...c })));
   const [saving, setSaving] = useState(false);
   const [newName, setNewName] = useState('');
-  const [newColor, setNewColor] = useState('#6366f1');
+  const [newColor, setNewColor] = useState('var(--accent-primary)');
   const [editId, setEditId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
-  const [editColor, setEditColor] = useState('#6366f1');
+  const [editColor, setEditColor] = useState('var(--accent-primary)');
   const [confirmState, setConfirmState] = useState<{ msg: string; fn: () => Promise<void> } | null>(null);
 
   function startEdit(cat: Categoria) {
@@ -417,7 +424,7 @@ function GestionarCompaniasModal({ tipo, titulo, companias: init, onClose, onCha
     const { id } = await res.json();
     const updated = [...cats, { id, tipo, nombre: newName.trim(), color: newColor } as Categoria];
     setCats(updated); onChanged(updated);
-    setNewName(''); setNewColor('#6366f1'); setSaving(false);
+    setNewName(''); setNewColor('var(--accent-primary)'); setSaving(false);
   }
 
   async function del(cat: Categoria) {
@@ -448,11 +455,11 @@ function GestionarCompaniasModal({ tipo, titulo, companias: init, onClose, onCha
                   <span className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0" style={{ background: editColor, color: autoText(editColor) }}>{editName || '…'}</span>
                   <input value={editName} onChange={e => setEditName(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditId(null); }}
-                    className="flex-1 text-sm rounded-xl px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border"
+                    className="flex-1 text-sm rounded-xl px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border"
                     style={gestionInputStyle} autoFocus />
                   <CircularColorPicker value={editColor} onChange={setEditColor} />
                   <button onClick={saveEdit} disabled={saving || !editName.trim()}
-                    className="px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-accent-primary hover:bg-accent-primary-dark disabled:opacity-50">
                     {saving ? '…' : 'OK'}
                   </button>
                   <button onClick={() => setEditId(null)} className="px-2 py-1.5 rounded-xl text-xs font-medium border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)' }}>✕</button>
@@ -464,7 +471,7 @@ function GestionarCompaniasModal({ tipo, titulo, companias: init, onClose, onCha
                   <button onClick={() => startEdit(cat)} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                  <button onClick={() => del(cat)} className="p-1.5 rounded-lg text-red-400 hover:text-red-600 transition-colors"><TrashIcon /></button>
+                  <button onClick={() => del(cat)} className="p-1.5 rounded-lg text-error hover:text-error transition-colors"><TrashIcon /></button>
                 </div>
               )}
             </div>
@@ -476,11 +483,11 @@ function GestionarCompaniasModal({ tipo, titulo, companias: init, onClose, onCha
           <div className="flex items-center gap-2">
             <input value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addNew()}
               placeholder="Nombre de la compañía…"
-              className="flex-1 text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border"
+              className="flex-1 text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border"
               style={gestionInputStyle} />
             <CircularColorPicker value={newColor} onChange={setNewColor} />
             <button onClick={addNew} disabled={!newName.trim() || saving}
-              className="px-4 py-2 text-sm font-bold text-white rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40">
+              className="px-4 py-2 text-sm font-bold text-white rounded-xl bg-accent-primary hover:bg-accent-primary-dark disabled:opacity-40">
               +
             </button>
           </div>

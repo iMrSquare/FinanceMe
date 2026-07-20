@@ -9,7 +9,7 @@ import { type EstadoObjetivo, estadoObjetivo, mensualNecesario, fmtMesAnio } fro
 
 const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 
-const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/50 border transition-colors';
+const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-warning/50 border transition-colors';
 const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
 
 function PencilIcon() {
@@ -20,7 +20,7 @@ function TrashIcon() {
 }
 
 const ESTADO_LABEL: Record<EstadoObjetivo, string> = { completado: 'Completado', vencido: 'Vencido', en_progreso: 'En progreso' };
-const ESTADO_COLOR: Record<EstadoObjetivo, string> = { completado: '#f59e0b', vencido: '#ef4444', en_progreso: '#64748b' };
+const ESTADO_COLOR: Record<EstadoObjetivo, string> = { completado: 'var(--color-warning)', vencido: 'var(--color-error)', en_progreso: 'var(--text-secondary)' };
 
 interface ObjetivoForm { id?: number; nombre: string; objetivo: string; fecha_objetivo: string; }
 const emptyForm = (): ObjetivoForm => ({ nombre: '', objetivo: '', fecha_objetivo: '' });
@@ -49,7 +49,7 @@ function ObjetivoModal({ form, setForm, onClose, onSave, saving }: {
         </div>
         <div className="flex gap-3 mt-6">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>Cancelar</button>
-          <button onClick={onSave} disabled={saving || !form.nombre.trim() || !form.objetivo || !form.fecha_objetivo} className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-50 shadow-lg shadow-amber-500/30" style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)' }}>
+          <button onClick={onSave} disabled={saving || !form.nombre.trim() || !form.objetivo || !form.fecha_objetivo} className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-50 shadow-lg shadow-warning/30" style={{ background: 'linear-gradient(135deg, var(--color-warning), color-mix(in srgb, var(--color-warning) 75%, black))' }}>
             {saving ? 'Guardando…' : form.id ? 'Guardar' : 'Crear objetivo'}
           </button>
         </div>
@@ -76,7 +76,7 @@ function EditableAportado({ value, onSave, disabled }: EditableAportadoProps) {
   }
 
   if (disabled) {
-    return <span className="text-sm font-mono font-semibold" style={{ color: value > 0 ? '#f59e0b' : 'var(--text-muted)' }}>{value > 0 ? fmt(value) : '—'}</span>;
+    return <span className="text-sm font-mono font-semibold" style={{ color: value > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>{value > 0 ? fmt(value) : '—'}</span>;
   }
 
   if (editing) {
@@ -88,8 +88,8 @@ function EditableAportado({ value, onSave, disabled }: EditableAportadoProps) {
         onChange={e => setDraft(e.target.value)}
         onBlur={handleBlur}
         onKeyDown={e => { if (e.key === 'Enter') inputRef.current?.blur(); if (e.key === 'Escape') { setEditing(false); setDraft(String(value)); } }}
-        className="w-28 rounded-xl px-2 py-1 text-sm text-right font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400/50 border-2"
-        style={{ background: 'var(--bg-page)', color: '#f59e0b', borderColor: '#f59e0b' }}
+        className="w-28 rounded-xl px-2 py-1 text-sm text-right font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-warning/50 border-2"
+        style={{ background: 'var(--bg-page)', color: 'var(--color-warning)', borderColor: 'var(--color-warning)' }}
         autoFocus
         onClick={e => e.stopPropagation()}
       />
@@ -99,8 +99,8 @@ function EditableAportado({ value, onSave, disabled }: EditableAportadoProps) {
   return (
     <button
       onClick={e => { e.stopPropagation(); setEditing(true); }}
-      className="flex items-center gap-1.5 rounded-xl px-2 py-1 text-sm font-mono font-semibold border transition-all hover:border-amber-400/60"
-      style={{ color: value > 0 ? '#f59e0b' : 'var(--text-muted)', borderColor: 'var(--btn-border)', background: 'var(--bg-page)' }}
+      className="flex items-center gap-1.5 rounded-xl px-2 py-1 text-sm font-mono font-semibold border transition-all hover:border-warning/60"
+      style={{ color: value > 0 ? 'var(--color-warning)' : 'var(--text-muted)', borderColor: 'var(--btn-border)', background: 'var(--bg-page)' }}
       title="Clic para editar"
     >
       <span className="opacity-40"><PencilIcon /></span>
@@ -158,8 +158,8 @@ export default function ObjetivosHogarClient({ objetivos: initObjetivos, canEdit
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(245,158,11,0.12)' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(var(--color-warning-rgb),0.12)' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
           </div>
@@ -178,7 +178,7 @@ export default function ObjetivosHogarClient({ objetivos: initObjetivos, canEdit
             </button>
           )}
           {canEdit && (
-            <button onClick={() => setModal(emptyForm())} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold text-white shadow-lg shadow-amber-500/30" style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)' }}>
+            <button onClick={() => setModal(emptyForm())} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold text-white shadow-lg shadow-warning/30" style={{ background: 'linear-gradient(135deg, var(--color-warning), color-mix(in srgb, var(--color-warning) 75%, black))' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Nuevo objetivo
             </button>
@@ -220,7 +220,7 @@ export default function ObjetivosHogarClient({ objetivos: initObjetivos, canEdit
                         <button onClick={e => { e.stopPropagation(); openEdit(o); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                           onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                           onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                        <button onClick={e => { e.stopPropagation(); setDeleteId(o.id); }} className="p-1.5 rounded-lg transition-colors text-red-400"
+                        <button onClick={e => { e.stopPropagation(); setDeleteId(o.id); }} className="p-1.5 rounded-lg transition-colors text-error"
                           onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
                           onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
                       </>
@@ -229,7 +229,7 @@ export default function ObjetivosHogarClient({ objetivos: initObjetivos, canEdit
                 </div>
 
                 <div className="h-1.5 rounded-full overflow-hidden mb-2" style={{ background: 'var(--divider)' }}>
-                  <div className="h-full rounded-full transition-all" style={{ width: `${porcentaje}%`, background: porcentaje >= 100 ? '#f59e0b' : porcentaje >= 50 ? '#f59e0b' : '#ef4444' }} />
+                  <div className="h-full rounded-full transition-all" style={{ width: `${porcentaje}%`, background: porcentaje >= 100 ? 'var(--color-warning)' : porcentaje >= 50 ? 'var(--color-warning)' : 'var(--color-error)' }} />
                 </div>
 
                 <div className="flex items-center justify-between mb-3">
@@ -238,10 +238,10 @@ export default function ObjetivosHogarClient({ objetivos: initObjetivos, canEdit
                 </div>
 
                 {estado === 'completado' && (
-                  <p className="text-sm font-semibold" style={{ color: '#f59e0b' }}>¡Objetivo conseguido!</p>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--color-warning)' }}>¡Objetivo conseguido!</p>
                 )}
                 {estado === 'vencido' && (
-                  <p className="text-sm" style={{ color: '#ef4444' }}>Pendiente: <span className="font-bold">{fmt(pendiente)}</span></p>
+                  <p className="text-sm" style={{ color: 'var(--color-error)' }}>Pendiente: <span className="font-bold">{fmt(pendiente)}</span></p>
                 )}
                 {estado === 'en_progreso' && mensual != null && (
                   <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Aporta <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{fmt(mensual)}</span>/mes para conseguirlo</p>

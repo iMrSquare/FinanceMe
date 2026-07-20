@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, verifyPassword, hashPassword, AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS } from '@/lib/auth';
 import { createToken } from '@/lib/auth-edge';
-import { getUserById, updateUserPassword } from '@/lib/db';
+import { getUserById, updateUserPassword, toSessionUser } from '@/lib/db';
 import { validatePassword } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
@@ -27,16 +27,10 @@ export async function POST(request: NextRequest) {
 
   updateUserPassword(session.id, hashPassword(newPassword));
 
-  // Issue a new token without mustChangePassword flag
-  const token = await createToken({
-    id: user.id,
-    username: user.username,
-    nombre: user.nombre,
-    role: user.role,
-    avatarUrl: user.avatar_url,
-    mustChangePassword: false,
-    tutorialSeen: user.tutorial_seen === 1,
-  });
+  // Issue a new token from fresh DB state (updateUserPassword already cleared must_change_password)
+  const freshUser = getUserById(session.id);
+  if (!freshUser) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
+  const token = await createToken(toSessionUser(freshUser));
 
   const response = NextResponse.json({ ok: true });
   response.cookies.set(AUTH_COOKIE_NAME, token, AUTH_COOKIE_OPTIONS);

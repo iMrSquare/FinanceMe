@@ -21,7 +21,7 @@ const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus
 const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
 
 const PERIODICIDAD_LABEL: Record<PersonalSuscripcion['periodicidad'], string> = { mensual: 'Mensual', trimestral: 'Trimestral', anual: 'Anual' };
-const PERIODICIDAD_COLOR: Record<PersonalSuscripcion['periodicidad'], string> = { mensual: '#8b5cf6', trimestral: '#0ea5e9', anual: '#f59e0b' };
+const PERIODICIDAD_COLOR: Record<PersonalSuscripcion['periodicidad'], string> = { mensual: '#8b5cf6', trimestral: '#0ea5e9', anual: 'var(--color-warning)' };
 
 type SortKey = 'nombre' | 'importe' | 'periodicidad' | 'cobro';
 const COL_LABELS: Record<SortKey, string> = { nombre: 'Suscripción', importe: 'Importe', periodicidad: 'Periodicidad', cobro: 'Próximo cobro' };
@@ -205,7 +205,7 @@ export default function SuscripcionesClient() {
                         <button onClick={e => { e.stopPropagation(); setModal({ id: s.id, nombre: s.nombre, importe: String(s.importe), cobro: s.cobro ?? '', periodicidad: s.periodicidad, comentario: s.comentario ?? '' }); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                           onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                           onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                        <button onClick={e => { e.stopPropagation(); setDeleteId(s.id); }} className="p-1.5 rounded-lg transition-colors" style={{ color: '#ef4444' }}
+                        <button onClick={e => { e.stopPropagation(); setDeleteId(s.id); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--color-error)' }}
                           onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
                           onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
                       </div>

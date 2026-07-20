@@ -6,6 +6,7 @@ import { validatePassword } from '@/lib/validation';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useTutorial } from '@/components/TutorialProvider';
 import { HelpIcon } from '@/components/icons';
+import AppearanceCard from '@/components/AppearanceCard';
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
@@ -14,9 +15,9 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const ROLE_COLORS: Record<string, string> = {
-  admin: '#6366f1',
+  admin: 'var(--accent-primary)',
   editor: '#0ea5e9',
-  visor: '#64748b',
+  visor: 'var(--text-secondary)',
 };
 
 interface Props { session: SessionUser; }
@@ -169,15 +170,15 @@ export default function PerfilClient({ session }: Props) {
     }
   }
 
-  const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border transition-colors';
+  const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border transition-colors';
   const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       <div>
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(99,102,241,0.12)' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(var(--accent-primary-rgb),0.12)' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
             </svg>
           </div>
@@ -208,14 +209,14 @@ export default function PerfilClient({ session }: Props) {
                   className="w-20 h-20 rounded-2xl object-cover"
                 />
               ) : (
-                <div className="w-20 h-20 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-bold text-2xl">
+                <div className="w-20 h-20 rounded-2xl bg-accent-primary flex items-center justify-center text-white font-bold text-2xl">
                   {nombre.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
                 </div>
               )}
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg hover:bg-indigo-700 transition-colors"
+                className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full bg-accent-primary text-white flex items-center justify-center shadow-lg hover:bg-accent-primary-dark transition-colors"
                 title="Cambiar foto"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -227,7 +228,7 @@ export default function PerfilClient({ session }: Props) {
                 <button
                   type="button"
                   onClick={handleDeleteAvatar}
-                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors"
+                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-error text-white flex items-center justify-center shadow-lg hover:bg-error-dark transition-colors"
                   title="Eliminar foto de perfil"
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -276,80 +277,18 @@ export default function PerfilClient({ session }: Props) {
             />
           </div>
 
-          {profileErr && <p className="text-sm text-red-500 font-medium">{profileErr}</p>}
-          {profileMsg && <p className="text-sm text-emerald-500 font-medium">{profileMsg}</p>}
+          {profileErr && <p className="text-sm text-error font-medium">{profileErr}</p>}
+          {profileMsg && <p className="text-sm text-success font-medium">{profileMsg}</p>}
 
           <button
             type="submit"
             disabled={saving}
-            className="px-6 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-indigo-500/30 disabled:opacity-60"
-            style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}
+            className="px-6 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-accent-primary/30 disabled:opacity-60"
+            style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}
           >
             {saving ? 'Guardando…' : 'Guardar cambios'}
           </button>
         </form>
-      </div>
-
-      {/* Import / Export personal */}
-      <div className="glass-card rounded-3xl p-6">
-        <div className="flex items-center gap-2.5 mb-1">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M12 12v5m-2-2 2 2 2-2"/>
-          </svg>
-          <h2 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>Mis datos personales</h2>
-        </div>
-        <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>Exporta o importa tus datos personales en formato JSON. Al importar, los datos existentes serán reemplazados.</p>
-
-        <div className="flex flex-col sm:flex-row gap-3">
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold border-2 transition-colors"
-            style={{ borderColor: 'var(--btn-border)', color: 'var(--text-secondary)', background: 'var(--bg-page)' }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            Exportar mis datos
-          </button>
-
-          <label className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold text-white cursor-pointer transition-all shadow-lg shadow-indigo-500/30 ${importing ? 'opacity-60 pointer-events-none' : ''}`}
-            style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-            {importing ? 'Importando…' : 'Importar mis datos'}
-            <input type="file" accept=".json" className="hidden" onChange={handleImport} disabled={importing} />
-          </label>
-        </div>
-
-        {ioMsg && (
-          <p className={`mt-4 text-sm font-medium rounded-xl px-4 py-2.5 w-fit ${ioMsg.type === 'ok' ? 'text-emerald-600' : 'text-red-500'}`}
-            style={{ background: ioMsg.type === 'ok' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)' }}>
-            {ioMsg.type === 'ok' ? '✓ ' : '✗ '}{ioMsg.text}
-          </p>
-        )}
-      </div>
-
-      </div>{/* fin columna izquierda */}
-
-      {/* Columna derecha */}
-      <div className="space-y-6 lg:space-y-8">
-
-      {/* Tutorial card */}
-      <div className="glass-card rounded-3xl p-6">
-        <div className="flex items-center gap-2.5 mb-1" style={{ color: '#6366f1' }}>
-          <HelpIcon className="w-[18px] h-[18px]" />
-          <h2 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>Tutorial de la aplicación</h2>
-        </div>
-        <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>Vuelve a ver la guía de bienvenida con el flujo de trabajo recomendado de la aplicación.</p>
-        <button
-          onClick={() => tutorial.open()}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold border-2 transition-colors"
-          style={{ borderColor: 'var(--btn-border)', color: 'var(--text-secondary)', background: 'var(--bg-page)' }}
-        >
-          <HelpIcon className="w-4 h-4" />
-          Ver tutorial de nuevo
-        </button>
       </div>
 
       {/* Change password card */}
@@ -380,20 +319,20 @@ export default function PerfilClient({ session }: Props) {
               onChange={e => setNewPwd(e.target.value)}
               required
               className={inputCls}
-              style={{ ...inputStyle, borderColor: newPwdErr ? '#ef4444' : (newPwd && !newPwdErr ? '#10b981' : 'var(--btn-border)') }}
+              style={{ ...inputStyle, borderColor: newPwdErr ? 'var(--color-error)' : (newPwd && !newPwdErr ? 'var(--color-success)' : 'var(--btn-border)') }}
               placeholder="Mínimo 8 caracteres"
             />
             {newPwd && (
               <div className="mt-2 grid grid-cols-2 gap-1">
                 {pwdChecks.map(c => (
                   <div key={c.label} className="flex items-center gap-1.5">
-                    <span style={{ color: c.ok ? '#10b981' : '#94a3b8' }}>
+                    <span style={{ color: c.ok ? 'var(--color-success)' : 'var(--text-muted)' }}>
                       {c.ok
                         ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                         : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/></svg>
                       }
                     </span>
-                    <span className="text-xs" style={{ color: c.ok ? '#10b981' : 'var(--text-muted)' }}>{c.label}</span>
+                    <span className="text-xs" style={{ color: c.ok ? 'var(--color-success)' : 'var(--text-muted)' }}>{c.label}</span>
                   </div>
                 ))}
               </div>
@@ -409,26 +348,91 @@ export default function PerfilClient({ session }: Props) {
               onChange={e => setConfirmPwd(e.target.value)}
               required
               className={inputCls}
-              style={{ ...inputStyle, borderColor: confirmPwd ? (confirmPwd === newPwd ? '#10b981' : '#ef4444') : 'var(--btn-border)' }}
+              style={{ ...inputStyle, borderColor: confirmPwd ? (confirmPwd === newPwd ? 'var(--color-success)' : 'var(--color-error)') : 'var(--btn-border)' }}
               placeholder="Repite la nueva contraseña"
             />
             {confirmPwd && confirmPwd !== newPwd && (
-              <p className="text-xs text-red-500 mt-1">Las contraseñas no coinciden</p>
+              <p className="text-xs text-error mt-1">Las contraseñas no coinciden</p>
             )}
           </div>
 
-          {pwdErr && <p className="text-sm text-red-500 font-medium">{pwdErr}</p>}
-          {pwdMsg && <p className="text-sm text-emerald-500 font-medium">{pwdMsg}</p>}
+          {pwdErr && <p className="text-sm text-error font-medium">{pwdErr}</p>}
+          {pwdMsg && <p className="text-sm text-success font-medium">{pwdMsg}</p>}
 
           <button
             type="submit"
             disabled={savingPwd || !!newPwdErr || !currentPwd || !newPwd || newPwd !== confirmPwd}
-            className="px-6 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-indigo-500/30 disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}
+            className="px-6 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-accent-primary/30 disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}
           >
             {savingPwd ? 'Cambiando…' : 'Cambiar contraseña'}
           </button>
         </form>
+      </div>
+
+      </div>{/* fin columna izquierda */}
+
+      {/* Columna derecha */}
+      <div className="space-y-6 lg:space-y-8">
+
+      {/* Appearance card */}
+      <AppearanceCard session={session} />
+
+      {/* Tutorial card */}
+      <div className="glass-card rounded-3xl p-6">
+        <div className="flex items-center gap-2.5 mb-1" style={{ color: 'var(--accent-primary)' }}>
+          <HelpIcon className="w-[18px] h-[18px]" />
+          <h2 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>Tutorial de la aplicación</h2>
+        </div>
+        <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>Vuelve a ver la guía de bienvenida con el flujo de trabajo recomendado de la aplicación.</p>
+        <button
+          onClick={() => tutorial.open()}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold border-2 transition-colors"
+          style={{ borderColor: 'var(--btn-border)', color: 'var(--text-secondary)', background: 'var(--bg-page)' }}
+        >
+          <HelpIcon className="w-4 h-4" />
+          Ver tutorial de nuevo
+        </button>
+      </div>
+
+      {/* Import / Export personal */}
+      <div className="glass-card rounded-3xl p-6">
+        <div className="flex items-center gap-2.5 mb-1">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-info)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M12 12v5m-2-2 2 2 2-2"/>
+          </svg>
+          <h2 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>Mis datos personales</h2>
+        </div>
+        <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>Exporta o importa tus datos personales en formato JSON. Al importar, los datos existentes serán reemplazados.</p>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold border-2 transition-colors"
+            style={{ borderColor: 'var(--btn-border)', color: 'var(--text-secondary)', background: 'var(--bg-page)' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Exportar mis datos
+          </button>
+
+          <label className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold text-white cursor-pointer transition-all shadow-lg shadow-accent-primary/30 ${importing ? 'opacity-60 pointer-events-none' : ''}`}
+            style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            {importing ? 'Importando…' : 'Importar mis datos'}
+            <input type="file" accept=".json" className="hidden" onChange={handleImport} disabled={importing} />
+          </label>
+        </div>
+
+        {ioMsg && (
+          <p className={`mt-4 text-sm font-medium rounded-xl px-4 py-2.5 w-fit ${ioMsg.type === 'ok' ? 'text-success' : 'text-error'}`}
+            style={{ background: ioMsg.type === 'ok' ? 'rgba(16,185,129,0.1)' : 'rgba(var(--color-error-rgb),0.1)' }}>
+            {ioMsg.type === 'ok' ? '✓ ' : '✗ '}{ioMsg.text}
+          </p>
+        )}
       </div>
 
       </div>{/* fin columna derecha */}

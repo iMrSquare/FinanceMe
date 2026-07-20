@@ -62,7 +62,7 @@ function CalendarioHogar({ events }: { events: CalEvHogar[] }) {
               style={{ background: isToday ? 'var(--sidebar-hover-bg)' : evs.length > 0 ? 'var(--bg-page)' : 'transparent', border: isToday ? '1px solid var(--sidebar-hover-c)' : '1px solid transparent' }}>
               <span className="text-xs font-semibold mb-1" style={{ color: isToday ? 'var(--sidebar-hover-c)' : 'var(--text-secondary)' }}>{day}</span>
               {evs.slice(0, 2).map((e, j) => (
-                <div key={j} className="rounded px-1 py-0.5 mb-0.5 truncate" style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444', fontSize: '10px' }}>
+                <div key={j} className="rounded px-1 py-0.5 mb-0.5 truncate" style={{ background: 'rgba(var(--color-error-rgb),0.12)', color: 'var(--color-error)', fontSize: '10px' }}>
                   {e.nombre}
                 </div>
               ))}
@@ -102,11 +102,14 @@ export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, 
   const maxGastosCat    = gastosxCat.reduce((m, g) => Math.max(m, g.total), 0);
 
   function getThemeColors() {
+    const cs = getComputedStyle(document.documentElement);
     const dark = document.documentElement.classList.contains('dark');
+    const successRgb = cs.getPropertyValue('--color-success-rgb').trim();
     return {
-      grid: dark ? '#334155' : '#e2e8f0',
-      tick: dark ? '#94a3b8' : '#64748b',
-      lineFill: dark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.15)',
+      grid: cs.getPropertyValue('--sidebar-border').trim(),
+      tick: cs.getPropertyValue('--text-secondary').trim(),
+      success: cs.getPropertyValue('--color-success').trim(),
+      lineFill: `rgba(${successRgb},${dark ? 0.12 : 0.15})`,
     };
   }
 
@@ -144,11 +147,11 @@ export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, 
         datasets: [{
           label: 'Balance',
           data: historial.map(h => h.balance),
-          borderColor: '#10b981',
+          borderColor: c.success,
           backgroundColor: c.lineFill,
           tension: 0.4,
           fill: true,
-          pointBackgroundColor: '#10b981',
+          pointBackgroundColor: c.success,
           pointRadius: 4,
         }],
       },
@@ -168,6 +171,8 @@ export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, 
     if (!lineChart.current) return;
     const c = getThemeColors();
     lineChart.current.data.datasets[0].backgroundColor = c.lineFill;
+    lineChart.current.data.datasets[0].borderColor = c.success;
+    (lineChart.current.data.datasets[0] as { pointBackgroundColor?: string }).pointBackgroundColor = c.success;
     (lineChart.current.options.scales!.y as { grid: { color: string }; ticks: { color: string } }).grid.color = c.grid;
     (lineChart.current.options.scales!.y as { grid: { color: string }; ticks: { color: string } }).ticks.color = c.tick;
     (lineChart.current.options.scales!.x as { ticks: { color: string } }).ticks.color = c.tick;
@@ -179,7 +184,7 @@ export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, 
     buildLine();
     // Watch for dark mode class changes
     const obs = new MutationObserver(updateLineColors);
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] });
     return () => { obs.disconnect(); donutChart.current?.destroy(); lineChart.current?.destroy(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -199,7 +204,7 @@ export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, 
         <div className="text-center">
           <p className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Sin datos todavía</p>
           <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>Crea el primer mes para ver el resumen</p>
-          <Link href="/" className="px-4 py-2 bg-indigo-600 text-white rounded-2xl text-sm font-bold">Ir al mes →</Link>
+          <Link href="/" className="px-4 py-2 bg-accent-primary text-white rounded-2xl text-sm font-bold">Ir al mes →</Link>
         </div>
       </div>
     );
@@ -212,8 +217,8 @@ export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, 
         <div>
           <p className="font-medium text-sm" style={{ color: 'var(--text-secondary)' }}>{mesActual.nombre}</p>
           <div className="flex items-center gap-4 mt-1">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(99,102,241,0.12)' }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(var(--accent-primary-rgb),0.12)' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
               </svg>
             </div>
@@ -248,10 +253,10 @@ export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, 
             <div>
               <p className="font-medium text-[10px] md:text-sm" style={{ color: 'var(--text-secondary)' }}>Ingresos</p>
               <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3" style={{ color: 'var(--text-primary)' }}>{fmt(totalIngresos)}</h3>
-              <p className="hidden md:block font-semibold mt-2 text-emerald-500 text-xs md:text-sm">{ingresos.length} inquilino{ingresos.length !== 1 ? 's' : ''}</p>
+              <p className="hidden md:block font-semibold mt-2 text-success text-xs md:text-sm">{ingresos.length} inquilino{ingresos.length !== 1 ? 's' : ''}</p>
             </div>
-            <div className="hidden md:flex w-12 h-12 rounded-2xl bg-emerald-100 items-center justify-center shrink-0">
-              <BanknoteIcon className="w-5 h-5 text-emerald-600" />
+            <div className="hidden md:flex w-12 h-12 rounded-2xl bg-success/10 items-center justify-center shrink-0">
+              <BanknoteIcon className="w-5 h-5 text-success" />
             </div>
           </div>
         </div>
@@ -261,8 +266,8 @@ export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, 
           <div className="flex items-start justify-between">
             <div>
               <p className="font-medium text-[10px] md:text-sm" style={{ color: 'var(--text-secondary)' }}>Gastos</p>
-              <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3 text-red-500">-{fmt(totalGastos)}</h3>
-              <p className="hidden md:block font-semibold mt-2 text-amber-500 text-xs md:text-sm">{gastos.length} concepto{gastos.length !== 1 ? 's' : ''}</p>
+              <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3 text-error">-{fmt(totalGastos)}</h3>
+              <p className="hidden md:block font-semibold mt-2 text-warning text-xs md:text-sm">{gastos.length} concepto{gastos.length !== 1 ? 's' : ''}</p>
             </div>
             <div className="hidden md:flex w-12 h-12 rounded-2xl bg-orange-100 items-center justify-center shrink-0">
               <ReceiptIcon className="w-5 h-5 text-orange-500" />
@@ -276,18 +281,18 @@ export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, 
             <div className="flex items-start justify-between">
               <div>
                 <p className="font-medium text-[10px] md:text-sm" style={{ color: 'var(--text-secondary)' }}>Préstamos</p>
-                <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3 text-red-500">-{fmt(totalPrestamos)}</h3>
-                <p className="hidden md:block font-semibold mt-2 text-blue-500 text-xs md:text-sm">{prestamos.length} pago{prestamos.length !== 1 ? 's' : ''} activo{prestamos.length !== 1 ? 's' : ''}</p>
+                <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3 text-error">-{fmt(totalPrestamos)}</h3>
+                <p className="hidden md:block font-semibold mt-2 text-info text-xs md:text-sm">{prestamos.length} pago{prestamos.length !== 1 ? 's' : ''} activo{prestamos.length !== 1 ? 's' : ''}</p>
               </div>
-              <div className="hidden md:flex w-12 h-12 rounded-2xl bg-blue-100 items-center justify-center shrink-0">
-                <BankIcon className="w-5 h-5 text-blue-500" />
+              <div className="hidden md:flex w-12 h-12 rounded-2xl bg-info/10 items-center justify-center shrink-0">
+                <BankIcon className="w-5 h-5 text-info" />
               </div>
             </div>
           </div>
         )}
 
         {/* Balance */}
-        <div className={`rounded-2xl md:rounded-3xl p-3 md:p-6 text-white shadow-2xl ${balance >= 0 ? 'bg-gradient-to-br from-emerald-500 to-green-600 shadow-green-500/20' : 'bg-gradient-to-br from-red-500 to-red-600 shadow-red-500/20'}`}>
+        <div className={`rounded-2xl md:rounded-3xl p-3 md:p-6 text-white shadow-2xl ${balance >= 0 ? 'bg-gradient-to-br from-success to-success-dark shadow-success/20' : 'bg-gradient-to-br from-error to-error-dark shadow-error/20'}`}>
           <div className="flex items-start justify-between">
             <div>
               <p className="text-white/80 font-medium text-[10px] md:text-sm">Balance</p>
@@ -315,14 +320,14 @@ export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, 
                 {proximos.map((e, i) => (
                   <div key={i} className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
-                      style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
+                      style={{ background: 'rgba(var(--color-error-rgb),0.12)', color: 'var(--color-error)' }}>
                       {e.day}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{e.nombre}</p>
                       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Gasto fijo</p>
                     </div>
-                    <span className="text-sm font-bold shrink-0 text-red-500">-{fmt(e.importe)}</span>
+                    <span className="text-sm font-bold shrink-0 text-error">-{fmt(e.importe)}</span>
                   </div>
                 ))}
               </div>
@@ -360,7 +365,7 @@ export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, 
                   <tbody>
                     {recentGastos.map(g => {
                       const cat = catGasto.find(c => c.nombre === g.categoria);
-                      const bg = cat?.color ?? '#e5e7eb';
+                      const bg = cat?.color ?? 'var(--btn-border)';
                       return (
                         <tr key={g.id}>
                           <td className="py-3 px-4 font-semibold text-sm">{g.gasto}</td>
@@ -372,7 +377,7 @@ export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, 
                             </td>
                           )}
                           <td className="py-3 px-4 text-sm" style={{ color: 'var(--text-muted)' }}>{fmtDate(g.fecha)}</td>
-                          <td className="py-3 px-4 text-right font-bold text-sm text-red-500">-{fmt(g.importe)}</td>
+                          <td className="py-3 px-4 text-right font-bold text-sm text-error">-{fmt(g.importe)}</td>
                         </tr>
                       );
                     })}
@@ -409,7 +414,7 @@ export default function ResumenClient({ mesActual, gastos, prestamos, ingresos, 
                               <h4 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{p.gasto}</h4>
                               {p.categoria && <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{p.categoria}</p>}
                             </div>
-                            <p className="font-bold text-sm text-red-500">-{fmt(p.importe)}</p>
+                            <p className="font-bold text-sm text-error">-{fmt(p.importe)}</p>
                           </div>
                           <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'var(--divider)' }}>
                             <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />

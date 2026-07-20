@@ -13,9 +13,9 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const ROLE_COLORS: Record<string, string> = {
-  admin: '#6366f1',
+  admin: 'var(--accent-primary)',
   editor: '#0ea5e9',
-  visor: '#64748b',
+  visor: 'var(--text-secondary)',
 };
 
 interface Props {
@@ -191,14 +191,14 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
     }
   }
 
-  const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border transition-colors';
+  const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border transition-colors';
   const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(100,116,139,0.12)' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
         </div>
@@ -212,15 +212,15 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
       <div className="glass-card rounded-3xl p-6">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2.5">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
             <h2 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>Gestión de usuarios</h2>
           </div>
           <button
             onClick={() => { setShowForm(true); setCreateErr(''); }}
-            className="flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-indigo-500/30"
-            style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}
+            className="flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-accent-primary/30"
+            style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -254,7 +254,7 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
         <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--text-muted)' }}>
           Usuarios ({users.length})
         </p>
-        {error && <p className="text-sm text-red-500 font-medium mb-4">{error}</p>}
+        {error && <p className="text-sm text-error font-medium mb-4">{error}</p>}
         <div className="space-y-3">
           {users.map(u => (
             <div
@@ -265,7 +265,7 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
               {u.avatar_url ? (
                 <Image src={u.avatar_url} alt={u.nombre} width={40} height={40} className="w-10 h-10 rounded-xl object-cover shrink-0" />
               ) : (
-                <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-accent-primary flex items-center justify-center text-white font-bold text-sm shrink-0">
                   {u.nombre.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
                 </div>
               )}
@@ -294,10 +294,10 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
               <button
                 onClick={() => { setResetTarget(u); setResetPassword(''); setResetErr(''); }}
                 className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors shrink-0"
-                style={{ color: '#6366f1', background: 'rgba(99,102,241,0.08)' }}
+                style={{ color: 'var(--accent-primary)', background: 'rgba(var(--accent-primary-rgb),0.08)' }}
                 title="Restablecer contraseña"
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.15)'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.08)'}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-primary-rgb),0.15)'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-primary-rgb),0.08)'}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
@@ -308,10 +308,10 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
                   onClick={() => setConfirmState({ msg: `¿Eliminar a ${u.nombre}?`, fn: async () => handleDelete(u.id) })}
                   disabled={deleting === u.id}
                   className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors shrink-0 disabled:opacity-50"
-                  style={{ color: '#ef4444', background: 'rgba(239,68,68,0.08)' }}
+                  style={{ color: 'var(--color-error)', background: 'rgba(var(--color-error-rgb),0.08)' }}
                   title="Eliminar usuario"
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.15)'}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.08)'}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(var(--color-error-rgb),0.15)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(var(--color-error-rgb),0.08)'}
                 >
                   {deleting === u.id ? (
                     <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -358,10 +358,10 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
                   onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
                   required
                   className={inputCls}
-                  style={{ ...inputStyle, borderColor: usernameErr ? '#ef4444' : (username && !usernameErr ? '#10b981' : 'var(--btn-border)') }}
+                  style={{ ...inputStyle, borderColor: usernameErr ? 'var(--color-error)' : (username && !usernameErr ? 'var(--color-success)' : 'var(--btn-border)') }}
                   placeholder="nombre_usuario"
                 />
-                {usernameErr && <p className="text-xs text-red-500 mt-1">{usernameErr}</p>}
+                {usernameErr && <p className="text-xs text-error mt-1">{usernameErr}</p>}
               </div>
               <div>
                 <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Contraseña</label>
@@ -371,20 +371,20 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
                   onChange={e => setPassword(e.target.value)}
                   required
                   className={inputCls}
-                  style={{ ...inputStyle, borderColor: passwordErr ? '#ef4444' : (password && !passwordErr ? '#10b981' : 'var(--btn-border)') }}
+                  style={{ ...inputStyle, borderColor: passwordErr ? 'var(--color-error)' : (password && !passwordErr ? 'var(--color-success)' : 'var(--btn-border)') }}
                   placeholder="Mínimo 8 caracteres"
                 />
                 {password && (
                   <div className="mt-2 grid grid-cols-2 gap-1">
                     {pwdChecks.map(c => (
                       <div key={c.label} className="flex items-center gap-1.5">
-                        <span style={{ color: c.ok ? '#10b981' : '#94a3b8' }}>
+                        <span style={{ color: c.ok ? 'var(--color-success)' : 'var(--text-muted)' }}>
                           {c.ok
                             ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                             : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/></svg>
                           }
                         </span>
-                        <span className="text-xs" style={{ color: c.ok ? '#10b981' : 'var(--text-muted)' }}>{c.label}</span>
+                        <span className="text-xs" style={{ color: c.ok ? 'var(--color-success)' : 'var(--text-muted)' }}>{c.label}</span>
                       </div>
                     ))}
                   </div>
@@ -403,7 +403,7 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
                   <option value="visor">Visor</option>
                 </select>
               </div>
-              {createErr && <p className="text-sm text-red-500 font-medium">{createErr}</p>}
+              {createErr && <p className="text-sm text-error font-medium">{createErr}</p>}
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>
                   Cancelar
@@ -411,8 +411,8 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
                 <button
                   type="submit"
                   disabled={creating || !!usernameErr || !!passwordErr || !nombre || !username || !password}
-                  className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-indigo-500/30 disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}
+                  className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-accent-primary/30 disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}
                 >
                   {creating ? 'Creando…' : 'Crear usuario'}
                 </button>
@@ -449,26 +449,26 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
                   required
                   autoFocus
                   className={inputCls}
-                  style={{ ...inputStyle, borderColor: resetPasswordErr ? '#ef4444' : (resetPassword && !resetPasswordErr ? '#10b981' : 'var(--btn-border)') }}
+                  style={{ ...inputStyle, borderColor: resetPasswordErr ? 'var(--color-error)' : (resetPassword && !resetPasswordErr ? 'var(--color-success)' : 'var(--btn-border)') }}
                   placeholder="Mínimo 8 caracteres"
                 />
                 {resetPassword && (
                   <div className="mt-2 grid grid-cols-2 gap-1">
                     {pwdChecksFor(resetPassword).map(c => (
                       <div key={c.label} className="flex items-center gap-1.5">
-                        <span style={{ color: c.ok ? '#10b981' : '#94a3b8' }}>
+                        <span style={{ color: c.ok ? 'var(--color-success)' : 'var(--text-muted)' }}>
                           {c.ok
                             ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                             : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/></svg>
                           }
                         </span>
-                        <span className="text-xs" style={{ color: c.ok ? '#10b981' : 'var(--text-muted)' }}>{c.label}</span>
+                        <span className="text-xs" style={{ color: c.ok ? 'var(--color-success)' : 'var(--text-muted)' }}>{c.label}</span>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
-              {resetErr && <p className="text-sm text-red-500 font-medium">{resetErr}</p>}
+              {resetErr && <p className="text-sm text-error font-medium">{resetErr}</p>}
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setResetTarget(null)} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>
                   Cancelar
@@ -476,8 +476,8 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
                 <button
                   type="submit"
                   disabled={resetting || !!resetPasswordErr || !resetPassword}
-                  className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-indigo-500/30 disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}
+                  className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-accent-primary/30 disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}
                 >
                   {resetting ? 'Guardando…' : 'Restablecer'}
                 </button>
@@ -489,7 +489,7 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
       {/* Import / Export */}
       <div className="glass-card rounded-3xl p-6">
         <div className="flex items-center gap-2.5 mb-1">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-info)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M12 12v5m-2-2 2 2 2-2"/>
           </svg>
           <h2 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>Importación y Exportación</h2>
@@ -508,8 +508,8 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
           </button>
 
           {/* Import */}
-          <label className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold text-white cursor-pointer transition-all shadow-lg shadow-indigo-500/30 ${importing ? 'opacity-60 pointer-events-none' : ''}`}
-            style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)' }}>
+          <label className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold text-white cursor-pointer transition-all shadow-lg shadow-accent-primary/30 ${importing ? 'opacity-60 pointer-events-none' : ''}`}
+            style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
@@ -519,8 +519,8 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
         </div>
 
         {ioMsg && (
-          <p className={`mt-4 text-sm font-medium rounded-xl px-4 py-2.5 w-fit ${ioMsg.type === 'ok' ? 'text-emerald-600' : 'text-red-500'}`}
-            style={{ background: ioMsg.type === 'ok' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)' }}>
+          <p className={`mt-4 text-sm font-medium rounded-xl px-4 py-2.5 w-fit ${ioMsg.type === 'ok' ? 'text-success' : 'text-error'}`}
+            style={{ background: ioMsg.type === 'ok' ? 'rgba(16,185,129,0.1)' : 'rgba(var(--color-error-rgb),0.1)' }}>
             {ioMsg.type === 'ok' ? '✓ ' : '✗ '}{ioMsg.text}
           </p>
         )}

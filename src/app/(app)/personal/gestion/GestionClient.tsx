@@ -5,7 +5,7 @@ import { CircularColorPicker, autoText } from '@/components/ColorDots';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PencilIcon, TrashIcon } from '@/components/icons';
 
-const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border transition-colors';
+const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border transition-colors';
 const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
 
 // ── Generic section ───────────────────────────────────────────────────────────
@@ -67,11 +67,11 @@ function GestionSection({ title, color, items, apiBase, onRefresh }: {
                   <span className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0 truncate max-w-[30%]" style={{ background: editColor, color: autoText(editColor) }}>{editNombre || '…'}</span>
                   <input value={editNombre} onChange={e => setEditNombre(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditId(null); }}
-                    className="flex-1 min-w-0 text-sm rounded-xl px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border"
+                    className="flex-1 min-w-0 text-sm rounded-xl px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border"
                     style={inputStyle} autoFocus />
                   <CircularColorPicker value={editColor} onChange={setEditColor} />
                   <button onClick={saveEdit} disabled={saving || !editNombre.trim()}
-                    className="px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-accent-primary hover:bg-accent-primary-dark disabled:opacity-50">
                     {saving ? '…' : 'OK'}
                   </button>
                   <button onClick={() => setEditId(null)} className="px-2 py-1.5 rounded-xl text-xs border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)' }}>✕</button>
@@ -85,7 +85,7 @@ function GestionSection({ title, color, items, apiBase, onRefresh }: {
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}>
                     <PencilIcon />
                   </button>
-                  <button onClick={() => del(item)} className="p-1.5 rounded-lg text-red-400 hover:text-red-600 transition-colors">
+                  <button onClick={() => del(item)} className="p-1.5 rounded-lg text-error hover:text-error transition-colors">
                     <TrashIcon />
                   </button>
                 </div>
@@ -101,11 +101,11 @@ function GestionSection({ title, color, items, apiBase, onRefresh }: {
             <input value={newNombre} onChange={e => setNewNombre(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && addNew()}
               placeholder="Nombre…"
-              className="flex-1 min-w-0 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border"
+              className="flex-1 min-w-0 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border"
               style={inputStyle} />
             <CircularColorPicker value={newColor} onChange={setNewColor} />
             <button onClick={addNew} disabled={!newNombre.trim() || saving}
-              className="px-4 py-2 text-sm font-bold text-white rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40">
+              className="px-4 py-2 text-sm font-bold text-white rounded-xl bg-accent-primary hover:bg-accent-primary-dark disabled:opacity-40">
               +
             </button>
           </div>
@@ -146,8 +146,8 @@ export default function GestionClient() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(99,102,241,0.12)' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(var(--accent-primary-rgb),0.12)' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
@@ -164,14 +164,14 @@ export default function GestionClient() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <GestionSection
             title="Categorías"
-            color="#6366f1"
+            color="var(--accent-primary)"
             items={categorias}
             apiBase="/api/personal/categorias"
             onRefresh={fetchAll}
           />
           <GestionSection
             title="Bancos"
-            color="#64748b"
+            color="var(--text-secondary)"
             items={bancos}
             apiBase="/api/personal/bancos"
             onRefresh={fetchAll}

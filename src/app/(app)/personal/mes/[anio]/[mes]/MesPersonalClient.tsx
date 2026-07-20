@@ -21,7 +21,7 @@ function fmtDate(iso: string | null) {
 function CategoryBadge({ nombre, categorias }: { nombre: string | null; categorias: PersonalCategoria[] }) {
   if (!nombre) return null;
   const cat = categorias.find(c => c.nombre === nombre);
-  const bg = cat?.color ?? '#e5e7eb';
+  const bg = cat?.color ?? 'var(--btn-border)';
   return (
     <span style={{ backgroundColor: bg, color: autoText(bg) }} className="px-2 py-0.5 rounded-full text-xs font-semibold">
       {nombre}
@@ -209,10 +209,10 @@ export default function MesPersonalClient({
             <div>
               <p className="font-medium text-[10px] md:text-sm" style={{ color: 'var(--text-secondary)' }}>Ingresos</p>
               <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3 leading-tight" style={{ color: 'var(--text-primary)' }}>{fmt(totalIngresos)}</h3>
-              <p className="hidden md:block font-semibold mt-2 text-emerald-500 text-sm">{ingresos.length} entrada{ingresos.length !== 1 ? 's' : ''}</p>
+              <p className="hidden md:block font-semibold mt-2 text-success text-sm">{ingresos.length} entrada{ingresos.length !== 1 ? 's' : ''}</p>
             </div>
-            <div className="hidden md:flex w-12 h-12 rounded-2xl bg-emerald-100 items-center justify-center shrink-0">
-              <BanknoteIcon className="w-6 h-6 text-emerald-600" />
+            <div className="hidden md:flex w-12 h-12 rounded-2xl bg-success/10 items-center justify-center shrink-0">
+              <BanknoteIcon className="w-6 h-6 text-success" />
             </div>
           </div>
         </div>
@@ -221,8 +221,8 @@ export default function MesPersonalClient({
           <div className="flex items-start justify-between">
             <div>
               <p className="font-medium text-[10px] md:text-sm" style={{ color: 'var(--text-secondary)' }}>Gastos</p>
-              <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3 leading-tight text-red-500">-{fmt(totalGastos)}</h3>
-              <p className="hidden md:block font-semibold mt-2 text-amber-500 text-sm">{gastos.length} concepto{gastos.length !== 1 ? 's' : ''}</p>
+              <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3 leading-tight text-error">-{fmt(totalGastos)}</h3>
+              <p className="hidden md:block font-semibold mt-2 text-warning text-sm">{gastos.length} concepto{gastos.length !== 1 ? 's' : ''}</p>
             </div>
             <div className="hidden md:flex w-12 h-12 rounded-2xl bg-orange-100 items-center justify-center shrink-0">
               <ReceiptIcon className="w-6 h-6 text-orange-500" />
@@ -230,7 +230,7 @@ export default function MesPersonalClient({
           </div>
         </div>
 
-        <div className={`rounded-2xl md:rounded-3xl p-3 md:p-6 text-white shadow-2xl ${balance > 0 ? 'bg-gradient-to-br from-emerald-500 to-green-600 shadow-green-500/20' : balance < 0 ? 'bg-gradient-to-br from-red-500 to-red-600 shadow-red-500/20' : 'bg-gradient-to-br from-slate-400 to-slate-500 shadow-slate-500/20'}`}>
+        <div className={`rounded-2xl md:rounded-3xl p-3 md:p-6 text-white shadow-2xl ${balance > 0 ? 'bg-gradient-to-br from-success to-success-dark shadow-success/20' : balance < 0 ? 'bg-gradient-to-br from-error to-error-dark shadow-error/20' : 'bg-gradient-to-br from-slate-400 to-slate-500 shadow-slate-500/20'}`}>
           <div className="flex items-start justify-between">
             <div>
               <p className="text-white/80 font-medium text-[10px] md:text-sm">Balance</p>
@@ -249,7 +249,7 @@ export default function MesPersonalClient({
       {/* ── Ingresos ── */}
       <Section
         title="Ingresos" icon={<BanknoteIcon className="w-4 h-4" />} badge={fmt(totalIngresos)}
-        headerClass="bg-emerald-700"
+        headerClass="bg-success-dark"
         onAdd={() => setModal({ type: 'ingreso' })}
       >
         {ingresos.length === 0 ? <EmptyRow /> : (
@@ -270,7 +270,7 @@ export default function MesPersonalClient({
                       <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{i.concepto}</span>
                       {i.comentario && <p className="text-xs truncate max-w-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{i.comentario}</p>}
                     </td>
-                    <td className="py-3 px-4 whitespace-nowrap font-mono font-semibold text-emerald-500">{fmt(i.importe)}</td>
+                    <td className="py-3 px-4 whitespace-nowrap font-mono font-semibold text-success">{fmt(i.importe)}</td>
                     <td className="py-3 pr-3 text-right whitespace-nowrap">
                       <RowActions onEdit={() => setModal({ type: 'ingreso', item: i })} onDelete={() => deleteIngreso(i.id)} />
                     </td>
@@ -312,7 +312,7 @@ export default function MesPersonalClient({
                         {g.comentario && <p className="text-xs truncate max-w-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{g.comentario}</p>}
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>{fmtDate(g.fecha)}</td>
-                      <td className="py-3 px-4 whitespace-nowrap font-mono font-semibold text-red-500">-{fmt(g.importe)}</td>
+                      <td className="py-3 px-4 whitespace-nowrap font-mono font-semibold text-error">-{fmt(g.importe)}</td>
                       <td className="py-3 px-4 whitespace-nowrap"><CategoryBadge nombre={g.categoria} categorias={categorias} /></td>
                       <td className="py-3 px-4 whitespace-nowrap">
                         {banco ? (
@@ -429,7 +429,7 @@ function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => 
         onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}>
         <PencilIcon />
       </button>
-      <button onClick={e => { e.stopPropagation(); onDelete(); }} className="p-1.5 rounded-lg text-red-400 hover:text-red-600 transition-colors">
+      <button onClick={e => { e.stopPropagation(); onDelete(); }} className="p-1.5 rounded-lg text-error hover:text-error transition-colors">
         <TrashIcon />
       </button>
     </div>
@@ -573,11 +573,11 @@ function NuevoMesModal({ gastosFijos, ingresosFijos, mesesCreados, onClose, onCr
           {alreadyExists ? (
             <div className="px-6 pb-5" style={{ borderTop: '1px solid var(--divider)' }}>
               <div className="mt-4 mb-3 flex items-center gap-2">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#f59e0b' }}>Este mes ya existe</p>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--color-warning)' }}>Este mes ya existe</p>
               </div>
               <label className="flex items-center gap-3 cursor-pointer select-none">
-                <div onClick={() => setSobrescribir(v => !v)} className="w-10 h-6 rounded-full transition-colors relative shrink-0" style={{ background: sobrescribir ? '#ef4444' : 'var(--divider)' }}>
+                <div onClick={() => setSobrescribir(v => !v)} className="w-10 h-6 rounded-full transition-colors relative shrink-0" style={{ background: sobrescribir ? 'var(--color-error)' : 'var(--divider)' }}>
                   <div className="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all" style={{ left: sobrescribir ? '22px' : '4px' }} />
                 </div>
                 <div>
@@ -605,7 +605,7 @@ function NuevoMesModal({ gastosFijos, ingresosFijos, mesesCreados, onClose, onCr
             </div>
           ) : null}
 
-          {error && <p className="px-6 pb-3 text-sm text-red-500 font-medium">{error}</p>}
+          {error && <p className="px-6 pb-3 text-sm text-error font-medium">{error}</p>}
 
           <div className="flex gap-3 px-6 py-4" style={{ borderTop: '1px solid var(--divider)' }}>
             <button type="button" onClick={onClose} className="flex-1 py-2.5 text-sm font-medium border-2 rounded-2xl" style={{ borderColor: 'var(--btn-border)', color: 'var(--text-secondary)' }}>
@@ -613,8 +613,8 @@ function NuevoMesModal({ gastosFijos, ingresosFijos, mesesCreados, onClose, onCr
             </button>
             {alreadyExists ? (
               <button type="submit" disabled={creating || !sobrescribir}
-                className="flex-1 py-2.5 text-sm font-bold text-white rounded-2xl shadow-lg shadow-red-500/30 disabled:opacity-40 transition-colors"
-                style={{ background: sobrescribir ? '#ef4444' : 'var(--divider)' }}>
+                className="flex-1 py-2.5 text-sm font-bold text-white rounded-2xl shadow-lg shadow-error/30 disabled:opacity-40 transition-colors"
+                style={{ background: sobrescribir ? 'var(--color-error)' : 'var(--divider)' }}>
                 {creating ? 'Sobrescribiendo…' : 'Sobrescribir →'}
               </button>
             ) : (

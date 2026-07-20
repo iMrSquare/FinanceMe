@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, setSessionCookie } from '@/lib/auth';
-import { getUserById, updateUserProfile } from '@/lib/db';
+import { getUserById, updateUserProfile, toSessionUser } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 
   const user = getUserById(session.id);
   if (user) {
-    await setSessionCookie({ id: user.id, username: user.username, nombre: user.nombre, role: user.role, avatarUrl: user.avatar_url });
+    await setSessionCookie(toSessionUser(user));
   }
 
   return NextResponse.json({ ok: true });

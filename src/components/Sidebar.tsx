@@ -15,29 +15,9 @@ function RegistrosIcon() {
   );
 }
 import type { SessionUser } from '@/lib/auth';
-import Image from 'next/image';
+import Logo from './Logo';
 import { APP_VERSION } from '@/lib/constants';
 import { useVersionNotification } from './VersionProvider';
-
-function SunIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="5"/>
-      <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-      <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-    </svg>
-  );
-}
-
-function MoonIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-    </svg>
-  );
-}
 
 function ChevronLeftIcon() {
   return (
@@ -109,19 +89,19 @@ function BarChartIcon() {
 interface NavItem { href: string; label: string; shortLabel?: string; icon: React.ReactElement; color: string; }
 
 const NAV_HOGAR: NavItem[] = [
-  { href: '/hogar',              label: 'Resumen',      icon: <GridIcon     className="w-[18px] h-[18px]" />, color: '#0ea5e9' },
-  { href: '/hogar/mes',          label: 'Mes',          icon: <CalendarIcon className="w-[18px] h-[18px]" />, color: '#0ea5e9' },
-  { href: '/hogar/presupuesto',  label: 'Presupuesto',  icon: <ReceiptIcon  className="w-[18px] h-[18px]" />, color: '#0ea5e9' },
-  { href: '/hogar/registros',    label: 'Registros',    icon: <RegistrosIcon />,                               color: '#0ea5e9' },
-  { href: '/hogar/ahorro',       label: 'Ahorro',       icon: <SavingsIcon />,                                 color: '#0ea5e9' },
+  { href: '/hogar',              label: 'Resumen',      icon: <GridIcon     className="w-[18px] h-[18px]" />, color: 'var(--accent-hogar)' },
+  { href: '/hogar/mes',          label: 'Mes',          icon: <CalendarIcon className="w-[18px] h-[18px]" />, color: 'var(--accent-hogar)' },
+  { href: '/hogar/presupuesto',  label: 'Presupuesto',  icon: <ReceiptIcon  className="w-[18px] h-[18px]" />, color: 'var(--accent-hogar)' },
+  { href: '/hogar/registros',    label: 'Registros',    icon: <RegistrosIcon />,                               color: 'var(--accent-hogar)' },
+  { href: '/hogar/ahorro',       label: 'Ahorro',       icon: <SavingsIcon />,                                 color: 'var(--accent-hogar)' },
 ];
 
 const NAV_PERSONAL: NavItem[] = [
-  { href: '/personal',                label: 'Resumen',       icon: <GridIcon className="w-[18px] h-[18px]" />,    color: '#10b981' },
-  { href: '/personal/mes',            label: 'Mes',           icon: <CalendarIcon className="w-[18px] h-[18px]" />, color: '#10b981' },
-  { href: '/personal/presupuesto',    label: 'Presupuesto',   icon: <ReceiptIcon className="w-[18px] h-[18px]" />,  color: '#10b981' },
-  { href: '/personal/suscripciones',  label: 'Suscripciones', shortLabel: 'Suscs.', icon: <SubscriptionIcon />,     color: '#10b981' },
-  { href: '/personal/ahorro',         label: 'Ahorro',        icon: <SavingsIcon />,                                color: '#10b981' },
+  { href: '/personal',                label: 'Resumen',       icon: <GridIcon className="w-[18px] h-[18px]" />,    color: 'var(--accent-personal)' },
+  { href: '/personal/mes',            label: 'Mes',           icon: <CalendarIcon className="w-[18px] h-[18px]" />, color: 'var(--accent-personal)' },
+  { href: '/personal/presupuesto',    label: 'Presupuesto',   icon: <ReceiptIcon className="w-[18px] h-[18px]" />,  color: 'var(--accent-personal)' },
+  { href: '/personal/suscripciones',  label: 'Suscripciones', shortLabel: 'Suscs.', icon: <SubscriptionIcon />,     color: 'var(--accent-personal)' },
+  { href: '/personal/ahorro',         label: 'Ahorro',        icon: <SavingsIcon />,                                color: 'var(--accent-personal)' },
 ];
 
 function withCenterResumen(items: NavItem[]): NavItem[] {
@@ -145,7 +125,6 @@ export default function Sidebar({ session, hogarActivated }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const { show: hasNewVersion } = useVersionNotification();
-  const [dark, setDark] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -157,7 +136,6 @@ export default function Sidebar({ session, hogarActivated }: Props) {
   const lastScrollRef = useRef(0);
 
   useEffect(() => {
-    setDark(document.documentElement.classList.contains('dark'));
     if (localStorage.getItem('sidebar') === 'collapsed') setCollapsed(true);
     const saved = localStorage.getItem('app-mode');
     if (saved === 'hogar') setMode('hogar');
@@ -249,13 +227,6 @@ export default function Sidebar({ session, hogarActivated }: Props) {
     lastScrollRef.current = 0;
   }, [pathname]);
 
-  function toggleTheme() {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle('dark', next);
-    localStorage.setItem('theme', next ? 'dark' : 'light');
-  }
-
   function toggleCollapsed() {
     const next = !collapsed;
     setCollapsed(next);
@@ -289,7 +260,7 @@ export default function Sidebar({ session, hogarActivated }: Props) {
     <>
       {/* ── DESKTOP SIDEBAR ─────────────────────────────────── */}
       <aside
-        className={`${collapsed ? 'w-16' : 'w-64'} shrink-0 hidden lg:flex flex-col border-r transition-all duration-300 overflow-hidden`}
+        className={`${collapsed ? 'w-16' : 'w-64'} shrink-0 hidden lg:flex flex-col border-r transition-all duration-300`}
         style={{ background: 'var(--bg-sidebar)', borderColor: 'var(--sidebar-border)' }}
       >
         {/* Top */}
@@ -299,7 +270,7 @@ export default function Sidebar({ session, hogarActivated }: Props) {
           <div className={`flex items-center mb-8 ${collapsed ? 'justify-center' : 'justify-between px-1'}`}>
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0">
-                <Image src="/logo_FinanceMe-Hogar.png" alt="FinanceMe Hogar" width={36} height={36} className="w-full h-full object-cover" />
+                <Logo mode={mode} className="w-full h-full" />
               </div>
               {!collapsed && (
                 <div className="min-w-0">
@@ -328,7 +299,7 @@ export default function Sidebar({ session, hogarActivated }: Props) {
                   onClick={() => toggleMode('personal')}
                   className="flex-1 py-1.5 rounded-xl text-xs font-bold transition-all"
                   style={mode === 'personal'
-                    ? { background: '#10b981', color: '#fff', boxShadow: '0 2px 8px rgba(16,185,129,0.35)' }
+                    ? { background: 'var(--accent-personal)', color: '#fff', boxShadow: '0 2px 8px rgba(var(--accent-personal-rgb), 0.35)' }
                     : { background: 'transparent', color: 'var(--text-muted)' }
                   }
                 >
@@ -339,7 +310,7 @@ export default function Sidebar({ session, hogarActivated }: Props) {
                   disabled={!hogarActivated && session?.role !== 'admin'}
                   className="flex-1 py-1.5 rounded-xl text-xs font-bold transition-all"
                   style={mode === 'hogar'
-                    ? { background: '#0ea5e9', color: '#fff', boxShadow: '0 2px 8px rgba(14,165,233,0.35)' }
+                    ? { background: 'var(--accent-hogar)', color: '#fff', boxShadow: '0 2px 8px rgba(var(--accent-hogar-rgb), 0.35)' }
                     : { background: 'transparent', color: 'var(--text-muted)', opacity: !hogarActivated && session?.role !== 'admin' ? 0.4 : 1, cursor: !hogarActivated && session?.role !== 'admin' ? 'not-allowed' : 'pointer' }
                   }
                   title={!hogarActivated && session?.role !== 'admin' ? 'Pendiente de activación por un administrador' : undefined}
@@ -354,16 +325,6 @@ export default function Sidebar({ session, hogarActivated }: Props) {
               )}
             </div>
           )}
-          {collapsed && (
-            <div className="flex justify-center mb-4">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ background: mode === 'hogar' ? '#0ea5e9' : '#10b981' }}
-                title={mode === 'hogar' ? 'Hogar' : 'Personal'}
-              />
-            </div>
-          )}
-
           {/* Expand button when collapsed */}
           {collapsed && (
             <button
@@ -403,36 +364,6 @@ export default function Sidebar({ session, hogarActivated }: Props) {
 
         {/* Bottom */}
         <div className="px-3 pb-6 space-y-2">
-          {/* Theme toggle */}
-          {collapsed ? (
-            <button
-              onClick={toggleTheme}
-              className="w-full flex items-center justify-center py-2.5 rounded-2xl transition-colors"
-              style={{ color: 'var(--text-secondary)', background: 'var(--sidebar-hover-bg)' }}
-              title={dark ? 'Modo oscuro' : 'Modo claro'}
-            >
-              {dark ? <MoonIcon /> : <SunIcon />}
-            </button>
-          ) : (
-            <div className="flex items-center justify-between px-3 py-3 rounded-2xl" style={{ background: 'var(--sidebar-hover-bg)' }}>
-              <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                {dark ? 'Modo oscuro' : 'Modo claro'}
-              </span>
-              <button
-                onClick={toggleTheme}
-                className="relative w-10 h-5 rounded-full bg-indigo-600 transition-colors focus:outline-none shrink-0"
-                aria-label="Cambiar tema"
-              >
-                <span
-                  className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 flex items-center justify-center text-indigo-600"
-                  style={{ transform: dark ? 'translateX(20px)' : 'translateX(0)' }}
-                >
-                  {dark ? <MoonIcon /> : <SunIcon />}
-                </span>
-              </button>
-            </div>
-          )}
-
           {/* User menu */}
           <div className="relative" ref={menuRef}>
             <button
@@ -445,7 +376,7 @@ export default function Sidebar({ session, hogarActivated }: Props) {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={session.avatarUrl} alt={session.nombre} width={32} height={32} className="w-8 h-8 rounded-full object-cover shrink-0" />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
+                <div className="w-8 h-8 rounded-full bg-accent-primary flex items-center justify-center text-white font-bold text-xs shrink-0">
                   {initials}
                 </div>
               )}
@@ -465,7 +396,7 @@ export default function Sidebar({ session, hogarActivated }: Props) {
             {/* Dropdown */}
             {menuOpen && (
               <div
-                className="absolute bottom-full left-0 right-0 mb-2 rounded-2xl overflow-hidden shadow-xl z-50"
+                className="absolute bottom-full left-0 mb-2 w-56 rounded-2xl overflow-hidden shadow-xl z-50"
                 style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}
               >
                 <Link href="/perfil" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors w-full" style={{ color: 'var(--text-primary)' }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--sidebar-hover-bg)'} onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
@@ -487,8 +418,8 @@ export default function Sidebar({ session, hogarActivated }: Props) {
             <Link href="/changelog" className="flex items-center justify-center gap-1.5 mt-3 text-xs hover:underline">
               {hasNewVersion ? (
                 <>
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white bg-red-500">new</span>
-                  <span className="px-2 py-0.5 rounded-full font-bold text-white bg-red-500">{APP_VERSION}</span>
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white bg-error">new</span>
+                  <span className="px-2 py-0.5 rounded-full font-bold text-white bg-error">{APP_VERSION}</span>
                 </>
               ) : (
                 <span style={{ color: 'var(--text-muted)' }}>{APP_VERSION}</span>
@@ -505,11 +436,11 @@ export default function Sidebar({ session, hogarActivated }: Props) {
       >
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0">
-            <Image src="/logo_FinanceMe-Hogar.png" alt="FinanceMe" width={32} height={32} className="w-full h-full object-cover" />
+            <Logo mode={mode} className="w-full h-full" />
           </div>
           <div>
             <p className="font-bold text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>FinanceMe</p>
-            <p className="text-[10px] leading-tight" style={{ color: mode === 'personal' ? '#10b981' : '#0ea5e9' }}>
+            <p className="text-[10px] leading-tight" style={{ color: mode === 'personal' ? 'var(--accent-personal)' : 'var(--accent-hogar)' }}>
               {mode === 'personal' ? 'Personal' : 'Hogar'}
             </p>
           </div>
@@ -525,14 +456,14 @@ export default function Sidebar({ session, hogarActivated }: Props) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={session.avatarUrl} alt={session.nombre} width={36} height={36} className="w-9 h-9 object-cover" />
             ) : (
-              <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
+              <div className="w-9 h-9 rounded-full bg-accent-primary flex items-center justify-center text-white font-bold text-xs">
                 {initials}
               </div>
             )}
           </button>
           {hasNewVersion && (
             <span
-              className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center"
+              className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-error text-white text-[10px] font-bold flex items-center justify-center"
               style={{ border: '2px solid var(--bg-sidebar)' }}
             >
               1
@@ -622,7 +553,7 @@ export default function Sidebar({ session, hogarActivated }: Props) {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={session.avatarUrl} alt={session.nombre} width={44} height={44} className="w-11 h-11 rounded-full object-cover shrink-0" />
               ) : (
-                <div className="w-11 h-11 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                <div className="w-11 h-11 rounded-full bg-accent-primary flex items-center justify-center text-white font-bold text-sm shrink-0">
                   {initials}
                 </div>
               )}
@@ -639,7 +570,7 @@ export default function Sidebar({ session, hogarActivated }: Props) {
                   onClick={() => { toggleMode('personal'); setMobileOpen(false); }}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
                   style={mode === 'personal'
-                    ? { background: '#10b981', color: '#fff', boxShadow: '0 2px 8px rgba(16,185,129,0.35)' }
+                    ? { background: 'var(--accent-personal)', color: '#fff', boxShadow: '0 2px 8px rgba(var(--accent-personal-rgb), 0.35)' }
                     : { background: 'transparent', color: 'var(--text-muted)' }
                   }
                 >
@@ -650,7 +581,7 @@ export default function Sidebar({ session, hogarActivated }: Props) {
                   disabled={!hogarActivated && session?.role !== 'admin'}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
                   style={mode === 'hogar'
-                    ? { background: '#0ea5e9', color: '#fff', boxShadow: '0 2px 8px rgba(14,165,233,0.35)' }
+                    ? { background: 'var(--accent-hogar)', color: '#fff', boxShadow: '0 2px 8px rgba(var(--accent-hogar-rgb), 0.35)' }
                     : { background: 'transparent', color: 'var(--text-muted)', opacity: !hogarActivated && session?.role !== 'admin' ? 0.4 : 1, cursor: !hogarActivated && session?.role !== 'admin' ? 'not-allowed' : 'pointer' }
                   }
                   title={!hogarActivated && session?.role !== 'admin' ? 'Pendiente de activación por un administrador' : undefined}
@@ -663,25 +594,6 @@ export default function Sidebar({ session, hogarActivated }: Props) {
                   Pendiente de activación por un administrador
                 </p>
               )}
-            </div>
-
-            {/* Theme toggle */}
-            <div className="flex items-center justify-between px-4 py-3 rounded-2xl" style={{ background: 'var(--bg-page)' }}>
-              <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                {dark ? 'Modo oscuro' : 'Modo claro'}
-              </span>
-              <button
-                onClick={toggleTheme}
-                className="relative w-10 h-5 rounded-full bg-indigo-600 focus:outline-none shrink-0"
-                aria-label="Cambiar tema"
-              >
-                <span
-                  className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 flex items-center justify-center text-indigo-600"
-                  style={{ transform: dark ? 'translateX(20px)' : 'translateX(0)' }}
-                >
-                  {dark ? <MoonIcon /> : <SunIcon />}
-                </span>
-              </button>
             </div>
 
             {/* Links */}
@@ -719,8 +631,8 @@ export default function Sidebar({ session, hogarActivated }: Props) {
             <Link href="/changelog" onClick={() => setMobileOpen(false)} className="flex items-center justify-center gap-1.5 pt-1 text-xs hover:underline">
               {hasNewVersion ? (
                 <>
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white bg-red-500">new</span>
-                  <span className="px-2 py-0.5 rounded-full font-bold text-white bg-red-500">{APP_VERSION}</span>
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white bg-error">new</span>
+                  <span className="px-2 py-0.5 rounded-full font-bold text-white bg-error">{APP_VERSION}</span>
                 </>
               ) : (
                 <span style={{ color: 'var(--text-muted)' }}>{APP_VERSION}</span>
@@ -738,7 +650,7 @@ export default function Sidebar({ session, hogarActivated }: Props) {
         >
           <div className="glass-card rounded-3xl p-6 w-full max-w-sm shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl" style={{ background: 'rgba(14,165,233,0.15)' }}>
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl" style={{ background: 'rgba(var(--accent-hogar-rgb), 0.15)' }}>
                 🏠
               </div>
               <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Activar modo Hogar</h2>
@@ -762,7 +674,7 @@ export default function Sidebar({ session, hogarActivated }: Props) {
               <button
                 onClick={confirmHogar}
                 className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all"
-                style={{ background: 'linear-gradient(135deg, #0ea5e9, #0284c7)', boxShadow: '0 2px 12px rgba(14,165,233,0.35)' }}
+                style={{ background: 'linear-gradient(135deg, var(--accent-hogar), color-mix(in srgb, var(--accent-hogar) 75%, black))', boxShadow: '0 2px 12px rgba(var(--accent-hogar-rgb), 0.35)' }}
               >
                 Activar Hogar
               </button>

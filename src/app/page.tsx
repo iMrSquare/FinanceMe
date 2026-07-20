@@ -18,7 +18,7 @@ export default function RootPage() {
       <div style={{
         width: 44,
         height: 44,
-        border: '3px solid #6366f1',
+        border: '3px solid var(--accent-primary)',
         borderTopColor: 'transparent',
         borderRadius: '50%',
         animation: 'spin 0.75s linear infinite',

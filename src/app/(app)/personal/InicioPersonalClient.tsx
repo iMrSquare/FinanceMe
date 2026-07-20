@@ -58,7 +58,7 @@ function Calendario({ events }: { events: CalEvent[] }) {
             >
               <span className="text-xs font-semibold mb-1" style={{ color: isToday ? 'var(--sidebar-hover-c)' : 'var(--text-secondary)' }}>{day}</span>
               {evs.slice(0, 2).map((e, j) => (
-                <div key={j} className="rounded px-1 py-0.5 mb-0.5 truncate text-xs" style={{ background: e.tipo === 'gasto' ? 'rgba(239,68,68,0.12)' : 'rgba(139,92,246,0.12)', color: e.tipo === 'gasto' ? '#ef4444' : '#8b5cf6', fontSize: '10px' }}>
+                <div key={j} className="rounded px-1 py-0.5 mb-0.5 truncate text-xs" style={{ background: e.tipo === 'gasto' ? 'rgba(var(--color-error-rgb),0.12)' : 'rgba(139,92,246,0.12)', color: e.tipo === 'gasto' ? 'var(--color-error)' : '#8b5cf6', fontSize: '10px' }}>
                   {e.nombre}
                 </div>
               ))}
@@ -129,7 +129,7 @@ export default function InicioPersonalClient() {
   const ahorroVirtual = (ahorro?.objetivo_anual ?? 0) > 0 ? ahorro!.objetivo_anual / 12 : 0;
   const presupuestoTotal = totalGastos + suscVirtual + ahorroVirtual;
   const progresoPct = presupuestoTotal > 0 ? (totalMesGastos / presupuestoTotal) * 100 : 0;
-  const progresoColor = progresoPct >= 100 ? '#ef4444' : progresoPct >= 80 ? '#f59e0b' : '#10b981';
+  const progresoColor = progresoPct >= 100 ? 'var(--color-error)' : progresoPct >= 80 ? 'var(--color-warning)' : 'var(--color-success)';
 
   const currentMonth = new Date().getMonth();
   const calEvents: CalEvent[] = [
@@ -148,70 +148,78 @@ export default function InicioPersonalClient() {
   // Charts de evolución
   useEffect(() => {
     if (evolucion.length < 2) return;
-    const dark = document.documentElement.classList.contains('dark');
-    const grid = dark ? '#334155' : '#e2e8f0';
-    const tick = dark ? '#94a3b8' : '#64748b';
-    const labels = evolucion.map(m => m.nombre);
 
-    balanceChart.current?.destroy();
-    if (balanceRef.current) {
-      balanceChart.current = new Chart(balanceRef.current, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Balance',
-            data: evolucion.map(m => m.balance),
-            borderColor: '#f97316',
-            backgroundColor: 'rgba(249,115,22,0.1)',
-            tension: 0.4, fill: true, pointBackgroundColor: '#f97316', pointRadius: 4,
-          }],
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${fmt(ctx.parsed.y as number)}` } } },
-          scales: {
-            y: { grid: { color: grid }, ticks: { color: tick, callback: v => fmt(Number(v)) } },
-            x: { grid: { display: false }, ticks: { color: tick } },
+    function build() {
+      const cs = getComputedStyle(document.documentElement);
+      const grid = cs.getPropertyValue('--sidebar-border').trim();
+      const tick = cs.getPropertyValue('--text-secondary').trim();
+      const successColor = cs.getPropertyValue('--color-success').trim();
+      const successRgb = cs.getPropertyValue('--color-success-rgb').trim();
+      const labels = evolucion.map(m => m.nombre);
+
+      balanceChart.current?.destroy();
+      if (balanceRef.current) {
+        balanceChart.current = new Chart(balanceRef.current, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Balance',
+              data: evolucion.map(m => m.balance),
+              borderColor: '#f97316',
+              backgroundColor: 'rgba(249,115,22,0.1)',
+              tension: 0.4, fill: true, pointBackgroundColor: '#f97316', pointRadius: 4,
+            }],
           },
-        },
-      });
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${fmt(ctx.parsed.y as number)}` } } },
+            scales: {
+              y: { grid: { color: grid }, ticks: { color: tick, callback: v => fmt(Number(v)) } },
+              x: { grid: { display: false }, ticks: { color: tick } },
+            },
+          },
+        });
+      }
+
+      ingresosChart.current?.destroy();
+      if (ingresosRef.current) {
+        ingresosChart.current = new Chart(ingresosRef.current, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Ingresos',
+              data: evolucion.map(m => m.totalIngresos),
+              borderColor: successColor,
+              backgroundColor: `rgba(${successRgb},0.1)`,
+              tension: 0.4, fill: true, pointBackgroundColor: successColor, pointRadius: 4,
+            }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${fmt(ctx.parsed.y as number)}` } } },
+            scales: {
+              y: { grid: { color: grid }, ticks: { color: tick, callback: v => fmt(Number(v)) } },
+              x: { grid: { display: false }, ticks: { color: tick } },
+            },
+          },
+        });
+      }
     }
 
-    ingresosChart.current?.destroy();
-    if (ingresosRef.current) {
-      ingresosChart.current = new Chart(ingresosRef.current, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Ingresos',
-            data: evolucion.map(m => m.totalIngresos),
-            borderColor: '#10b981',
-            backgroundColor: 'rgba(16,185,129,0.1)',
-            tension: 0.4, fill: true, pointBackgroundColor: '#10b981', pointRadius: 4,
-          }],
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${fmt(ctx.parsed.y as number)}` } } },
-          scales: {
-            y: { grid: { color: grid }, ticks: { color: tick, callback: v => fmt(Number(v)) } },
-            x: { grid: { display: false }, ticks: { color: tick } },
-          },
-        },
-      });
-    }
-
-    return () => { balanceChart.current?.destroy(); ingresosChart.current?.destroy(); };
+    build();
+    const obs = new MutationObserver(build);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] });
+    return () => { obs.disconnect(); balanceChart.current?.destroy(); ingresosChart.current?.destroy(); };
   }, [evolucion]);
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(16,185,129,0.12)' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(var(--accent-personal-rgb),0.12)' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-personal)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
             </svg>
           </div>
@@ -244,20 +252,20 @@ export default function InicioPersonalClient() {
                 <span className="hidden sm:inline">Gastos fijos del mes</span>
                 <span className="sm:hidden">Gastos</span>
               </p>
-              <p className="text-sm sm:text-3xl font-extrabold leading-tight" style={{ color: loading ? 'var(--text-muted)' : '#ef4444' }}>
+              <p className="text-sm sm:text-3xl font-extrabold leading-tight" style={{ color: loading ? 'var(--text-muted)' : 'var(--color-error)' }}>
                 {loading ? '—' : fmt(presupuestoTotal)}
               </p>
               <p className="hidden sm:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
                 {gastos.length + (suscVirtual > 0 ? 1 : 0) + (ahorroVirtual > 0 ? 1 : 0)} conceptos
               </p>
             </div>
-            <div className="hidden sm:flex w-11 h-11 rounded-2xl items-center justify-center shrink-0" style={{ background: 'rgba(239,68,68,0.12)' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="hidden sm:flex w-11 h-11 rounded-2xl items-center justify-center shrink-0" style={{ background: 'rgba(var(--color-error-rgb),0.12)' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
               </svg>
             </div>
           </div>
-          <p className="hidden sm:block text-xs font-semibold" style={{ color: '#ef4444' }}>Ver presupuesto →</p>
+          <p className="hidden sm:block text-xs font-semibold" style={{ color: 'var(--color-error)' }}>Ver presupuesto →</p>
         </Link>
 
         <Link href="/personal/suscripciones" className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6 block transition-transform hover:-translate-y-0.5">
@@ -290,25 +298,25 @@ export default function InicioPersonalClient() {
                 <span className="hidden sm:inline">Ahorro conseguido</span>
                 <span className="sm:hidden">Ahorro</span>
               </p>
-              <p className="text-sm sm:text-3xl font-extrabold leading-tight" style={{ color: loading ? 'var(--text-muted)' : '#f59e0b' }}>
+              <p className="text-sm sm:text-3xl font-extrabold leading-tight" style={{ color: loading ? 'var(--text-muted)' : 'var(--color-warning)' }}>
                 {loading ? '—' : fmt(totalAportado)}
               </p>
               {!loading && objetivoAnual > 0 && (
                 <p className="hidden sm:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{porcentaje.toFixed(0)}% de {fmt(objetivoAnual)}</p>
               )}
             </div>
-            <div className="hidden sm:flex w-11 h-11 rounded-2xl items-center justify-center shrink-0" style={{ background: 'rgba(245,158,11,0.12)' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="hidden sm:flex w-11 h-11 rounded-2xl items-center justify-center shrink-0" style={{ background: 'rgba(var(--color-warning-rgb),0.12)' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
           </div>
           {!loading && objetivoAnual > 0 && (
             <div className="h-1.5 rounded-full overflow-hidden mb-2" style={{ background: 'var(--divider)' }}>
-              <div className="h-full rounded-full transition-all" style={{ width: `${porcentaje}%`, background: porcentaje >= 100 ? '#f59e0b' : porcentaje >= 50 ? '#f59e0b' : '#ef4444' }} />
+              <div className="h-full rounded-full transition-all" style={{ width: `${porcentaje}%`, background: porcentaje >= 100 ? 'var(--color-warning)' : porcentaje >= 50 ? 'var(--color-warning)' : 'var(--color-error)' }} />
             </div>
           )}
-          <p className="hidden sm:block text-xs font-semibold" style={{ color: '#f59e0b' }}>Ver ahorro →</p>
+          <p className="hidden sm:block text-xs font-semibold" style={{ color: 'var(--color-warning)' }}>Ver ahorro →</p>
         </Link>
       </div>
 
@@ -323,14 +331,14 @@ export default function InicioPersonalClient() {
               {proximos.map((e, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
-                    style={{ background: e.tipo === 'gasto' ? 'rgba(239,68,68,0.12)' : 'rgba(139,92,246,0.12)', color: e.tipo === 'gasto' ? '#ef4444' : '#8b5cf6' }}>
+                    style={{ background: e.tipo === 'gasto' ? 'rgba(var(--color-error-rgb),0.12)' : 'rgba(139,92,246,0.12)', color: e.tipo === 'gasto' ? 'var(--color-error)' : '#8b5cf6' }}>
                     {e.day}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{e.nombre}</p>
                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{e.tipo === 'gasto' ? 'Gasto fijo' : 'Suscripción'}</p>
                   </div>
-                  <span className="text-sm font-bold shrink-0" style={{ color: e.tipo === 'gasto' ? '#ef4444' : '#8b5cf6' }}>
+                  <span className="text-sm font-bold shrink-0" style={{ color: e.tipo === 'gasto' ? 'var(--color-error)' : '#8b5cf6' }}>
                     -{fmt(e.importe)}
                   </span>
                 </div>
@@ -367,15 +375,15 @@ export default function InicioPersonalClient() {
             <div className="px-5 py-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Ingresos</span>
-                <span className="text-sm font-bold text-emerald-500">{fmt(totalMesIngresos)}</span>
+                <span className="text-sm font-bold text-success">{fmt(totalMesIngresos)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Gastos</span>
-                <span className="text-sm font-bold text-red-500">-{fmt(totalMesGastos)}</span>
+                <span className="text-sm font-bold text-error">-{fmt(totalMesGastos)}</span>
               </div>
               <div className="flex items-center justify-between pt-2" style={{ borderTop: '1px solid var(--divider)' }}>
                 <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Balance</span>
-                <span className="text-lg font-extrabold" style={{ color: balanceMes >= 0 ? '#10b981' : '#ef4444' }}>
+                <span className="text-lg font-extrabold" style={{ color: balanceMes >= 0 ? 'var(--color-success)' : 'var(--color-error)' }}>
                   {balanceMes >= 0 ? '+' : ''}{fmt(balanceMes)}
                 </span>
               </div>
@@ -411,7 +419,7 @@ export default function InicioPersonalClient() {
                 <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(progresoPct, 100)}%`, background: progresoColor }} />
               </div>
               {progresoPct >= 100 && (
-                <p className="text-xs font-semibold" style={{ color: '#ef4444' }}>⚠ Presupuesto superado en {fmt(totalMesGastos - presupuestoTotal)}</p>
+                <p className="text-xs font-semibold" style={{ color: 'var(--color-error)' }}>⚠ Presupuesto superado en {fmt(totalMesGastos - presupuestoTotal)}</p>
               )}
             </div>
           )}

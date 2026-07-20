@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, setSessionCookie } from '@/lib/auth';
-import { getUserById, updateUserAvatar, clearUserAvatar } from '@/lib/db';
+import { getUserById, updateUserAvatar, clearUserAvatar, toSessionUser } from '@/lib/db';
 import { writeFile, mkdir, unlink } from 'fs/promises';
 import path from 'path';
 
@@ -15,7 +15,7 @@ async function deleteAvatarFile(avatarUrl: string) {
 async function refreshSession(userId: number) {
   const user = getUserById(userId);
   if (user) {
-    await setSessionCookie({ id: user.id, username: user.username, nombre: user.nombre, role: user.role, avatarUrl: user.avatar_url });
+    await setSessionCookie(toSessionUser(user));
   }
 }
 

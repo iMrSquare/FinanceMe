@@ -62,7 +62,7 @@ export default function CambiarPasswordClient({ forced }: { forced: boolean }) {
           value={currentPassword}
           onChange={e => setCurrentPassword(e.target.value)}
           required
-          className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border transition-colors"
+          className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border transition-colors"
           style={{ background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' }}
           placeholder="••••••••"
         />
@@ -78,7 +78,7 @@ export default function CambiarPasswordClient({ forced }: { forced: boolean }) {
           value={newPassword}
           onChange={e => setNewPassword(e.target.value)}
           required
-          className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border transition-colors"
+          className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border transition-colors"
           style={{ background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' }}
           placeholder="Mínimo 8 caracteres"
         />
@@ -94,21 +94,21 @@ export default function CambiarPasswordClient({ forced }: { forced: boolean }) {
           value={confirmPassword}
           onChange={e => setConfirmPassword(e.target.value)}
           required
-          className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border transition-colors"
+          className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border transition-colors"
           style={{ background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' }}
           placeholder="••••••••"
         />
       </div>
 
       {error && (
-        <p className="text-sm text-red-500 font-medium text-center">{error}</p>
+        <p className="text-sm text-error font-medium text-center">{error}</p>
       )}
 
       <button
         type="submit"
         disabled={loading}
-        className="w-full py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-indigo-500/30 disabled:opacity-60"
-        style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}
+        className="w-full py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-accent-primary/30 disabled:opacity-60"
+        style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}
       >
         {loading ? 'Guardando…' : 'Guardar contraseña'}
       </button>
@@ -136,7 +136,7 @@ export default function CambiarPasswordClient({ forced }: { forced: boolean }) {
           <div className="flex items-center gap-3 mb-2">
             <div
               className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl flex-shrink-0"
-              style={{ background: 'rgba(99,102,241,0.15)' }}
+              style={{ background: 'rgba(var(--accent-primary-rgb),0.15)' }}
             >
               🔐
             </div>

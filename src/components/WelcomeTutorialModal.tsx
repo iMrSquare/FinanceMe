@@ -67,7 +67,7 @@ export default function WelcomeTutorialModal({ onClose }: Props) {
         <div className="flex items-center gap-3 shrink-0 px-5 pt-5 sm:px-8 sm:pt-8 pb-4">
           <div
             className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0"
-            style={{ background: 'rgba(99,102,241,0.12)' }}
+            style={{ background: 'rgba(var(--accent-primary-rgb),0.12)' }}
           >
             👋
           </div>
@@ -96,7 +96,7 @@ export default function WelcomeTutorialModal({ onClose }: Props) {
           <button
             onClick={onClose}
             className="w-full py-3 rounded-2xl text-sm font-bold text-white transition-all"
-            style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)', boxShadow: '0 2px 12px rgba(99,102,241,0.35)' }}
+            style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))', boxShadow: '0 2px 12px rgba(var(--accent-primary-rgb),0.35)' }}
           >
             Entendido
           </button>

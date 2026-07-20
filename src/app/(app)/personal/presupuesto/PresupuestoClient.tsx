@@ -36,7 +36,7 @@ function extractDay(c: string | null): string {
   return isNaN(d.getTime()) ? '' : String(d.getDate());
 }
 
-const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400/50 border transition-colors appearance-none';
+const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-error/50 border transition-colors appearance-none';
 const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
 
 
@@ -101,7 +101,7 @@ function GastoModal({ form, setForm, categorias, bancos, onClose, onSave, saving
         </div>
         <div className="flex gap-3 mt-6">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>Cancelar</button>
-          <button onClick={onSave} disabled={saving || !form.gasto.trim() || !form.importe} className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-50 shadow-lg shadow-red-500/30" style={{ background: 'linear-gradient(135deg,#ef4444,#dc2626)' }}>
+          <button onClick={onSave} disabled={saving || !form.gasto.trim() || !form.importe} className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-50 shadow-lg shadow-error/30" style={{ background: 'linear-gradient(135deg, var(--color-error), color-mix(in srgb, var(--color-error) 75%, black))' }}>
             {saving ? 'Guardando…' : form.id ? 'Guardar' : 'Crear gasto'}
           </button>
         </div>
@@ -135,7 +135,7 @@ function IngresoModal({ form, setForm, onClose, onSave, saving }: {
         </div>
         <div className="flex gap-3 mt-6">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>Cancelar</button>
-          <button onClick={onSave} disabled={saving || !form.concepto.trim() || !form.importe} className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-50 shadow-lg shadow-emerald-500/30" style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
+          <button onClick={onSave} disabled={saving || !form.concepto.trim() || !form.importe} className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-50 shadow-lg shadow-success/30" style={{ background: 'linear-gradient(135deg, var(--color-success), color-mix(in srgb, var(--color-success) 75%, black))' }}>
             {saving ? 'Guardando…' : form.id ? 'Guardar' : 'Crear ingreso'}
           </button>
         </div>
@@ -228,8 +228,8 @@ export default function PresupuestoClient() {
 
   function toggleSort(k: SortKey) { if (sortKey === k) setSortAsc(!sortAsc); else { setSortKey(k); setSortAsc(true); } }
 
-  const catColor = (n: string) => categorias.find(c => c.nombre === n)?.color ?? '#64748b';
-  const bancoColor = (n: string) => bancos.find(b => b.nombre === n)?.color ?? '#64748b';
+  const catColor = (n: string) => categorias.find(c => c.nombre === n)?.color ?? 'var(--text-secondary)';
+  const bancoColor = (n: string) => bancos.find(b => b.nombre === n)?.color ?? 'var(--text-secondary)';
   const autoConfig = (tipo: 'suscripciones' | 'ahorro' | 'objetivos') => autoConfigs.find(c => c.tipo === tipo) ?? { tipo, banco: null, categoria: null, redondeo: 1 };
 
   const filtered = gastos
@@ -289,8 +289,8 @@ export default function PresupuestoClient() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(239,68,68,0.12)' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(var(--color-error-rgb),0.12)' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
             </svg>
           </div>
@@ -307,7 +307,7 @@ export default function PresupuestoClient() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             <span className="hidden sm:inline">Gestión</span>
           </button>
-          <button onClick={() => setModal(emptyForm())} className="flex items-center justify-center gap-2 flex-1 sm:flex-none px-4 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-red-500/30" style={{ background: 'linear-gradient(135deg,#ef4444,#dc2626)' }}>
+          <button onClick={() => setModal(emptyForm())} className="flex items-center justify-center gap-2 flex-1 sm:flex-none px-4 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-error/30" style={{ background: 'linear-gradient(135deg, var(--color-error), color-mix(in srgb, var(--color-error) 75%, black))' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Nuevo gasto
           </button>
@@ -318,7 +318,7 @@ export default function PresupuestoClient() {
       {(gastos.length > 0 || suscVirtual > 0 || ahorroVirtual > 0 || objetivosVirtual > 0) && (
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
           {/* Total mensual */}
-          <div className="rounded-2xl sm:rounded-3xl p-3 sm:p-6 text-white shadow-2xl shadow-red-500/20" style={{ background: 'linear-gradient(135deg,#ef4444,#dc2626)' }}>
+          <div className="rounded-2xl sm:rounded-3xl p-3 sm:p-6 text-white shadow-2xl shadow-error/20" style={{ background: 'linear-gradient(135deg, var(--color-error), color-mix(in srgb, var(--color-error) 75%, black))' }}>
             <p className="text-[10px] sm:text-xs font-semibold text-white/70 uppercase tracking-wide mb-1 sm:mb-2">Total</p>
             <p className="text-sm sm:text-3xl font-extrabold leading-tight">{fmt(totalConVirtuales)}</p>
             {(suscVirtual > 0 || ahorroVirtual > 0 || objetivosVirtual > 0) && (
@@ -346,11 +346,11 @@ export default function PresupuestoClient() {
           {/* Ahorro mensual */}
           <div className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6">
             <div className="flex items-center justify-between mb-1 sm:mb-2">
-              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide" style={{ color: '#f59e0b' }}>
+              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-warning)' }}>
                 <span className="sm:hidden">Ahorro</span>
                 <span className="hidden sm:inline">Ahorro mensual</span>
               </p>
-              <Link href="/personal/ahorro" className="hidden sm:inline text-xs font-semibold" style={{ color: '#f59e0b' }}>Ver →</Link>
+              <Link href="/personal/ahorro" className="hidden sm:inline text-xs font-semibold" style={{ color: 'var(--color-warning)' }}>Ver →</Link>
             </div>
             <p className="text-sm sm:text-3xl font-extrabold leading-tight" style={{ color: ahorroVirtual > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
               {ahorroVirtual > 0 ? fmt(ahorroVirtual) : '—'}
@@ -375,9 +375,9 @@ export default function PresupuestoClient() {
         {(filtroCategoria || filtroBanco) && (
           <>
             <button onClick={() => { setFiltroCategoria(''); setFiltroBanco(''); }} className="px-3 py-2 rounded-xl text-sm font-medium border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)' }}>✕ Limpiar</button>
-            <div className="ml-auto flex items-center gap-3 px-4 py-2 rounded-2xl" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
-              <span className="text-sm font-medium" style={{ color: '#ef4444' }}>{filtered.length} de {gastos.length}</span>
-              <span className="text-base font-extrabold" style={{ color: '#ef4444' }}>{fmt(totalFiltradoConVirtuales)}</span>
+            <div className="ml-auto flex items-center gap-3 px-4 py-2 rounded-2xl" style={{ background: 'rgba(var(--color-error-rgb),0.1)', border: '1px solid rgba(var(--color-error-rgb),0.2)' }}>
+              <span className="text-sm font-medium" style={{ color: 'var(--color-error)' }}>{filtered.length} de {gastos.length}</span>
+              <span className="text-base font-extrabold" style={{ color: 'var(--color-error)' }}>{fmt(totalFiltradoConVirtuales)}</span>
             </div>
           </>
         )}
@@ -423,7 +423,7 @@ export default function PresupuestoClient() {
                       <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{g.gasto}</span>
                       {g.comentario && <p className="text-xs truncate max-w-xs" style={{ color: 'var(--text-muted)' }}>{g.comentario}</p>}
                     </td>
-                    <td className="px-4 py-3 font-mono font-bold" style={{ color: '#ef4444' }}>{fmt(g.importe)}</td>
+                    <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-error)' }}>{fmt(g.importe)}</td>
                     <td className="px-4 py-3">
                       {g.categoria ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: catColor(g.categoria), color: autoText(catColor(g.categoria)) }}>{g.categoria}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
@@ -437,7 +437,7 @@ export default function PresupuestoClient() {
                         <button onClick={e => { e.stopPropagation(); setModal({ id: g.id, gasto: g.gasto, importe: String(g.importe), categoria: g.categoria ?? '', banco: g.banco ?? '', cobro: extractDay(g.cobro), vencimiento: g.vencimiento ?? '', comentario: g.comentario ?? '' }); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                           onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                           onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                        <button onClick={e => { e.stopPropagation(); setDeleteId(g.id); }} className="p-1.5 rounded-lg transition-colors" style={{ color: '#ef4444' }}
+                        <button onClick={e => { e.stopPropagation(); setDeleteId(g.id); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--color-error)' }}
                           onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
                           onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
                       </div>
@@ -485,16 +485,16 @@ export default function PresupuestoClient() {
                 {ahorroVirtual > 0 && ahorroMatchesFiltro && (() => {
                   const cfg = ahorroCfg;
                   return (
-                    <tr style={{ background: 'rgba(245,158,11,0.04)', cursor: isMobile ? 'pointer' : undefined }}
+                    <tr style={{ background: 'rgba(var(--color-warning-rgb),0.04)', cursor: isMobile ? 'pointer' : undefined }}
                       onClick={() => { if (isMobile) setEditingAuto('ahorro'); }}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Ahorro mensual</span>
-                          <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>Auto</span>
+                          <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(var(--color-warning-rgb),0.15)', color: 'var(--color-warning)' }}>Auto</span>
                         </div>
                         <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{fmt(ahorro!.objetivo_anual)}/año ÷ 12</p>
                       </td>
-                      <td className="px-4 py-3 font-mono font-bold" style={{ color: '#f59e0b' }}>{fmt(ahorroVirtual)}</td>
+                      <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-warning)' }}>{fmt(ahorroVirtual)}</td>
                       <td className="px-4 py-3">
                         {cfg.categoria
                           ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: catColor(cfg.categoria), color: autoText(catColor(cfg.categoria)) }}>{cfg.categoria}</span>
@@ -521,16 +521,16 @@ export default function PresupuestoClient() {
                 {objetivosVirtual > 0 && objetivosMatchesFiltro && (() => {
                   const cfg = objetivosCfg;
                   return (
-                    <tr style={{ background: 'rgba(245,158,11,0.04)', cursor: isMobile ? 'pointer' : undefined }}
+                    <tr style={{ background: 'rgba(var(--color-warning-rgb),0.04)', cursor: isMobile ? 'pointer' : undefined }}
                       onClick={() => { if (isMobile) setEditingAuto('objetivos'); }}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Objetivos de ahorro</span>
-                          <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>Auto</span>
+                          <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(var(--color-warning-rgb),0.15)', color: 'var(--color-warning)' }}>Auto</span>
                         </div>
                         <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Suma de objetivos en progreso</p>
                       </td>
-                      <td className="px-4 py-3 font-mono font-bold" style={{ color: '#f59e0b' }}>{fmt(objetivosVirtual)}</td>
+                      <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-warning)' }}>{fmt(objetivosVirtual)}</td>
                       <td className="px-4 py-3">
                         {cfg.categoria
                           ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: catColor(cfg.categoria), color: autoText(catColor(cfg.categoria)) }}>{cfg.categoria}</span>
@@ -561,7 +561,7 @@ export default function PresupuestoClient() {
 
       {/* Tabla de ingresos fijos */}
       <div className="glass-card rounded-3xl overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 bg-emerald-700">
+        <div className="flex items-center justify-between px-6 py-4 bg-success-dark">
           <h2 className="font-bold text-base text-white">
             Ingresos
             <span className="ml-2 text-sm font-normal text-white/80">{ingresosFijos.length} entrada{ingresosFijos.length !== 1 ? 's' : ''}{totalIngresosFijos > 0 ? ` · ${fmt(totalIngresosFijos)}` : ''}</span>
@@ -593,13 +593,13 @@ export default function PresupuestoClient() {
                       <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{i.concepto}</span>
                       {i.comentario && <p className="text-xs truncate max-w-xs" style={{ color: 'var(--text-muted)' }}>{i.comentario}</p>}
                     </td>
-                    <td className="px-4 py-3 font-mono font-bold" style={{ color: '#10b981' }}>{fmt(i.importe)}</td>
+                    <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-success)' }}>{fmt(i.importe)}</td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={e => { e.stopPropagation(); setModalIngreso({ id: i.id, concepto: i.concepto, importe: String(i.importe), comentario: i.comentario ?? '' }); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                           onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                           onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                        <button onClick={e => { e.stopPropagation(); setDeleteIngresoId(i.id); }} className="p-1.5 rounded-lg transition-colors" style={{ color: '#ef4444' }}
+                        <button onClick={e => { e.stopPropagation(); setDeleteIngresoId(i.id); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--color-error)' }}
                           onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
                           onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
                       </div>
@@ -668,7 +668,7 @@ function AutoConfigModal({ tipo, current, categorias, bancos, onClose, onSave }:
   const [saving, setSaving] = useState(false);
 
   const titulo = tipo === 'suscripciones' ? 'Suscripciones' : tipo === 'ahorro' ? 'Ahorro mensual' : 'Objetivos de ahorro';
-  const color  = tipo === 'suscripciones' ? '#8b5cf6' : '#f59e0b';
+  const color  = tipo === 'suscripciones' ? '#8b5cf6' : 'var(--color-warning)';
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();

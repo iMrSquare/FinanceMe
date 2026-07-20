@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/logo_FinanceMe-Hogar.png" alt="Logo de FinanceMe" width="96" />
+  <img src="img/logo_FinanceMe-fondo-blanco.png" alt="Logo de FinanceMe" width="96" />
 
   # FinanceMe
 

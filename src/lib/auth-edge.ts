@@ -6,6 +6,8 @@ export const JWT_SECRET = new TextEncoder().encode(
 
 export type Role = 'admin' | 'editor' | 'visor';
 
+export type ColorMode = 'light' | 'dark' | 'system';
+
 export interface SessionUser {
   id: number;
   username: string;
@@ -14,6 +16,10 @@ export interface SessionUser {
   avatarUrl: string | null;
   mustChangePassword?: boolean;
   tutorialSeen?: boolean;
+  theme: string;
+  colorMode: ColorMode;
+  accentPersonal: string | null;
+  accentHogar: string | null;
 }
 
 export async function createToken(user: SessionUser): Promise<string> {
@@ -25,6 +31,10 @@ export async function createToken(user: SessionUser): Promise<string> {
     avatarUrl: user.avatarUrl,
     mustChangePassword: user.mustChangePassword ?? false,
     tutorialSeen: user.tutorialSeen ?? false,
+    theme: user.theme,
+    colorMode: user.colorMode,
+    accentPersonal: user.accentPersonal,
+    accentHogar: user.accentHogar,
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -43,6 +53,10 @@ export async function verifyToken(token: string): Promise<SessionUser | null> {
       avatarUrl: (payload.avatarUrl as string | null) ?? null,
       mustChangePassword: (payload.mustChangePassword as boolean) ?? false,
       tutorialSeen: (payload.tutorialSeen as boolean) ?? false,
+      theme: (payload.theme as string) ?? 'indigo',
+      colorMode: (payload.colorMode as ColorMode) ?? 'system',
+      accentPersonal: (payload.accentPersonal as string | null) ?? null,
+      accentHogar: (payload.accentHogar as string | null) ?? null,
     };
   } catch {
     return null;

@@ -18,16 +18,46 @@ interface Release {
 }
 
 const TIPO_META: Record<Tipo, { color: string; emoji: string }> = {
-  Novedades: { color: '#10b981', emoji: '✨' },
-  Mejoras: { color: '#6366f1', emoji: '🔧' },
-  Correcciones: { color: '#f59e0b', emoji: '🐛' },
+  Novedades: { color: 'var(--color-success)', emoji: '✨' },
+  Mejoras: { color: 'var(--accent-primary)', emoji: '🔧' },
+  Correcciones: { color: 'var(--color-warning)', emoji: '🐛' },
 };
 
 const RELEASES: Release[] = [
   {
+    version: 'v1.5.0',
+    fecha: '20 de julio de 2026',
+    destacado: true,
+    intro: 'Nueva sección de Apariencia en Mi Perfil: elige entre 6 temas visuales, modo claro/oscuro/sistema y colores de acento propios para Personal y Hogar. Tu preferencia viaja contigo entre dispositivos.',
+    grupos: [
+      {
+        tipo: 'Novedades',
+        items: [
+          'Apariencia (Mi Perfil): nueva tarjeta para elegir tema — Clásico, Ámbar, Monokai, Dracula, Vino o Contraste — cada uno con su propia paleta de colores y forma de esquinas.',
+          'Apariencia: modo claro, oscuro o según el sistema, ahora seleccionable desde Mi Perfil (antes solo había un interruptor claro/oscuro en el menú lateral).',
+          'Apariencia: colores de acento de Personal y Hogar personalizables de forma independiente al tema elegido, con opción de restablecer al valor del tema.',
+          'Nuevo logo de la aplicación, actualizado también en el favicon y el icono de instalación.',
+        ],
+      },
+      {
+        tipo: 'Mejoras',
+        items: [
+          'Mi Perfil reorganizado: perfil de usuario y cambiar contraseña juntos en una columna; apariencia, tutorial y tus datos personales en la otra.',
+          'La pantalla de inicio de sesión se muestra siempre en tema claro, para que el acceso sea consistente sea cual sea tu tema elegido.',
+        ],
+      },
+      {
+        tipo: 'Correcciones',
+        items: [
+          'Registros de luz y agua: la gráfica de importes sigue ahora el color del tema y de la cabecera de su tabla — antes se quedaba siempre en negro y no reaccionaba al cambiar de tema.',
+          'Menú lateral (forma colapsada): el menú de usuario ya no aparece cortado o invisible al pulsarlo.',
+        ],
+      },
+    ],
+  },
+  {
     version: 'v1.4.9',
     fecha: '18 de julio de 2026',
-    destacado: true,
     intro: 'Objetivo anual de ahorro en el Hogar (igual que en Personal), nuevo estado "Neutro" en el Balance y una tanda de correcciones de fiabilidad en Gestión y Presupuesto.',
     grupos: [
       {
@@ -185,8 +215,8 @@ export default function ChangelogPage() {
       <VersionSeenMarker />
       {/* Header */}
       <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(99,102,241,0.12)' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(var(--accent-primary-rgb),0.12)' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 8v4l3 3" /><circle cx="12" cy="12" r="9" />
           </svg>
         </div>
@@ -216,12 +246,12 @@ export default function ChangelogPage() {
             <div className="flex flex-wrap items-center gap-3 mb-1">
               <span
                 className="px-3 py-1 rounded-full text-sm font-bold text-white"
-                style={{ background: rel.destacado ? 'linear-gradient(135deg,#6366f1,#4f46e5)' : 'var(--text-muted)' }}
+                style={{ background: rel.destacado ? 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' : 'var(--text-muted)' }}
               >
                 {rel.version}
               </span>
               {rel.destacado && (
-                <span className="px-2.5 py-1 rounded-full text-xs font-bold" style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981' }}>
+                <span className="px-2.5 py-1 rounded-full text-xs font-bold" style={{ background: 'rgba(var(--color-success-rgb),0.12)', color: 'var(--color-success)' }}>
                   Actual
                 </span>
               )}

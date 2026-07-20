@@ -53,8 +53,8 @@ export default function EstadisticasPersonalClient({ data }: Props) {
   })).sort((a, b) => b.total - a.total);
 
   function getTheme() {
-    const dark = document.documentElement.classList.contains('dark');
-    return { grid: dark ? '#334155' : '#e2e8f0', tick: dark ? '#94a3b8' : '#64748b' };
+    const cs = getComputedStyle(document.documentElement);
+    return { grid: cs.getPropertyValue('--sidebar-border').trim(), tick: cs.getPropertyValue('--text-secondary').trim() };
   }
 
   const buildStacked = useCallback(() => {
@@ -144,7 +144,7 @@ export default function EstadisticasPersonalClient({ data }: Props) {
     buildStacked();
     cats.forEach((_, i) => buildMini(i));
     const obs = new MutationObserver(updateColors);
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] });
     return () => {
       obs.disconnect();
       stackedChart.current?.destroy();

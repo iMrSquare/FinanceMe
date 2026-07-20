@@ -16,7 +16,7 @@ const fmtDate = (d: string | null) => {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : '—';
 };
 
-const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border transition-colors appearance-none';
+const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border transition-colors appearance-none';
 const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
 const selectStyle = { ...inputStyle, paddingTop: '8px', paddingBottom: '8px' };
 
@@ -41,7 +41,7 @@ function emptyIngreso(): FijoForm { return { tipo: 'ingreso', gasto: '', categor
 function CategoryBadge({ nombre, categorias }: { nombre: string | null; categorias: Categoria[] }) {
   if (!nombre) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
   const cat = categorias.find(c => c.nombre === nombre);
-  const bg = cat?.color ?? '#64748b';
+  const bg = cat?.color ?? 'var(--text-secondary)';
   return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold" style={{ background: bg, color: autoText(bg) }}>{nombre}</span>;
 }
 
@@ -121,7 +121,7 @@ function FijoModal({ form, setForm, catGasto, catPrestamo, onClose, onSave, savi
         </div>
         <div className="flex gap-3 mt-6">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>Cancelar</button>
-          <button onClick={onSave} disabled={saving || !form.gasto.trim() || !form.importe} className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-50 shadow-lg shadow-indigo-500/30" style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)' }}>
+          <button onClick={onSave} disabled={saving || !form.gasto.trim() || !form.importe} className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-50 shadow-lg shadow-accent-primary/30" style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}>
             {saving ? 'Guardando…' : isEditing ? 'Guardar' : 'Crear'}
           </button>
         </div>
@@ -285,8 +285,8 @@ export default function PresupuestoHogarClient({
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(99,102,241,0.12)' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(var(--accent-primary-rgb),0.12)' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
               <polyline points="14 2 14 8 20 8"/>
               <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
@@ -307,7 +307,7 @@ export default function PresupuestoHogarClient({
             </button>
           )}
           {canEdit && (
-            <button onClick={() => setModal(emptyGasto())} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold text-white shadow-lg shadow-indigo-500/30" style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)' }}>
+            <button onClick={() => setModal(emptyGasto())} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold text-white shadow-lg shadow-accent-primary/30" style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Nuevo Gasto
             </button>
@@ -323,7 +323,7 @@ export default function PresupuestoHogarClient({
           <p className="hidden md:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{conceptosTotal} concepto{conceptosTotal !== 1 ? 's' : ''}</p>
         </div>
         <div className="glass-card rounded-2xl md:rounded-3xl p-3 md:p-6">
-          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wide mb-1 md:mb-2" style={{ color: '#10b981' }}>Ingresos</p>
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wide mb-1 md:mb-2" style={{ color: 'var(--color-success)' }}>Ingresos</p>
           <p className="text-sm md:text-3xl font-extrabold leading-tight" style={{ color: totalIngresos > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>{totalIngresos > 0 ? fmt(totalIngresos) : '—'}</p>
           <p className="hidden md:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{ingresos.length} entrada{ingresos.length !== 1 ? 's' : ''}</p>
         </div>
@@ -342,9 +342,9 @@ export default function PresupuestoHogarClient({
         {(filtroCategoria || filtroBanco) && (
           <>
             <button onClick={() => { setFiltroCategoria(''); setFiltroBanco(''); }} className="px-3 py-2 rounded-xl text-sm font-medium border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)' }}>✕ Limpiar</button>
-            <div className="ml-auto flex items-center gap-3 px-4 py-2 rounded-2xl" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
-              <span className="text-sm font-medium" style={{ color: '#6366f1' }}>{gastosFiltered.length} de {gastos.length}</span>
-              <span className="text-base font-extrabold" style={{ color: '#6366f1' }}>{fmt(totalFiltradoConVirtuales)}</span>
+            <div className="ml-auto flex items-center gap-3 px-4 py-2 rounded-2xl" style={{ background: 'rgba(var(--accent-primary-rgb),0.1)', border: '1px solid rgba(var(--accent-primary-rgb),0.2)' }}>
+              <span className="text-sm font-medium" style={{ color: 'var(--accent-primary)' }}>{gastosFiltered.length} de {gastos.length}</span>
+              <span className="text-base font-extrabold" style={{ color: 'var(--accent-primary)' }}>{fmt(totalFiltradoConVirtuales)}</span>
             </div>
           </>
         )}
@@ -386,7 +386,7 @@ export default function PresupuestoHogarClient({
                       <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{f.gasto}</span>
                       {f.comentario && <p className="text-xs truncate max-w-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{f.comentario}</p>}
                     </td>
-                    <td className="px-4 py-3 font-mono font-bold" style={{ color: '#ef4444' }}>-{fmt(f.importe)}</td>
+                    <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-error)' }}>-{fmt(f.importe)}</td>
                     <td className="px-4 py-3"><CategoryBadge nombre={f.categoria} categorias={catGasto} /></td>
                     <td className="px-4 py-3"><CategoryBadge nombre={f.banco} categorias={catPrestamo} /></td>
                     <td className="px-4 py-3 text-sm" style={{ color: f.cobro ? 'var(--text-primary)' : 'var(--text-muted)' }}>
@@ -401,7 +401,7 @@ export default function PresupuestoHogarClient({
                           <button onClick={e => { e.stopPropagation(); openEdit(f); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                          <button onClick={e => { e.stopPropagation(); setDeleteId(f.id); }} className="p-1.5 rounded-lg transition-colors text-red-400"
+                          <button onClick={e => { e.stopPropagation(); setDeleteId(f.id); }} className="p-1.5 rounded-lg transition-colors text-error"
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
                         </div>
@@ -412,16 +412,16 @@ export default function PresupuestoHogarClient({
 
                 {/* Fila virtual: Ahorro mensual */}
                 {ahorroVirtual > 0 && ahorroMatchesFiltro && (
-                  <tr style={{ background: 'rgba(245,158,11,0.04)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
+                  <tr style={{ background: 'rgba(var(--color-warning-rgb),0.04)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
                     onClick={() => { if (isMobile && canEdit) setEditingAuto('ahorro'); }}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Ahorro mensual</span>
-                        <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>Auto</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(var(--color-warning-rgb),0.15)', color: 'var(--color-warning)' }}>Auto</span>
                       </div>
                       <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{fmt(ahorro.objetivo_anual)}/año ÷ 12</p>
                     </td>
-                    <td className="px-4 py-3 font-mono font-bold" style={{ color: '#f59e0b' }}>-{fmt(ahorroVirtual)}</td>
+                    <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-warning)' }}>-{fmt(ahorroVirtual)}</td>
                     <td className="px-4 py-3"><CategoryBadge nombre={ahorroCfg.categoria} categorias={catGasto} /></td>
                     <td className="px-4 py-3"><CategoryBadge nombre={ahorroCfg.banco} categorias={catPrestamo} /></td>
                     <td className="px-4 py-3" colSpan={2} />
@@ -439,16 +439,16 @@ export default function PresupuestoHogarClient({
 
                 {/* Fila virtual: Objetivos de ahorro */}
                 {objetivosVirtual > 0 && objetivosMatchesFiltro && (
-                  <tr style={{ background: 'rgba(245,158,11,0.04)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
+                  <tr style={{ background: 'rgba(var(--color-warning-rgb),0.04)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
                     onClick={() => { if (isMobile && canEdit) setEditingAuto('objetivos'); }}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Objetivos de ahorro</span>
-                        <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>Auto</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(var(--color-warning-rgb),0.15)', color: 'var(--color-warning)' }}>Auto</span>
                       </div>
                       <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Suma de objetivos en progreso</p>
                     </td>
-                    <td className="px-4 py-3 font-mono font-bold" style={{ color: '#f59e0b' }}>-{fmt(objetivosVirtual)}</td>
+                    <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-warning)' }}>-{fmt(objetivosVirtual)}</td>
                     <td className="px-4 py-3"><CategoryBadge nombre={objetivosCfg.categoria} categorias={catGasto} /></td>
                     <td className="px-4 py-3"><CategoryBadge nombre={objetivosCfg.banco} categorias={catPrestamo} /></td>
                     <td className="px-4 py-3" colSpan={2} />
@@ -471,7 +471,7 @@ export default function PresupuestoHogarClient({
 
       {/* ── Tabla de ingresos ── */}
       <div className="glass-card rounded-3xl overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 bg-emerald-700">
+        <div className="flex items-center justify-between px-6 py-4 bg-success-dark">
           <h2 className="font-bold text-base text-white">
             Ingresos
             <span className="ml-2 text-sm font-normal text-white/80">{ingresos.length} entrada{ingresos.length !== 1 ? 's' : ''}</span>
@@ -505,14 +505,14 @@ export default function PresupuestoHogarClient({
                       <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{f.gasto}</span>
                       {f.comentario && <p className="text-xs truncate max-w-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{f.comentario}</p>}
                     </td>
-                    <td className="px-4 py-3 font-mono font-bold" style={{ color: '#10b981' }}>{fmt(f.importe)}</td>
+                    <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-success)' }}>{fmt(f.importe)}</td>
                     {canEdit && (
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
                           <button onClick={e => { e.stopPropagation(); openEdit(f); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                          <button onClick={e => { e.stopPropagation(); setDeleteId(f.id); }} className="p-1.5 rounded-lg transition-colors text-red-400"
+                          <button onClick={e => { e.stopPropagation(); setDeleteId(f.id); }} className="p-1.5 rounded-lg transition-colors text-error"
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
                         </div>
@@ -587,7 +587,7 @@ function AutoConfigModalHogar({ tipo, current, catGasto, catPrestamo, onClose, o
       <div className="glass-card rounded-3xl p-6 w-full max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2.5">
-            <span className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>{titulo}</span>
+            <span className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: 'rgba(var(--color-warning-rgb),0.15)', color: 'var(--color-warning)' }}>{titulo}</span>
             <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Configurar</h3>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-xl" style={{ color: 'var(--text-muted)', background: 'var(--btn-hover)' }}>×</button>
@@ -611,7 +611,7 @@ function AutoConfigModalHogar({ tipo, current, catGasto, catPrestamo, onClose, o
             <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>
               Cancelar
             </button>
-            <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-50 shadow-lg" style={{ background: 'linear-gradient(135deg, #f59e0b, #f59e0bcc)' }}>
+            <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-50 shadow-lg" style={{ background: 'linear-gradient(135deg, var(--color-warning), #f59e0bcc)' }}>
               {saving ? 'Guardando…' : 'Guardar'}
             </button>
           </div>

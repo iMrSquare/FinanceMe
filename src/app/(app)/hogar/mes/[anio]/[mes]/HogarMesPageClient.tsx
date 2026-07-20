@@ -9,7 +9,7 @@ import { useIsMobile } from '@/lib/useIsMobile';
 import { autoText } from '@/components/ColorDots';
 
 const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
-const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border transition-colors appearance-none';
+const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border transition-colors appearance-none';
 const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
 
 interface IngresoForm {
@@ -35,7 +35,7 @@ function emptyGasto(): GastoForm { return { gasto: '', categoria: '', banco: '',
 function CategoryBadge({ nombre, categorias }: { nombre: string | null; categorias: Categoria[] }) {
   if (!nombre) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
   const cat = categorias.find(c => c.nombre === nombre);
-  const bg = cat?.color ?? '#64748b';
+  const bg = cat?.color ?? 'var(--text-secondary)';
   return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold" style={{ background: bg, color: autoText(bg) }}>{nombre}</span>;
 }
 
@@ -77,8 +77,8 @@ function IngresoModal({ form, setForm, onClose, onSave, saving }: {
         <div className="flex gap-3 mt-6">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>Cancelar</button>
           <button onClick={onSave} disabled={saving || !form.inquilino.trim() || !form.aportacion}
-            className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-50 shadow-lg shadow-emerald-500/30"
-            style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
+            className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-50 shadow-lg shadow-success/30"
+            style={{ background: 'linear-gradient(135deg, var(--color-success), color-mix(in srgb, var(--color-success) 75%, black))' }}>
             {saving ? 'Guardando…' : form.id ? 'Guardar' : 'Crear'}
           </button>
         </div>
@@ -138,8 +138,8 @@ function GastoModal({ form, setForm, catGasto, catBanco, onClose, onSave, saving
         <div className="flex gap-3 mt-6">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>Cancelar</button>
           <button onClick={onSave} disabled={saving || !form.gasto.trim() || !form.importe}
-            className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-50 shadow-lg shadow-indigo-500/30"
-            style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)' }}>
+            className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-50 shadow-lg shadow-accent-primary/30"
+            style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}>
             {saving ? 'Guardando…' : form.id ? 'Guardar' : 'Crear'}
           </button>
         </div>
@@ -190,7 +190,7 @@ interface Props {
 }
 
 const MESES_NOMBRES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const fieldInputCls = 'w-full rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/50 border transition-colors';
+const fieldInputCls = 'w-full rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border transition-colors';
 const fieldInputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
 
 export default function HogarMesPageClient({
@@ -275,7 +275,7 @@ export default function HogarMesPageClient({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(14,165,233,0.12)' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-hogar)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
           </div>
@@ -291,7 +291,7 @@ export default function HogarMesPageClient({
             </button>
           )}
           <div className="relative">
-            <select className="appearance-none bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-2xl pl-4 pr-8 py-2.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors shadow-lg shadow-indigo-500/30"
+            <select className="appearance-none bg-accent-primary hover:bg-accent-primary-dark text-white font-semibold text-sm rounded-2xl pl-4 pr-8 py-2.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent-primary transition-colors shadow-lg shadow-accent-primary/30"
               value={`${mesObj.anio}/${mesObj.mes}`}
               onChange={e => { const [a, m] = e.target.value.split('/'); router.push(`/hogar/mes/${a}/${m}`); }}>
               {meses.map(m => <option key={m.id} value={`${m.anio}/${m.mes}`}>{m.nombre}</option>)}
@@ -308,10 +308,10 @@ export default function HogarMesPageClient({
             <div>
               <p className="font-medium text-[10px] md:text-sm" style={{ color: 'var(--text-secondary)' }}>Ingresos</p>
               <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3 leading-tight" style={{ color: 'var(--text-primary)' }}>{fmt(totalIngresos)}</h3>
-              <p className="hidden md:block font-semibold mt-2 text-emerald-500 text-sm">{ingresos.length} entrada{ingresos.length !== 1 ? 's' : ''}</p>
+              <p className="hidden md:block font-semibold mt-2 text-success text-sm">{ingresos.length} entrada{ingresos.length !== 1 ? 's' : ''}</p>
             </div>
-            <div className="hidden md:flex w-12 h-12 rounded-2xl bg-emerald-100 items-center justify-center shrink-0">
-              <BanknoteIcon className="w-6 h-6 text-emerald-600" />
+            <div className="hidden md:flex w-12 h-12 rounded-2xl bg-success/10 items-center justify-center shrink-0">
+              <BanknoteIcon className="w-6 h-6 text-success" />
             </div>
           </div>
         </div>
@@ -322,15 +322,15 @@ export default function HogarMesPageClient({
                 <span className="md:hidden">Gastos</span>
                 <span className="hidden md:inline">Gastos totales</span>
               </p>
-              <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3 leading-tight text-red-500">-{fmt(totalGastos)}</h3>
-              <p className="hidden md:block font-semibold mt-2 text-amber-500 text-sm">{gastos.length} concepto{gastos.length !== 1 ? 's' : ''}</p>
+              <h3 className="text-sm md:text-3xl font-extrabold mt-1 md:mt-3 leading-tight text-error">-{fmt(totalGastos)}</h3>
+              <p className="hidden md:block font-semibold mt-2 text-warning text-sm">{gastos.length} concepto{gastos.length !== 1 ? 's' : ''}</p>
             </div>
             <div className="hidden md:flex w-12 h-12 rounded-2xl bg-orange-100 items-center justify-center shrink-0">
               <ReceiptIcon className="w-6 h-6 text-orange-500" />
             </div>
           </div>
         </div>
-        <div className={`rounded-2xl md:rounded-3xl p-3 md:p-6 text-white shadow-2xl ${balance > 0 ? 'bg-gradient-to-br from-emerald-500 to-green-600 shadow-green-500/20' : balance < 0 ? 'bg-gradient-to-br from-red-500 to-red-600 shadow-red-500/20' : 'bg-gradient-to-br from-slate-400 to-slate-500 shadow-slate-500/20'}`}>
+        <div className={`rounded-2xl md:rounded-3xl p-3 md:p-6 text-white shadow-2xl ${balance > 0 ? 'bg-gradient-to-br from-success to-success-dark shadow-success/20' : balance < 0 ? 'bg-gradient-to-br from-error to-error-dark shadow-error/20' : 'bg-gradient-to-br from-slate-400 to-slate-500 shadow-slate-500/20'}`}>
           <div className="flex items-start justify-between">
             <div>
               <p className="text-white/80 font-medium text-[10px] md:text-sm">Balance</p>
@@ -345,7 +345,7 @@ export default function HogarMesPageClient({
       </div>
 
       {/* ── Tabla de Ingresos ── */}
-      <Section title="Ingresos" icon={<BanknoteIcon className="w-4 h-4" />} badge={fmt(totalIngresos)} headerClass="bg-emerald-700"
+      <Section title="Ingresos" icon={<BanknoteIcon className="w-4 h-4" />} badge={fmt(totalIngresos)} headerClass="bg-success-dark"
         onAdd={canEdit ? () => setIngresoModal(emptyIngreso()) : undefined}>
         <div className="overflow-x-auto">
           {ingresos.length === 0 ? (
@@ -369,14 +369,14 @@ export default function HogarMesPageClient({
                       <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{i.inquilino}</span>
                       {i.comentario && <p className="text-xs truncate max-w-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{i.comentario}</p>}
                     </td>
-                    <td className="px-4 py-3 font-mono font-bold" style={{ color: '#10b981' }}>{fmt(i.aportacion)}</td>
+                    <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-success)' }}>{fmt(i.aportacion)}</td>
                     {canEdit && (
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
                           <button onClick={e => { e.stopPropagation(); editIngreso(i); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                          <button onClick={e => { e.stopPropagation(); deleteIngreso(i.id); }} className="p-1.5 rounded-lg transition-colors text-red-400"
+                          <button onClick={e => { e.stopPropagation(); deleteIngreso(i.id); }} className="p-1.5 rounded-lg transition-colors text-error"
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
                         </div>
@@ -421,7 +421,7 @@ export default function HogarMesPageClient({
                     <td className="px-4 py-3 text-sm" style={{ color: g.fecha ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                       {g.fecha ? g.fecha.split('T')[0].split('-').reverse().join('/') : '—'}
                     </td>
-                    <td className="px-4 py-3 font-mono font-bold" style={{ color: '#ef4444' }}>-{fmt(g.importe)}</td>
+                    <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-error)' }}>-{fmt(g.importe)}</td>
                     <td className="px-4 py-3"><CategoryBadge nombre={g.categoria} categorias={categoriasGasto} /></td>
                     <td className="px-4 py-3"><CategoryBadge nombre={g.banco} categorias={categoriasBanco} /></td>
                     {canEdit && (
@@ -430,7 +430,7 @@ export default function HogarMesPageClient({
                           <button onClick={e => { e.stopPropagation(); editGasto(g); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                          <button onClick={e => { e.stopPropagation(); deleteGasto(g); }} className="p-1.5 rounded-lg transition-colors text-red-400"
+                          <button onClick={e => { e.stopPropagation(); deleteGasto(g); }} className="p-1.5 rounded-lg transition-colors text-error"
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
                         </div>
@@ -529,11 +529,11 @@ function NuevoMesModal({ meses, onClose }: { meses: Mes[]; onClose: () => void }
           {mesExistente ? (
             <div className="px-6 pb-5" style={{ borderTop: '1px solid var(--divider)' }}>
               <div className="mt-4 mb-3 flex items-center gap-2">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#f59e0b' }}>Este mes ya existe</p>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--color-warning)' }}>Este mes ya existe</p>
               </div>
               <label className="flex items-center gap-3 cursor-pointer select-none">
-                <div onClick={() => setSobrescribir(v => !v)} className="w-10 h-6 rounded-full transition-colors relative shrink-0" style={{ background: sobrescribir ? '#ef4444' : 'var(--divider)' }}>
+                <div onClick={() => setSobrescribir(v => !v)} className="w-10 h-6 rounded-full transition-colors relative shrink-0" style={{ background: sobrescribir ? 'var(--color-error)' : 'var(--divider)' }}>
                   <div className="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all" style={{ left: sobrescribir ? '22px' : '4px' }} />
                 </div>
                 <div>
@@ -546,7 +546,7 @@ function NuevoMesModal({ meses, onClose }: { meses: Mes[]; onClose: () => void }
             <div className="px-6 pb-5" style={{ borderTop: '1px solid var(--divider)' }}>
               <p className="text-xs font-bold uppercase tracking-wide mt-4 mb-3" style={{ color: 'var(--text-muted)' }}>Presupuesto</p>
               <label className="flex items-center gap-3 cursor-pointer select-none">
-                <div onClick={() => setImportarFijos(v => !v)} className="w-10 h-6 rounded-full transition-colors relative shrink-0" style={{ background: importarFijos ? '#6366f1' : 'var(--divider)' }}>
+                <div onClick={() => setImportarFijos(v => !v)} className="w-10 h-6 rounded-full transition-colors relative shrink-0" style={{ background: importarFijos ? 'var(--accent-primary)' : 'var(--divider)' }}>
                   <div className="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all" style={{ left: importarFijos ? '22px' : '4px' }} />
                 </div>
                 <div>
@@ -555,7 +555,7 @@ function NuevoMesModal({ meses, onClose }: { meses: Mes[]; onClose: () => void }
                     <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{fijosCount.ingreso} ingresos · {fijosCount.gasto} gastos</p>
                   )}
                   {fijosCount !== null && totalFijos === 0 && (
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Sin entradas —{' '}<a href="/hogar/presupuesto" className="underline" style={{ color: '#6366f1' }}>configúralo aquí</a></p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Sin entradas —{' '}<a href="/hogar/presupuesto" className="underline" style={{ color: 'var(--accent-primary)' }}>configúralo aquí</a></p>
                   )}
                 </div>
               </label>
@@ -565,11 +565,11 @@ function NuevoMesModal({ meses, onClose }: { meses: Mes[]; onClose: () => void }
           <div className="flex gap-2 justify-end px-6 py-4" style={{ borderTop: '1px solid var(--divider)' }}>
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium border-2 rounded-2xl transition-colors" style={{ borderColor: 'var(--btn-border)', color: 'var(--text-secondary)' }}>Cancelar</button>
             {mesExistente ? (
-              <button type="submit" disabled={creating || !sobrescribir} className="px-4 py-2 text-sm font-bold text-white rounded-2xl shadow-lg shadow-red-500/30 disabled:opacity-40 transition-colors" style={{ background: sobrescribir ? '#ef4444' : 'var(--divider)' }}>
+              <button type="submit" disabled={creating || !sobrescribir} className="px-4 py-2 text-sm font-bold text-white rounded-2xl shadow-lg shadow-error/30 disabled:opacity-40 transition-colors" style={{ background: sobrescribir ? 'var(--color-error)' : 'var(--divider)' }}>
                 {creating ? 'Sobrescribiendo…' : 'Sobrescribir →'}
               </button>
             ) : (
-              <button type="submit" disabled={creating} className="px-4 py-2 text-sm font-bold bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 disabled:opacity-50">
+              <button type="submit" disabled={creating} className="px-4 py-2 text-sm font-bold bg-accent-primary text-white rounded-2xl shadow-lg shadow-accent-primary/30 hover:bg-accent-primary-dark disabled:opacity-50">
                 {creating ? 'Creando…' : 'Crear mes →'}
               </button>
             )}
