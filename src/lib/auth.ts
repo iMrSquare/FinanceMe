@@ -5,6 +5,7 @@ import { createToken } from './auth-edge';
 import type { SessionUser } from './auth-edge';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
+import { getUserById } from './db';
 
 export function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -23,7 +24,22 @@ export async function getSession(): Promise<SessionUser | null> {
   const store = await cookies();
   const token = store.get('auth-token')?.value;
   if (!token) return null;
-  return verifyToken(token);
+  const session = await verifyToken(token);
+  if (!session) return null;
+
+  // La apariencia (tema/modo color/acentos) se lee siempre en fresco de la BBDD
+  // en vez de confiar en el snapshot del JWT, para que un cambio hecho en un
+  // dispositivo se refleje de inmediato en cualquier otro dispositivo/sesión.
+  const dbUser = getUserById(session.id);
+  if (!dbUser) return session;
+
+  return {
+    ...session,
+    theme: dbUser.theme,
+    colorMode: dbUser.color_mode,
+    accentPersonal: dbUser.accent_personal,
+    accentHogar: dbUser.accent_hogar,
+  };
 }
 
 export const AUTH_COOKIE_NAME = 'auth-token';

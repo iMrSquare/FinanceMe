@@ -161,6 +161,12 @@ export default function Sidebar({ session, hogarActivated }: Props) {
     applyMode(next);
   }
 
+  function handleLogoClick() {
+    const next = mode === 'personal' ? 'hogar' : 'personal';
+    if (next === 'hogar' && !hogarActivated && session?.role !== 'admin') return;
+    toggleMode(next);
+  }
+
   function applyMode(next: 'hogar' | 'personal') {
     setMode(next);
     localStorage.setItem('app-mode', next);
@@ -269,9 +275,13 @@ export default function Sidebar({ session, hogarActivated }: Props) {
           {/* Brand row */}
           <div className={`flex items-center mb-8 ${collapsed ? 'justify-center' : 'justify-between px-1'}`}>
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0">
+              <button
+                onClick={handleLogoClick}
+                className="w-9 h-9 rounded-xl overflow-hidden shrink-0 transition-transform hover:scale-105 active:scale-95"
+                title={`Cambiar a ${mode === 'personal' ? 'Hogar' : 'Personal'}`}
+              >
                 <Logo mode={mode} className="w-full h-full" />
-              </div>
+              </button>
               {!collapsed && (
                 <div className="min-w-0">
                   <h1 className="font-bold text-base leading-tight truncate" style={{ color: 'var(--text-primary)' }}>FinanceMe</h1>
@@ -404,7 +414,7 @@ export default function Sidebar({ session, hogarActivated }: Props) {
                 </Link>
                 {session?.role === 'admin' && (
                   <Link href="/ajustes" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors w-full" style={{ color: 'var(--text-primary)' }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--sidebar-hover-bg)'} onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
-                    <SettingsIcon />Ajustes
+                    <SettingsIcon />Configuración
                   </Link>
                 )}
                 <div style={{ borderTop: '1px solid var(--divider)' }} />
@@ -435,9 +445,13 @@ export default function Sidebar({ session, hogarActivated }: Props) {
         style={{ background: 'var(--bg-sidebar)', borderColor: 'var(--sidebar-border)' }}
       >
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0">
+          <button
+            onClick={handleLogoClick}
+            className="w-8 h-8 rounded-xl overflow-hidden shrink-0 active:scale-95 transition-transform"
+            title={`Cambiar a ${mode === 'personal' ? 'Hogar' : 'Personal'}`}
+          >
             <Logo mode={mode} className="w-full h-full" />
-          </div>
+          </button>
           <div>
             <p className="font-bold text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>FinanceMe</p>
             <p className="text-[10px] leading-tight" style={{ color: mode === 'personal' ? 'var(--accent-personal)' : 'var(--accent-hogar)' }}>
@@ -615,7 +629,7 @@ export default function Sidebar({ session, hogarActivated }: Props) {
                   style={{ color: 'var(--text-primary)', borderColor: 'var(--border-card)' }}
                 >
                   <SettingsIcon />
-                  Ajustes
+                  Configuración
                 </Link>
               )}
               <button
@@ -660,7 +674,7 @@ export default function Sidebar({ session, hogarActivated }: Props) {
               El modo Hogar es <strong>compartido entre todos los usuarios</strong> de la aplicación. Los gastos, préstamos, agua y luz serán visibles y editables por todos.
             </p>
             <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)' }}>
-              Te recomendamos revisar los usuarios y sus permisos en <strong>Ajustes → Usuarios</strong> antes de empezar a usarlo.
+              Te recomendamos revisar los usuarios y sus permisos en <strong>Configuración → Usuarios</strong> antes de empezar a usarlo.
             </p>
 
             <div className="flex gap-3">

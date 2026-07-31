@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { updatePersonalIngresoMes, deletePersonalIngresoMes } from '@/lib/db';
+import { updatePersonalIngresoMes, deletePersonalIngresoMes, getPersonalIngresoMesRef, isPersonalMesBloqueado } from '@/lib/db';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
 
   const { id } = await params;
+  const ref = getPersonalIngresoMesRef(Number(id), session.id);
+  if (ref && isPersonalMesBloqueado(session.id, ref.anio, ref.mes)) {
+    return NextResponse.json({ error: 'Este mes está bloqueado' }, { status: 403 });
+  }
   const { concepto, importe, fecha, comentario } = await request.json();
 
   updatePersonalIngresoMes(Number(id), session.id, {
@@ -24,6 +28,10 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
 
   const { id } = await params;
+  const ref = getPersonalIngresoMesRef(Number(id), session.id);
+  if (ref && isPersonalMesBloqueado(session.id, ref.anio, ref.mes)) {
+    return NextResponse.json({ error: 'Este mes está bloqueado' }, { status: 403 });
+  }
   deletePersonalIngresoMes(Number(id), session.id);
 
   return NextResponse.json({ ok: true });

@@ -30,20 +30,33 @@ function BackToResumen() {
   );
 }
 
-const PERIOD_OPTIONS = [
-  { label: '3 meses', value: 3 },
-  { label: '6 meses', value: 6 },
+type PeriodValue = number | 'anio';
+
+const PERIOD_OPTIONS: { label: string; value: PeriodValue }[] = [
+  { label: 'Mes actual', value: 1 },
+  { label: 'Últimos 3 Meses', value: 3 },
+  { label: 'Últimos 6 Meses', value: 6 },
+  { label: 'Año actual', value: 'anio' },
   { label: 'Todo', value: 999 },
 ];
 
 export default function EstadisticasPersonalClient({ data }: Props) {
-  const [period, setPeriod] = useState(6);
+  const [period, setPeriod] = useState<PeriodValue>(6);
   const stackedRef = useRef<HTMLCanvasElement>(null);
   const stackedChart = useRef<Chart | null>(null);
   const miniRefs = useRef<(HTMLCanvasElement | null)[]>([]);
   const miniCharts = useRef<(Chart | null)[]>([]);
 
-  const sliceN = Math.min(period, data.mesesLabels.length);
+  const anioActualCount = (() => {
+    const yearStr = String(new Date().getFullYear());
+    let count = 0;
+    for (let i = data.mesesLabels.length - 1; i >= 0; i--) {
+      if (data.mesesLabels[i].endsWith(yearStr)) count++; else break;
+    }
+    return count;
+  })();
+
+  const sliceN = period === 'anio' ? anioActualCount : Math.min(period, data.mesesLabels.length);
   const labels = data.mesesLabels.slice(-sliceN);
   const cats = data.categorias.map(c => ({
     ...c,
@@ -193,24 +206,27 @@ export default function EstadisticasPersonalClient({ data }: Props) {
           </div>
         </div>
         {/* Period selector */}
-        <div className="flex items-center gap-1 p-1 rounded-2xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
-          {PERIOD_OPTIONS.map(opt => {
-            if (opt.value !== 999 && opt.value > data.mesesLabels.length) return null;
-            const active = period === opt.value || (opt.value === 999 && period >= data.mesesLabels.length);
-            return (
-              <button
-                key={opt.value}
-                onClick={() => setPeriod(opt.value)}
-                className="px-4 py-1.5 text-sm font-semibold rounded-xl transition-all"
-                style={{
-                  background: active ? 'rgba(249,115,22,0.15)' : 'transparent',
-                  color: active ? '#f97316' : 'var(--text-muted)',
-                }}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
+        <div className="relative w-full sm:w-auto rounded-2xl overflow-hidden">
+          <select
+            value={String(period)}
+            onChange={e => setPeriod(e.target.value === 'anio' ? 'anio' : Number(e.target.value))}
+            className="appearance-none block w-full sm:w-auto min-w-0 rounded-2xl pl-4 pr-10 py-2.5 text-sm font-semibold cursor-pointer focus:outline-none transition-colors truncate"
+            style={{
+              background: 'var(--bg-card)', backgroundImage: 'none', color: '#f97316', border: '1px solid var(--border-card)',
+              WebkitAppearance: 'none', MozAppearance: 'none', boxSizing: 'border-box',
+              WebkitTextSizeAdjust: '100%', textSizeAdjust: '100%',
+            }}
+          >
+            {PERIOD_OPTIONS.map(opt => {
+              if (opt.value === 'anio') {
+                if (anioActualCount < 1) return null;
+              } else if (opt.value !== 999 && opt.value > data.mesesLabels.length) {
+                return null;
+              }
+              return <option key={opt.value} value={String(opt.value)}>{opt.label}</option>;
+            })}
+          </select>
+          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs" style={{ color: '#f97316' }}>▼</span>
         </div>
       </div>
 

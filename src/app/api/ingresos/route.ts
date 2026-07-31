@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, getIngresos, getOrCreateMes } from '@/lib/db';
+import { getDb, getIngresos, getOrCreateMes, isMesBloqueado } from '@/lib/db';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -13,6 +13,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const { mes_id, inquilino, aportacion, comentario } = await req.json();
   if (!mes_id || !inquilino) return NextResponse.json({ error: 'mes_id e inquilino requeridos' }, { status: 400 });
+  if (isMesBloqueado(mes_id)) return NextResponse.json({ error: 'Este mes está bloqueado' }, { status: 403 });
   const db = getDb();
   const result = db.prepare(
     'INSERT INTO ingresos (mes_id, inquilino, aportacion, comentario) VALUES (?, ?, ?, ?)'

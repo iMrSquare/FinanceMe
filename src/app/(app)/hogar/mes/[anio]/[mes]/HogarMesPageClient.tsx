@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Mes, Gasto, Ingreso, Categoria } from '@/lib/db';
-import { BanknoteIcon, ReceiptIcon, BankIcon, PencilIcon, TrashIcon } from '@/components/icons';
+import { BanknoteIcon, ReceiptIcon, BankIcon, PencilIcon, TrashIcon, LockIcon, UnlockIcon } from '@/components/icons';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import InfoExpand from '@/components/InfoExpand';
 import { useIsMobile } from '@/lib/useIsMobile';
@@ -206,9 +206,25 @@ export default function HogarMesPageClient({
   const [nuevoMesOpen, setNuevoMesOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState<{ msg: string; fn: () => Promise<void> } | null>(null);
+  const [bloqueado, setBloqueado] = useState(!!mesObj.bloqueado);
+  const [togglingBloqueo, setTogglingBloqueo] = useState(false);
 
   useEffect(() => { setGastos(initGastos); }, [initGastos]);
   useEffect(() => { setIngresos(initIngresos); }, [initIngresos]);
+  useEffect(() => { setBloqueado(!!mesObj.bloqueado); }, [mesObj.bloqueado]);
+
+  async function toggleBloqueo() {
+    setTogglingBloqueo(true);
+    const next = !bloqueado;
+    await fetch(`/api/meses/${mesObj.id}/bloqueo`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bloqueado: next }),
+    });
+    setBloqueado(next);
+    setTogglingBloqueo(false);
+    router.refresh();
+  }
+
+  const puedeEditar = canEdit && !bloqueado;
 
   const gastosSorted = [...gastos].sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? '') || a.id - b.id);
   const totalIngresos = ingresos.reduce((s, i) => s + (i.aportacion ?? 0), 0);
@@ -280,11 +296,27 @@ export default function HogarMesPageClient({
             </svg>
           </div>
           <h1 className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>{nombre}</h1>
+          {bloqueado && (
+            <span className="flex items-center gap-1.5 px-2 sm:px-3 py-1 text-xs font-semibold rounded-full" style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
+              <LockIcon className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Bloqueado</span>
+            </span>
+          )}
           <InfoExpand title="¿Qué es Mes?">
-            <p>Aquí se registran todos los gastos del mes del Hogar con su categoría, fecha y banco. Al crear el mes se pueden importar automáticamente los datos del Presupuesto. Solo puedes crear el mes actual o, como máximo, el siguiente; el resto se irán habilitando a medida que avance el calendario.</p>
+            <p>Aquí se registran todos los gastos del mes del Hogar con su categoría, fecha y banco. Al crear el mes se pueden importar automáticamente los datos del Presupuesto. Solo puedes crear el mes actual o, como máximo, el siguiente; el resto se irán habilitando a medida que avance el calendario. Usa el candado para bloquear o desbloquear la imputación de gastos e ingresos; los meses ya vencidos se bloquean automáticamente.</p>
           </InfoExpand>
         </div>
         <div className="flex items-center gap-3">
+          {canEdit && (
+            <button
+              onClick={toggleBloqueo}
+              disabled={togglingBloqueo}
+              title={bloqueado ? 'Desbloquear mes' : 'Bloquear mes'}
+              className="w-10 h-10 flex items-center justify-center rounded-2xl border transition-colors disabled:opacity-50"
+              style={{ background: 'var(--bg-sidebar)', borderColor: 'var(--btn-border)', color: bloqueado ? '#ef4444' : 'var(--text-primary)' }}
+            >
+              {bloqueado ? <LockIcon className="w-4 h-4" /> : <UnlockIcon className="w-4 h-4" />}
+            </button>
+          )}
           {canEdit && (
             <button onClick={() => setNuevoMesOpen(true)} className="px-4 py-2.5 text-sm font-semibold rounded-2xl border transition-colors" style={{ background: 'var(--bg-sidebar)', borderColor: 'var(--btn-border)', color: 'var(--text-primary)' }}>
               + Nuevo mes
@@ -346,7 +378,7 @@ export default function HogarMesPageClient({
 
       {/* ── Tabla de Ingresos ── */}
       <Section title="Ingresos" icon={<BanknoteIcon className="w-4 h-4" />} badge={fmt(totalIngresos)} headerClass="bg-success-dark"
-        onAdd={canEdit ? () => setIngresoModal(emptyIngreso()) : undefined}>
+        onAdd={puedeEditar ? () => setIngresoModal(emptyIngreso()) : undefined}>
         <div className="overflow-x-auto">
           {ingresos.length === 0 ? (
             <p className="py-14 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Sin ingresos — pulsa "Añadir" para empezar</p>
@@ -356,13 +388,13 @@ export default function HogarMesPageClient({
                 <tr>
                   <Th>Concepto</Th>
                   <Th>Importe</Th>
-                  {canEdit && <Th align="right">Acciones</Th>}
+                  {puedeEditar && <Th align="right">Acciones</Th>}
                 </tr>
               </thead>
               <tbody>
                 {ingresos.map(i => (
-                  <tr key={i.id} style={{ borderBottom: '1px solid var(--divider)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
-                    onClick={() => { if (isMobile && canEdit) editIngreso(i); }}
+                  <tr key={i.id} style={{ borderBottom: '1px solid var(--divider)', cursor: isMobile && puedeEditar ? 'pointer' : undefined }}
+                    onClick={() => { if (isMobile && puedeEditar) editIngreso(i); }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-page)'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
                     <td className="px-4 py-3">
@@ -370,7 +402,7 @@ export default function HogarMesPageClient({
                       {i.comentario && <p className="text-xs truncate max-w-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{i.comentario}</p>}
                     </td>
                     <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-success)' }}>{fmt(i.aportacion)}</td>
-                    {canEdit && (
+                    {puedeEditar && (
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
                           <button onClick={e => { e.stopPropagation(); editIngreso(i); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
@@ -392,7 +424,7 @@ export default function HogarMesPageClient({
 
       {/* ── Tabla de Gastos ── */}
       <Section title="Gastos" icon={<ReceiptIcon className="w-4 h-4" />} badge={fmt(totalGastos)} headerClass="bg-orange-600"
-        onAdd={canEdit ? () => setGastoModal(emptyGasto()) : undefined}>
+        onAdd={puedeEditar ? () => setGastoModal(emptyGasto()) : undefined}>
         <div className="overflow-x-auto">
           {gastosSorted.length === 0 ? (
             <p className="py-14 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Sin gastos — pulsa "Añadir" para empezar</p>
@@ -405,13 +437,13 @@ export default function HogarMesPageClient({
                   <Th>Importe</Th>
                   <Th>Categoría</Th>
                   <Th>Banco</Th>
-                  {canEdit && <Th align="right">Acciones</Th>}
+                  {puedeEditar && <Th align="right">Acciones</Th>}
                 </tr>
               </thead>
               <tbody>
                 {gastosSorted.map(g => (
-                  <tr key={g.id} style={{ borderBottom: '1px solid var(--divider)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
-                    onClick={() => { if (isMobile && canEdit) editGasto(g); }}
+                  <tr key={g.id} style={{ borderBottom: '1px solid var(--divider)', cursor: isMobile && puedeEditar ? 'pointer' : undefined }}
+                    onClick={() => { if (isMobile && puedeEditar) editGasto(g); }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-page)'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
                     <td className="px-4 py-3">
@@ -424,7 +456,7 @@ export default function HogarMesPageClient({
                     <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-error)' }}>-{fmt(g.importe)}</td>
                     <td className="px-4 py-3"><CategoryBadge nombre={g.categoria} categorias={categoriasGasto} /></td>
                     <td className="px-4 py-3"><CategoryBadge nombre={g.banco} categorias={categoriasBanco} /></td>
-                    {canEdit && (
+                    {puedeEditar && (
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
                           <button onClick={e => { e.stopPropagation(); editGasto(g); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}

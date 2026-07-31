@@ -1,7 +1,7 @@
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import {
-  getPersonalMeses, personalMesExists,
+  getPersonalMeses, personalMesExists, getPersonalMes,
   getPersonalGastosMes, getPersonalIngresosMes,
   getPersonalCategorias, getPersonalBancos, getPersonalGastos, getPersonalIngresosFijos,
 } from '@/lib/db';
@@ -37,12 +37,14 @@ export default async function MesPersonalPage({ params }: Props) {
   const bancos      = getPersonalBancos(session.id);
   const gastosFijos = getPersonalGastos(session.id);
   const ingresosFijos = getPersonalIngresosFijos(session.id);
+  const bloqueado = mesExists ? !!getPersonalMes(session.id, mes, anio)?.bloqueado : false;
 
   return (
     <MesPersonalClient
       anio={anio}
       mes={mes}
       mesExists={mesExists}
+      bloqueado={bloqueado}
       meses={meses}
       gastos={gastos}
       ingresos={ingresos}

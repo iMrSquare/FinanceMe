@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { nextBillingDate, monthlyEquivalent } from '@/lib/billing';
 import InfoExpand from '@/components/InfoExpand';
-import type { PersonalGastoFijo, PersonalSuscripcion, PersonalAhorro, PersonalMesEvolucion, PresupuestoAutoConfig } from '@/lib/db';
+import type { PersonalGastoFijo, PersonalGastoMes, PersonalSuscripcion, PersonalAhorro, PersonalMesEvolucion, PresupuestoAutoConfig, EstadisticasData } from '@/lib/db';
 import {
   Chart, LineElement, LineController, PointElement,
   CategoryScale, LinearScale, Filler, Tooltip,
@@ -76,8 +76,8 @@ export default function InicioPersonalClient() {
   const [suscs, setSuscs] = useState<PersonalSuscripcion[]>([]);
   const [autoConfigs, setAutoConfigs] = useState<PresupuestoAutoConfig[]>([]);
   const [ahorro, setAhorro] = useState<PersonalAhorro | null>(null);
-  const [mesGastos, setMesGastos] = useState<{ importe: number }[]>([]);
-  const [mesIngresos, setMesIngresos] = useState<{ importe: number }[]>([]);
+  const [mesGastos, setMesGastos] = useState<PersonalGastoMes[]>([]);
+  const [estadisticas, setEstadisticas] = useState<EstadisticasData | null>(null);
   const [evolucion, setEvolucion] = useState<PersonalMesEvolucion[]>([]);
   const [loading, setLoading] = useState(true);
   const balanceRef = useRef<HTMLCanvasElement>(null);
@@ -94,17 +94,17 @@ export default function InicioPersonalClient() {
       fetch('/api/personal/suscripciones').then(r => r.json()),
       fetch(`/api/personal/ahorro?year=${anio}`).then(r => r.json()),
       fetch(`/api/personal/mes/gastos?anio=${anio}&mes=${mes}`).then(r => r.json()),
-      fetch(`/api/personal/mes/ingresos?anio=${anio}&mes=${mes}`).then(r => r.json()),
       fetch('/api/personal/evolucion').then(r => r.json()),
       fetch('/api/personal/presupuesto/auto').then(r => r.json()),
-    ]).then(([g, s, a, mg, mi, ev, ac]) => {
+      fetch('/api/personal/estadisticas').then(r => r.json()),
+    ]).then(([g, s, a, mg, ev, ac, est]) => {
       setGastos(Array.isArray(g) ? g : []);
       setSuscs(Array.isArray(s) ? s : []);
       setAutoConfigs(Array.isArray(ac) ? ac : []);
       setAhorro(a && typeof a === 'object' && !Array.isArray(a) && 'meses' in a ? a : null);
       setMesGastos(Array.isArray(mg?.gastos) ? mg.gastos : []);
-      setMesIngresos(Array.isArray(mi) ? mi : []);
       setEvolucion(Array.isArray(ev) ? ev : []);
+      setEstadisticas(est && typeof est === 'object' && !Array.isArray(est) && 'categorias' in est ? est : null);
       setLoading(false);
     });
   }, []);
@@ -115,27 +115,18 @@ export default function InicioPersonalClient() {
   const objetivoAnual = ahorro?.objetivo_anual ?? 0;
   const porcentaje = objetivoAnual > 0 ? Math.min((totalAportado / objetivoAnual) * 100, 100) : 0;
 
-  // Balance del mes actual
-  const now = new Date();
-  const mesNombre = MESES_NOMBRES[now.getMonth()];
-  const totalMesIngresos = mesIngresos.reduce((s, i) => s + i.importe, 0);
-  const totalMesGastos   = mesGastos.reduce((s, g) => s + g.importe, 0);
-  const balanceMes = totalMesIngresos - totalMesGastos;
-  const hasMesData = totalMesIngresos > 0 || totalMesGastos > 0;
-
-  // Progreso del presupuesto
   const suscRedondeo  = (autoConfigs.find(c => c.tipo === 'suscripciones')?.redondeo ?? 1) === 1;
   const suscVirtual   = totalSuscMensual > 0 ? (suscRedondeo ? roundUp5(totalSuscMensual) : totalSuscMensual) : 0;
   const ahorroVirtual = (ahorro?.objetivo_anual ?? 0) > 0 ? ahorro!.objetivo_anual / 12 : 0;
   const presupuestoTotal = totalGastos + suscVirtual + ahorroVirtual;
-  const progresoPct = presupuestoTotal > 0 ? (totalMesGastos / presupuestoTotal) * 100 : 0;
-  const progresoColor = progresoPct >= 100 ? 'var(--color-error)' : progresoPct >= 80 ? 'var(--color-warning)' : 'var(--color-success)';
+
+  const topCategorias = (estadisticas?.categorias ?? []).slice(0, 5);
 
   const currentMonth = new Date().getMonth();
   const calEvents: CalEvent[] = [
-    ...gastos.filter(g => g.cobro).map(g => ({
-      day: nextBillingDate(g.cobro!, 'mensual').getDate(),
-      nombre: g.gasto, importe: g.importe, tipo: 'gasto' as const,
+    ...mesGastos.filter(g => g.fecha).map(g => ({
+      day: Number(g.fecha!.split('-')[2]),
+      nombre: g.concepto, importe: g.importe, tipo: 'gasto' as const,
     })),
     ...suscs.filter(s => s.cobro)
       .map(s => ({ next: nextBillingDate(s.cobro!, s.periodicidad), nombre: s.nombre, importe: s.importe, tipo: 'suscripcion' as const }))
@@ -224,11 +215,11 @@ export default function InicioPersonalClient() {
             </svg>
           </div>
           <div>
-            <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Personal</h1>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Resumen de tus finanzas personales</p>
+            <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Resumen</h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>de tus finanzas personales</p>
           </div>
           <InfoExpand title="¿Qué es Resumen?">
-            <p>Aquí tienes una vista general de tus finanzas personales: ingresos, gastos y balance del mes en curso, un calendario de próximos pagos que se alimenta de tu Presupuesto, y acceso a tus Estadísticas.</p>
+            <p>Aquí tienes una vista general de tus finanzas personales: tu presupuesto, suscripciones y objetivo anual de ahorro. El calendario de próximos pagos toma los gastos de tu Mes (con la fecha real en la que los registraste) y las suscripciones según su día de cobro habitual. Debajo tienes tus categorías con más gasto de los últimos 6 meses y acceso a tus Estadísticas.</p>
           </InfoExpand>
         </div>
         <Link
@@ -252,7 +243,7 @@ export default function InicioPersonalClient() {
                 <span className="hidden sm:inline">Gastos fijos del mes</span>
                 <span className="sm:hidden">Gastos</span>
               </p>
-              <p className="text-sm sm:text-3xl font-extrabold leading-tight" style={{ color: loading ? 'var(--text-muted)' : 'var(--color-error)' }}>
+              <p className="text-sm sm:text-3xl font-extrabold leading-tight sm:mt-2" style={{ color: loading ? 'var(--text-muted)' : 'var(--color-error)' }}>
                 {loading ? '—' : fmt(presupuestoTotal)}
               </p>
               <p className="hidden sm:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
@@ -265,7 +256,6 @@ export default function InicioPersonalClient() {
               </svg>
             </div>
           </div>
-          <p className="hidden sm:block text-xs font-semibold" style={{ color: 'var(--color-error)' }}>Ver presupuesto →</p>
         </Link>
 
         <Link href="/personal/suscripciones" className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6 block transition-transform hover:-translate-y-0.5">
@@ -275,7 +265,7 @@ export default function InicioPersonalClient() {
                 <span className="hidden sm:inline">Suscripciones activas</span>
                 <span className="sm:hidden">Suscs.</span>
               </p>
-              <p className="text-sm sm:text-3xl font-extrabold leading-tight" style={{ color: loading ? 'var(--text-muted)' : '#8b5cf6' }}>
+              <p className="text-sm sm:text-3xl font-extrabold leading-tight sm:mt-2" style={{ color: loading ? 'var(--text-muted)' : '#8b5cf6' }}>
                 {loading ? '—' : suscs.length}
               </p>
               {!loading && totalSuscMensual > 0 && (
@@ -288,17 +278,16 @@ export default function InicioPersonalClient() {
               </svg>
             </div>
           </div>
-          <p className="hidden sm:block text-xs font-semibold" style={{ color: '#8b5cf6' }}>Ver suscripciones →</p>
         </Link>
 
         <Link href="/personal/ahorro" className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6 block transition-transform hover:-translate-y-0.5">
           <div className="sm:flex sm:items-start sm:justify-between sm:mb-4">
             <div>
               <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide mb-0.5 sm:mb-1" style={{ color: 'var(--text-muted)' }}>
-                <span className="hidden sm:inline">Ahorro conseguido</span>
+                <span className="hidden sm:inline">Objetivo Anual de Ahorro</span>
                 <span className="sm:hidden">Ahorro</span>
               </p>
-              <p className="text-sm sm:text-3xl font-extrabold leading-tight" style={{ color: loading ? 'var(--text-muted)' : 'var(--color-warning)' }}>
+              <p className="text-sm sm:text-3xl font-extrabold leading-tight sm:mt-2" style={{ color: loading ? 'var(--text-muted)' : 'var(--color-warning)' }}>
                 {loading ? '—' : fmt(totalAportado)}
               </p>
               {!loading && objetivoAnual > 0 && (
@@ -316,7 +305,6 @@ export default function InicioPersonalClient() {
               <div className="h-full rounded-full transition-all" style={{ width: `${porcentaje}%`, background: porcentaje >= 100 ? 'var(--color-warning)' : porcentaje >= 50 ? 'var(--color-warning)' : 'var(--color-error)' }} />
             </div>
           )}
-          <p className="hidden sm:block text-xs font-semibold" style={{ color: 'var(--color-warning)' }}>Ver ahorro →</p>
         </Link>
       </div>
 
@@ -336,7 +324,7 @@ export default function InicioPersonalClient() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{e.nombre}</p>
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{e.tipo === 'gasto' ? 'Gasto fijo' : 'Suscripción'}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{e.tipo === 'gasto' ? 'Gasto' : 'Suscripción'}</p>
                   </div>
                   <span className="text-sm font-bold shrink-0" style={{ color: e.tipo === 'gasto' ? 'var(--color-error)' : '#8b5cf6' }}>
                     -{fmt(e.importe)}
@@ -351,79 +339,40 @@ export default function InicioPersonalClient() {
         </div>
       </div>
 
-      {/* Balance del mes + Progreso del presupuesto */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-        {/* Balance del mes */}
-        <Link href="/personal/mes" className="block glass-card rounded-3xl overflow-hidden transition-transform hover:-translate-y-0.5">
-          <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--divider)' }}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Balance — {mesNombre}</p>
-              </div>
-              <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Ver mes →</span>
-            </div>
-          </div>
-          {loading ? (
-            <div className="px-5 py-6"><p className="text-sm" style={{ color: 'var(--text-muted)' }}>Cargando…</p></div>
-          ) : !hasMesData ? (
-            <div className="px-5 py-6 text-center">
-              <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Sin datos este mes</p>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Crea el mes para empezar a registrar</p>
-            </div>
-          ) : (
-            <div className="px-5 py-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Ingresos</span>
-                <span className="text-sm font-bold text-success">{fmt(totalMesIngresos)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Gastos</span>
-                <span className="text-sm font-bold text-error">-{fmt(totalMesGastos)}</span>
-              </div>
-              <div className="flex items-center justify-between pt-2" style={{ borderTop: '1px solid var(--divider)' }}>
-                <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Balance</span>
-                <span className="text-lg font-extrabold" style={{ color: balanceMes >= 0 ? 'var(--color-success)' : 'var(--color-error)' }}>
-                  {balanceMes >= 0 ? '+' : ''}{fmt(balanceMes)}
-                </span>
-              </div>
-            </div>
-          )}
-        </Link>
-
-        {/* Progreso del presupuesto */}
-        <Link href="/personal/presupuesto" className="block glass-card rounded-3xl overflow-hidden transition-transform hover:-translate-y-0.5">
-          <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--divider)' }}>
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Progreso del presupuesto</p>
-              <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Ver →</span>
-            </div>
-          </div>
-          {loading ? (
-            <div className="px-5 py-6"><p className="text-sm" style={{ color: 'var(--text-muted)' }}>Cargando…</p></div>
-          ) : presupuestoTotal === 0 ? (
-            <div className="px-5 py-6 text-center">
-              <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Sin presupuesto configurado</p>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Añade gastos fijos para ver el progreso</p>
-            </div>
-          ) : (
-            <div className="px-5 py-4 space-y-3">
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-2xl font-extrabold" style={{ color: progresoColor }}>{fmt(totalMesGastos)}</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>de {fmt(presupuestoTotal)} presupuestados</p>
+      {/* Categorías con más gasto */}
+      <div className="glass-card rounded-3xl p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Categorías con más gasto</h2>
+          <span className="text-xs font-medium px-3 py-1 rounded-xl" style={{ background: 'var(--bg-page)', color: 'var(--text-secondary)' }}>
+            Últimos 6 meses
+          </span>
+        </div>
+        {loading ? (
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Cargando…</p>
+        ) : topCategorias.length === 0 ? (
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Sin gastos registrados en este periodo</p>
+        ) : (
+          <div className="space-y-4">
+            {topCategorias.map(c => {
+              const maxTotal = topCategorias[0].total || 1;
+              const pct = (c.total / maxTotal) * 100;
+              return (
+                <div key={c.categoria}>
+                  <div className="flex items-center justify-between mb-1.5 gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.color }} />
+                      <span className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{c.categoria}</span>
+                    </div>
+                    <span className="text-sm font-bold shrink-0" style={{ color: 'var(--text-primary)' }}>{fmt(c.total)}</span>
+                  </div>
+                  <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--divider)' }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: c.color }} />
+                  </div>
                 </div>
-                <span className="text-2xl font-extrabold mb-0.5" style={{ color: progresoColor }}>{progresoPct.toFixed(0)}%</span>
-              </div>
-              <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--divider)' }}>
-                <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(progresoPct, 100)}%`, background: progresoColor }} />
-              </div>
-              {progresoPct >= 100 && (
-                <p className="text-xs font-semibold" style={{ color: 'var(--color-error)' }}>⚠ Presupuesto superado en {fmt(totalMesGastos - presupuestoTotal)}</p>
-              )}
-            </div>
-          )}
-        </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Gráficos de evolución */}

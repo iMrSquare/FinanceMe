@@ -8,8 +8,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: 'Sin permisos' }, { status: 403 });
   }
   const { id } = await params;
-  const { nombre, objetivo, fecha_objetivo } = await request.json();
-  updateAhorroObjetivoDatos(Number(id), { nombre: nombre.trim(), objetivo: Number(objetivo), fecha_objetivo });
+  const { nombre, objetivo, fecha_objetivo, emoji } = await request.json();
+  updateAhorroObjetivoDatos(Number(id), { nombre: nombre.trim(), objetivo: Number(objetivo), fecha_objetivo, emoji: emoji || null });
   return NextResponse.json({ ok: true });
 }
 

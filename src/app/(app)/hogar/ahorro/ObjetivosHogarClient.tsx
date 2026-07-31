@@ -22,8 +22,10 @@ function TrashIcon() {
 const ESTADO_LABEL: Record<EstadoObjetivo, string> = { completado: 'Completado', vencido: 'Vencido', en_progreso: 'En progreso' };
 const ESTADO_COLOR: Record<EstadoObjetivo, string> = { completado: 'var(--color-warning)', vencido: 'var(--color-error)', en_progreso: 'var(--text-secondary)' };
 
-interface ObjetivoForm { id?: number; nombre: string; objetivo: string; fecha_objetivo: string; }
-const emptyForm = (): ObjetivoForm => ({ nombre: '', objetivo: '', fecha_objetivo: '' });
+const EMOJI_PRESETS = ['🎯','🏖️','🎮','🚗','🏠','💻','📱','🎁','💍','👶','🎓','❤️','⚽','✈️','🐶','💰'];
+
+interface ObjetivoForm { id?: number; nombre: string; objetivo: string; fecha_objetivo: string; emoji: string; }
+const emptyForm = (): ObjetivoForm => ({ nombre: '', objetivo: '', fecha_objetivo: '', emoji: '' });
 
 function ObjetivoModal({ form, setForm, onClose, onSave, saving }: {
   form: ObjetivoForm; setForm: (f: ObjetivoForm) => void;
@@ -40,6 +42,23 @@ function ObjetivoModal({ form, setForm, onClose, onSave, saving }: {
           </button>
         </div>
         <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Emoji</label>
+            <div className="flex items-center gap-2">
+              <input value={form.emoji} onChange={set('emoji')} maxLength={4}
+                className="w-14 rounded-xl px-2 py-2.5 text-center text-2xl border transition-colors focus:outline-none focus:ring-2 focus:ring-warning/50"
+                style={inputStyle} placeholder="🎯" />
+              <div className="flex flex-wrap gap-1">
+                {EMOJI_PRESETS.map(e => (
+                  <button key={e} type="button" onClick={() => setForm({ ...form, emoji: e })}
+                    className="w-8 h-8 rounded-lg text-lg flex items-center justify-center transition-colors"
+                    style={{ background: form.emoji === e ? 'var(--btn-hover)' : 'transparent' }}>
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
           <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Nombre *</label>
             <input value={form.nombre} onChange={set('nombre')} className={inputCls} style={inputStyle} placeholder="Ej: Vacaciones" /></div>
           <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Importe objetivo (€) *</label>
@@ -58,54 +77,70 @@ function ObjetivoModal({ form, setForm, onClose, onSave, saving }: {
   );
 }
 
-interface EditableAportadoProps { value: number; onSave: (value: number) => Promise<void>; disabled?: boolean; }
+interface AportadoControlsProps { onDelta: (delta: number) => Promise<void>; disabled?: boolean; }
 
-function EditableAportado({ value, onSave, disabled }: EditableAportadoProps) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(String(value));
+function AportadoControls({ onDelta, disabled }: AportadoControlsProps) {
+  const [mode, setMode] = useState<'add' | 'retirar' | null>(null);
+  const [amount, setAmount] = useState('');
+  const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { setDraft(String(value)); }, [value]);
-  useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
+  useEffect(() => { if (mode) { setAmount(''); inputRef.current?.focus(); } }, [mode]);
 
-  function handleBlur() {
-    setEditing(false);
-    const num = parseFloat(draft);
-    if (!isNaN(num) && num !== value) onSave(num);
-    else setDraft(String(value));
+  async function confirm() {
+    const num = parseFloat(amount);
+    if (!isNaN(num) && num > 0 && mode) {
+      setSaving(true);
+      await onDelta(mode === 'add' ? num : -num);
+      setSaving(false);
+    }
+    setMode(null);
   }
 
-  if (disabled) {
-    return <span className="text-sm font-mono font-semibold" style={{ color: value > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>{value > 0 ? fmt(value) : '—'}</span>;
-  }
+  if (disabled) return null;
 
-  if (editing) {
+  if (mode) {
     return (
-      <input
-        ref={inputRef}
-        type="number" step="0.01" min="0"
-        value={draft}
-        onChange={e => setDraft(e.target.value)}
-        onBlur={handleBlur}
-        onKeyDown={e => { if (e.key === 'Enter') inputRef.current?.blur(); if (e.key === 'Escape') { setEditing(false); setDraft(String(value)); } }}
-        className="w-28 rounded-xl px-2 py-1 text-sm text-right font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-warning/50 border-2"
-        style={{ background: 'var(--bg-page)', color: 'var(--color-warning)', borderColor: 'var(--color-warning)' }}
-        autoFocus
-        onClick={e => e.stopPropagation()}
-      />
+      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+        <input
+          ref={inputRef}
+          type="number" step="0.01" min="0"
+          value={amount}
+          onChange={e => setAmount(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') confirm(); if (e.key === 'Escape') setMode(null); }}
+          placeholder="0.00"
+          className="w-24 rounded-xl px-2.5 py-2 text-sm text-right font-mono border-2 focus:outline-none"
+          style={{ background: 'var(--bg-page)', color: mode === 'add' ? 'var(--color-warning)' : 'var(--color-error)', borderColor: mode === 'add' ? 'var(--color-warning)' : 'var(--color-error)' }}
+        />
+        <button onClick={confirm} disabled={saving} className="px-3.5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50" style={{ background: mode === 'add' ? 'var(--color-warning)' : 'var(--color-error)' }}>
+          {saving ? '…' : 'OK'}
+        </button>
+        <button onClick={() => setMode(null)} className="w-9 h-9 rounded-xl flex items-center justify-center text-sm" style={{ color: 'var(--text-secondary)', background: 'var(--btn-hover)' }}>✕</button>
+      </div>
     );
   }
 
   return (
-    <button
-      onClick={e => { e.stopPropagation(); setEditing(true); }}
-      className="flex items-center gap-1.5 rounded-xl px-2 py-1 text-sm font-mono font-semibold border transition-all hover:border-warning/60"
-      style={{ color: value > 0 ? 'var(--color-warning)' : 'var(--text-muted)', borderColor: 'var(--btn-border)', background: 'var(--bg-page)' }}
-      title="Clic para editar"
-    >
-      <span className="opacity-40"><PencilIcon /></span>
-      <span>{value > 0 ? fmt(value) : '—'}</span>
-    </button>
+    <div className="flex items-center gap-2">
+      <button
+        onClick={e => { e.stopPropagation(); setMode('add'); }}
+        title="Añadir dinero"
+        className="flex items-center gap-1 w-9 h-9 sm:w-auto sm:px-3.5 sm:py-2 rounded-full justify-center text-sm font-bold transition-colors"
+        style={{ color: 'var(--color-warning)', background: 'rgba(var(--color-warning-rgb),0.12)' }}
+      >
+        <span className="text-lg leading-none">+</span>
+        <span className="hidden sm:inline">Añadir</span>
+      </button>
+      <button
+        onClick={e => { e.stopPropagation(); setMode('retirar'); }}
+        title="Retirar dinero"
+        className="flex items-center gap-1 w-9 h-9 sm:w-auto sm:px-3.5 sm:py-2 rounded-full justify-center text-sm font-bold transition-colors"
+        style={{ color: 'var(--color-error)', background: 'rgba(var(--color-error-rgb),0.12)' }}
+      >
+        <span className="text-lg leading-none">−</span>
+        <span className="hidden sm:inline">Retirar</span>
+      </button>
+    </div>
   );
 }
 
@@ -127,7 +162,7 @@ export default function ObjetivosHogarClient({ objetivos: initObjetivos, canEdit
   async function handleSave() {
     if (!modal) return;
     setSaving(true);
-    const body = { nombre: modal.nombre, objetivo: Number(modal.objetivo), fecha_objetivo: modal.fecha_objetivo };
+    const body = { nombre: modal.nombre, objetivo: Number(modal.objetivo), fecha_objetivo: modal.fecha_objetivo, emoji: modal.emoji || null };
     if (modal.id) {
       await fetch(`/api/ahorro/objetivos/${modal.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     } else {
@@ -147,7 +182,7 @@ export default function ObjetivosHogarClient({ objetivos: initObjetivos, canEdit
   }
 
   function openEdit(o: AhorroObjetivo) {
-    setModal({ id: o.id, nombre: o.nombre, objetivo: String(o.objetivo), fecha_objetivo: o.fecha_objetivo.slice(0, 7) });
+    setModal({ id: o.id, nombre: o.nombre, objetivo: String(o.objetivo), fecha_objetivo: o.fecha_objetivo.slice(0, 7), emoji: o.emoji ?? '' });
   }
 
   const completados = objetivos.filter(o => estadoObjetivo(o) === 'completado').length;
@@ -208,7 +243,10 @@ export default function ObjetivosHogarClient({ objetivos: initObjetivos, canEdit
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
-                    <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>{o.nombre}</h3>
+                    <h3 className="font-bold text-lg flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+                      {o.emoji && <span className="text-xl leading-none">{o.emoji}</span>}
+                      {o.nombre}
+                    </h3>
                     <p className="text-xs mt-0.5 capitalize" style={{ color: 'var(--text-muted)' }}>Objetivo: {fmtMesAnio(o.fecha_objetivo)}</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -228,13 +266,18 @@ export default function ObjetivosHogarClient({ objetivos: initObjetivos, canEdit
                   </div>
                 </div>
 
+                <div className="flex justify-end mb-1">
+                  <span className="text-xs font-bold" style={{ color: porcentaje >= 100 ? 'var(--color-warning)' : 'var(--text-secondary)' }}>{porcentaje.toFixed(0)}%</span>
+                </div>
                 <div className="h-1.5 rounded-full overflow-hidden mb-2" style={{ background: 'var(--divider)' }}>
                   <div className="h-full rounded-full transition-all" style={{ width: `${porcentaje}%`, background: porcentaje >= 100 ? 'var(--color-warning)' : porcentaje >= 50 ? 'var(--color-warning)' : 'var(--color-error)' }} />
                 </div>
 
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{porcentaje.toFixed(0)}% de {fmt(o.objetivo)}</span>
-                  <EditableAportado value={o.aportado} onSave={v => handleSaveAportado(o.id, v)} disabled={!canEdit} />
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    <span className="font-semibold font-mono" style={{ color: 'var(--text-primary)' }}>{fmt(o.aportado)}</span> de {fmt(o.objetivo)}
+                  </span>
+                  <AportadoControls onDelta={delta => handleSaveAportado(o.id, o.aportado + delta)} disabled={!canEdit} />
                 </div>
 
                 {estado === 'completado' && (

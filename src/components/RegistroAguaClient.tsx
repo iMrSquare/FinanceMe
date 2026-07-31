@@ -8,9 +8,9 @@ import { ConfirmDialog } from './ConfirmDialog';
 import InfoExpand from './InfoExpand';
 import { useIsMobile } from '@/lib/useIsMobile';
 import { useThemeVersion } from '@/lib/useThemeVersion';
-import { Line } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler } from 'chart.js';
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
+import { Line, Bar } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Filler } from 'chart.js';
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Filler);
 
 function CompaniaBadge({ nombre, companias }: { nombre: string | null; companias: Categoria[] }) {
   if (!nombre) return <span className="text-xs" style={{ color: 'var(--text-muted)' }}>—</span>;
@@ -173,45 +173,89 @@ export default function RegistroAguaClient({ registros: initRegistros, companias
           </div>
           {(byYear[activeYear] ?? []).length > 0 && (
             <div className="px-5 pt-4 pb-3" style={{ borderBottom: '1px solid var(--divider)' }}>
-              <Line
-                data={{
-                  labels: (byYear[activeYear] ?? []).map(r => r.nombre),
-                  datasets: [{
-                    label: 'Importe',
-                    data: (byYear[activeYear] ?? []).map(r => r.importe ?? 0),
-                    borderColor: chartAccent,
-                    backgroundColor: `rgba(${chartAccentRgb},0.07)`,
-                    fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: chartAccent,
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                  }],
-                }}
-                options={{
-                  responsive: true,
-                  plugins: {
-                    legend: { display: false },
-                    tooltip: { callbacks: { label: ctx => fmt(ctx.parsed.y ?? 0) } },
-                  },
-                  scales: {
-                    x: {
-                      grid: { display: false },
-                      ticks: { color: chartTick, font: { size: 11 } },
+              <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Importe (€)</p>
+              <div style={{ height: 140 }}>
+                <Line
+                  data={{
+                    labels: (byYear[activeYear] ?? []).map(r => r.nombre),
+                    datasets: [{
+                      label: 'Importe',
+                      data: (byYear[activeYear] ?? []).map(r => r.importe ?? 0),
+                      borderColor: chartAccent,
+                      backgroundColor: `rgba(${chartAccentRgb},0.07)`,
+                      fill: true,
+                      tension: 0.4,
+                      pointBackgroundColor: chartAccent,
+                      pointRadius: 4,
+                      pointHoverRadius: 6,
+                    }],
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: { display: false },
+                      tooltip: { callbacks: { label: ctx => fmt(ctx.parsed.y ?? 0) } },
                     },
-                    y: {
-                      beginAtZero: false,
-                      grid: { color: chartGrid },
-                      ticks: {
-                        color: chartTick,
-                        font: { size: 11 },
-                        callback: v => `${Number(v).toLocaleString('es-ES', { maximumFractionDigits: 0 })}€`,
+                    scales: {
+                      x: {
+                        grid: { display: false },
+                        ticks: { display: false, color: chartTick, font: { size: 11 } },
+                      },
+                      y: {
+                        beginAtZero: false,
+                        grid: { color: chartGrid },
+                        ticks: {
+                          color: chartTick,
+                          font: { size: 11 },
+                          callback: v => `${Number(v).toLocaleString('es-ES', { maximumFractionDigits: 0 })}€`,
+                        },
                       },
                     },
-                  },
-                }}
-                height={65}
-              />
+                  }}
+                />
+              </div>
+              <div className="mt-3">
+                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Consumo (m³)</p>
+                <div style={{ height: 90 }}>
+                  <Bar
+                    data={{
+                      labels: (byYear[activeYear] ?? []).map(r => r.nombre),
+                      datasets: [{
+                        label: 'Consumo',
+                        data: (byYear[activeYear] ?? []).map(r => r.m3 ?? 0),
+                        backgroundColor: `rgba(${chartAccentRgb},0.55)`,
+                        borderRadius: 3,
+                        barPercentage: 0.6,
+                        categoryPercentage: 0.7,
+                      }],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: ctx => `${Number(ctx.parsed.y ?? 0).toLocaleString('es-ES', { maximumFractionDigits: 2 })} m³` } },
+                      },
+                      scales: {
+                        x: {
+                          grid: { display: false },
+                          ticks: { color: chartTick, font: { size: 11 } },
+                        },
+                        y: {
+                          beginAtZero: true,
+                          grid: { color: chartGrid },
+                          ticks: {
+                            color: chartTick,
+                            font: { size: 11 },
+                            callback: v => `${Number(v).toLocaleString('es-ES', { maximumFractionDigits: 0 })}`,
+                          },
+                        },
+                      },
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           )}
           <div className="overflow-x-auto">

@@ -9,9 +9,10 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-warning/50 border transition-colors';
 const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
 
-function MonthStatus({ aportado, objetivo }: { aportado: number; objetivo: number }) {
-  if (objetivo <= 0) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
-  if (aportado <= 0) return <span className="text-xs font-bold" style={{ color: 'var(--color-error)' }}>✗</span>;
+function MonthStatus({ aportado, objetivo, hasGoal }: { aportado: number; objetivo: number; hasGoal: boolean }) {
+  if (!hasGoal) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+  if (aportado < 0) return <span className="text-xs font-bold" style={{ color: 'var(--color-error)' }} title="Retirada de fondos">↓</span>;
+  if (aportado === 0) return <span className="text-xs font-bold" style={{ color: 'var(--color-error)' }}>✗</span>;
   if (aportado >= objetivo) return <span className="text-xs font-bold" style={{ color: 'var(--color-warning)' }}>✓</span>;
   return <span className="text-xs font-bold" style={{ color: 'var(--color-warning)' }}>~</span>;
 }
@@ -25,12 +26,18 @@ interface EditableAmountProps {
   mesIndex: number;
   onSave: (mesIndex: number, value: number) => Promise<void>;
   disabled?: boolean;
+  isFuture?: boolean;
 }
 
-function EditableAmount({ value, mesIndex, onSave, disabled }: EditableAmountProps) {
+function amountColor(value: number): string {
+  return value > 0 ? 'var(--color-warning)' : value < 0 ? 'var(--color-error)' : 'var(--text-muted)';
+}
+
+function EditableAmount({ value, mesIndex, onSave, disabled, isFuture }: EditableAmountProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value));
   const inputRef = useRef<HTMLInputElement>(null);
+  const showDash = value === 0 && isFuture;
 
   useEffect(() => { setDraft(String(value)); }, [value]);
   useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
@@ -43,7 +50,7 @@ function EditableAmount({ value, mesIndex, onSave, disabled }: EditableAmountPro
   }
 
   if (disabled) {
-    return <span className="block w-32 ml-auto text-right text-sm font-mono font-semibold" style={{ color: value > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>{value > 0 ? fmt(value) : '—'}</span>;
+    return <span className="block w-32 ml-auto text-right text-sm font-mono font-semibold" style={{ color: amountColor(value) }}>{showDash ? '—' : fmt(value)}</span>;
   }
 
   if (editing) {
@@ -52,7 +59,6 @@ function EditableAmount({ value, mesIndex, onSave, disabled }: EditableAmountPro
         ref={inputRef}
         type="number"
         step="0.01"
-        min="0"
         value={draft}
         onChange={e => setDraft(e.target.value)}
         onBlur={handleBlur}
@@ -69,14 +75,14 @@ function EditableAmount({ value, mesIndex, onSave, disabled }: EditableAmountPro
       onClick={() => setEditing(true)}
       className="flex items-center justify-between gap-2 w-32 ml-auto rounded-xl px-3 py-1.5 text-sm font-mono font-semibold border transition-all hover:border-warning/60"
       style={{
-        color: value > 0 ? 'var(--color-warning)' : 'var(--text-muted)',
+        color: amountColor(value),
         borderColor: 'var(--btn-border)',
         background: 'var(--bg-page)',
       }}
-      title="Clic para editar"
+      title="Clic para editar (admite 0 y negativos)"
     >
       <span className="opacity-40"><PencilIcon /></span>
-      <span>{value > 0 ? fmt(value) : '—'}</span>
+      <span>{showDash ? '—' : fmt(value)}</span>
     </button>
   );
 }
@@ -123,11 +129,29 @@ export default function AhorroHogarClient({ canEdit }: { canEdit: boolean }) {
 
   const meses: AhorroMes[] = ahorro?.meses ?? [];
   const objetivoAnual = ahorro?.objetivo_anual ?? 0;
-  const objetivoMensual = objetivoAnual > 0 ? objetivoAnual / 12 : 0;
+  const hasGoal = objetivoAnual > 0;
+  const objetivoMensualBase = hasGoal ? objetivoAnual / 12 : 0;
   const totalAportado = meses.reduce((s, m) => s + m.aportado, 0);
-  const porcentaje = objetivoAnual > 0 ? Math.min((totalAportado / objetivoAnual) * 100, 100) : 0;
+  const porcentaje = hasGoal ? (totalAportado / objetivoAnual) * 100 : 0;
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
+  const isViewingCurrentYear = year === currentYear;
+
+  // Cuota mensual recalculada: lo que falta para el objetivo repartido entre los
+  // meses que quedan, en función de lo conseguido hasta ahora. El mes actual solo
+  // cuenta como "restante" si todavía no se ha registrado ninguna aportación en él;
+  // si ya tiene un valor (incluso 0 explícito no se puede distinguir del vacío, pero
+  // un valor distinto de 0 sí), se considera cerrado y no vuelve a contarse en el divisor.
+  const currentMonthYaAportado = isViewingCurrentYear && meses[currentMonth]?.aportado !== 0;
+  const totalHastaAhora = isViewingCurrentYear
+    ? meses.slice(0, currentMonth + 1).reduce((s, m) => s + m.aportado, 0)
+    : totalAportado;
+  const mesesRestantes = isViewingCurrentYear
+    ? Math.max(currentMonthYaAportado ? 11 - currentMonth : 12 - currentMonth, 1)
+    : 12;
+  const objetivoMensual = hasGoal
+    ? (isViewingCurrentYear ? (objetivoAnual - totalHastaAhora) / mesesRestantes : objetivoMensualBase)
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -199,22 +223,24 @@ export default function AhorroHogarClient({ canEdit }: { canEdit: boolean }) {
         {/* Objetivo mensual — solo desktop */}
         <div className="hidden sm:block glass-card rounded-3xl p-6">
           <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Objetivo mensual</p>
-          <p className="text-2xl font-extrabold" style={{ color: 'var(--text-primary)' }}>
-            {objetivoMensual > 0 ? fmt(objetivoMensual) : '—'}
+          <p className="text-2xl font-extrabold" style={{ color: hasGoal ? amountColor(objetivoMensual) : 'var(--text-primary)' }}>
+            {hasGoal ? fmt(objetivoMensual) : '—'}
           </p>
-          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>objetivo ÷ 12</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+            {isViewingCurrentYear ? 'Recalculado según lo conseguido' : 'objetivo ÷ 12'}
+          </p>
         </div>
 
         {/* Conseguido */}
         <div className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6">
           <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Conseguido en {year}</p>
-          <p className="text-base sm:text-2xl font-extrabold leading-tight" style={{ color: totalAportado > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>
+          <p className="text-base sm:text-2xl font-extrabold leading-tight" style={{ color: amountColor(totalAportado) }}>
             {fmt(totalAportado)}
           </p>
-          {objetivoAnual > 0 && (
+          {hasGoal && (
             <>
               <div className="h-1.5 rounded-full overflow-hidden mt-2 sm:mt-3 mb-1" style={{ background: 'var(--divider)' }}>
-                <div className="h-full rounded-full transition-all" style={{ width: `${porcentaje}%`, background: porcentaje >= 100 ? 'var(--color-warning)' : porcentaje >= 50 ? 'var(--color-warning)' : 'var(--color-error)' }} />
+                <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(Math.max(porcentaje, 0), 100)}%`, background: porcentaje >= 100 ? 'var(--color-warning)' : porcentaje >= 50 ? 'var(--color-warning)' : 'var(--color-error)' }} />
               </div>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{porcentaje.toFixed(1)}% del objetivo</p>
             </>
@@ -246,7 +272,11 @@ export default function AhorroHogarClient({ canEdit }: { canEdit: boolean }) {
                 {meses.map((m, i) => {
                   const isCurrent = year === currentYear && i === currentMonth;
                   const isFuture = year > currentYear || (year === currentYear && i > currentMonth);
-                  const diff = m.aportado - objetivoMensual;
+                  // Los meses ya pasados conservan el objetivo original (referencia histórica);
+                  // el mes actual y los futuros reflejan la cuota recalculada según lo conseguido.
+                  const objetivoDeEsteMes = isViewingCurrentYear && i >= currentMonth ? objetivoMensual : objetivoMensualBase;
+                  const diff = m.aportado - objetivoDeEsteMes;
+                  const mostrarDatos = !(isFuture && m.aportado === 0);
                   return (
                     <tr
                       key={m.id}
@@ -263,13 +293,13 @@ export default function AhorroHogarClient({ canEdit }: { canEdit: boolean }) {
                         )}
                       </td>
                       <td className="px-6 py-3 text-right font-mono" style={{ color: 'var(--text-secondary)' }}>
-                        {objetivoMensual > 0 ? fmt(objetivoMensual) : '—'}
+                        {hasGoal ? fmt(objetivoDeEsteMes) : '—'}
                       </td>
                       <td className="px-6 py-3">
-                        <EditableAmount value={m.aportado} mesIndex={i} onSave={saveMes} disabled={!canEdit} />
+                        <EditableAmount value={m.aportado} mesIndex={i} onSave={saveMes} disabled={!canEdit} isFuture={isFuture} />
                       </td>
                       <td className="px-6 py-3 text-right font-mono text-sm">
-                        {objetivoMensual > 0 && m.aportado > 0 ? (
+                        {hasGoal && mostrarDatos ? (
                           <span style={{ color: diff >= 0 ? 'var(--color-warning)' : 'var(--color-error)' }}>
                             {diff >= 0 ? '+' : ''}{fmt(diff)}
                           </span>
@@ -278,10 +308,10 @@ export default function AhorroHogarClient({ canEdit }: { canEdit: boolean }) {
                         )}
                       </td>
                       <td className="px-6 py-3 text-center">
-                        {isFuture && m.aportado <= 0 ? (
+                        {!mostrarDatos ? (
                           <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>—</span>
                         ) : (
-                          <MonthStatus aportado={m.aportado} objetivo={objetivoMensual} />
+                          <MonthStatus aportado={m.aportado} objetivo={objetivoDeEsteMes} hasGoal={hasGoal} />
                         )}
                       </td>
                     </tr>
@@ -295,18 +325,18 @@ export default function AhorroHogarClient({ canEdit }: { canEdit: boolean }) {
                     <td className="px-6 py-4 text-right font-bold font-mono" style={{ color: 'var(--text-primary)' }}>
                       {objetivoAnual > 0 ? fmt(objetivoAnual) : '—'}
                     </td>
-                    <td className="px-6 py-4 text-right font-bold font-mono" style={{ color: 'var(--color-warning)' }}>
+                    <td className="px-6 py-4 text-right font-bold font-mono" style={{ color: amountColor(totalAportado) }}>
                       {fmt(totalAportado)}
                     </td>
                     <td className="px-6 py-4 text-right font-bold font-mono">
-                      {objetivoAnual > 0 && totalAportado > 0 ? (
+                      {hasGoal ? (
                         <span style={{ color: (totalAportado - objetivoAnual) >= 0 ? 'var(--color-warning)' : 'var(--color-error)' }}>
                           {(totalAportado - objetivoAnual) >= 0 ? '+' : ''}{fmt(totalAportado - objetivoAnual)}
                         </span>
                       ) : '—'}
                     </td>
                     <td className="px-6 py-4 text-center">
-                      {objetivoAnual > 0 && (
+                      {hasGoal && (
                         <span className="text-xs font-bold" style={{ color: porcentaje >= 100 ? 'var(--color-warning)' : porcentaje >= 50 ? 'var(--color-warning)' : 'var(--color-error)' }}>
                           {porcentaje.toFixed(1)}%
                         </span>

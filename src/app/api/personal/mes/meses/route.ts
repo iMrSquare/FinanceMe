@@ -6,7 +6,7 @@ import {
   createPersonalMes, getPersonalGastos, createPersonalGastoMes,
   getPersonalIngresosFijos, createPersonalIngresoMes,
   getPersonalSuscripciones, getPersonalAhorro, getPersonalAhorroObjetivos, getPresupuestoAutoConfigs,
-  personalMesExists, clearPersonalMesGastos, clearPersonalMesIngresos,
+  personalMesExists, clearPersonalMesGastos, clearPersonalMesIngresos, getMesActual,
 } from '@/lib/db';
 import type { PersonalGastoFijo } from '@/lib/db';
 
@@ -83,9 +83,9 @@ export async function POST(request: NextRequest) {
   const mesNum = Number(mes);
   const anioNum = Number(anio);
 
-  const now = new Date();
-  let maxAnio = now.getFullYear();
-  let maxMes = now.getMonth() + 2; // mes actual + 1 (siguiente mes permitido)
+  const { mes: mesActual, anio: anioActual } = getMesActual();
+  let maxAnio = anioActual;
+  let maxMes = mesActual + 1; // mes actual + 1 (siguiente mes permitido)
   if (maxMes > 12) { maxMes -= 12; maxAnio += 1; }
   if (anioNum > maxAnio || (anioNum === maxAnio && mesNum > maxMes)) {
     return NextResponse.json({ error: 'Solo se puede crear como máximo el mes siguiente al actual' }, { status: 400 });

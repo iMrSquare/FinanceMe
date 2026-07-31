@@ -37,7 +37,7 @@ const SECTIONS: Section[] = [
     title: '4. Modo Hogar (opcional)',
     body: (
       <>Si eres administrador, puedes activar el <strong>Hogar</strong>: un espacio de control de
-      gastos compartido por todos los usuarios. Revisa los usuarios y sus roles en Ajustes. Funciona
+      gastos compartido por todos los usuarios. Revisa los usuarios y sus roles en Configuración. Funciona
       igual que el Personal, salvo que en lugar de Suscripciones tiene un apartado de{' '}
       <strong>Registros de Luz y Agua</strong>, donde primero añades la compañía y luego vas anotando
       manualmente los consumos para ver el historial de gasto (estos registros no se generan desde el

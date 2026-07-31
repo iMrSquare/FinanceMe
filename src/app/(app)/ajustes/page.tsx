@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { getAllUsers } from '@/lib/db';
 import AjustesClient from './AjustesClient';
 
-export const metadata = { title: 'Ajustes — FinanceMe Hogar' };
+export const metadata = { title: 'Configuración — FinanceMe Hogar' };
 
 export default async function AjustesPage() {
   const session = await getSession();

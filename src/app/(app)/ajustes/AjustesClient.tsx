@@ -203,7 +203,7 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
           </svg>
         </div>
         <div>
-          <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Ajustes</h1>
+          <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Configuración</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Gestión de la aplicación</p>
         </div>
       </div>
@@ -233,7 +233,7 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
           {[
             { role: 'admin', desc: 'Acceso completo. Puede gestionar usuarios y ajustes.' },
-            { role: 'editor', desc: 'Puede ver y editar todas las tablas. Sin acceso a Ajustes.' },
+            { role: 'editor', desc: 'Puede ver y editar todas las tablas. Sin acceso a Configuración.' },
             { role: 'visor', desc: 'Solo lectura. No puede editar ni crear datos.' },
           ].map(({ role: r, desc }) => (
             <div key={r} className="rounded-2xl p-4" style={{ background: 'var(--bg-page)', border: '1px solid var(--border-card)' }}>

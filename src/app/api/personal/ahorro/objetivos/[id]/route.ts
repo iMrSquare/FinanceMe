@@ -6,8 +6,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   const { id } = await params;
-  const { nombre, objetivo, fecha_objetivo } = await request.json();
-  updatePersonalAhorroObjetivoDatos(Number(id), session.id, { nombre: nombre.trim(), objetivo: Number(objetivo), fecha_objetivo });
+  const { nombre, objetivo, fecha_objetivo, emoji } = await request.json();
+  updatePersonalAhorroObjetivoDatos(Number(id), session.id, { nombre: nombre.trim(), objetivo: Number(objetivo), fecha_objetivo, emoji: emoji || null });
   return NextResponse.json({ ok: true });
 }
 

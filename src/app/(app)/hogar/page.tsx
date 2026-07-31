@@ -1,38 +1,40 @@
 import { seedDatabase } from '@/lib/seed';
 import {
-  getMeses, getGastos, getPrestamos, getIngresos,
-  getCategorias, getBalanceHistory, getGastosPorCategoria, getFijos,
+  getMeses, getGastos, getFijos, getAhorro, getAhorroObjetivos,
+  getEstadisticasGastos, getRegistroLuz, getRegistroAgua, getBalanceHistory, getMesActual,
 } from '@/lib/db';
-import ResumenClient from '../resumen/ResumenClient';
+import HogarResumenClient from './HogarResumenClient';
 
 export const metadata = { title: 'Resumen — FinanceMe Hogar' };
 
 export default function HogarPage() {
   seedDatabase();
 
+  const { mes: mesNum, anio: anioNum } = getMesActual();
   const meses = getMeses();
-  const mesActual = meses[0] ?? null;
+  const mesActual = meses.find(m => m.mes === mesNum && m.anio === anioNum) ?? null;
+  const mesGastos = mesActual ? getGastos(mesActual.id) : [];
 
-  const gastos           = mesActual ? getGastos(mesActual.id)             : [];
-  const prestamos        = mesActual ? getPrestamos(mesActual.id)          : [];
-  const ingresos         = mesActual ? getIngresos(mesActual.id)           : [];
-  const catGasto         = getCategorias('gasto');
-  const gastosxCat       = mesActual ? getGastosPorCategoria(mesActual.id) : [];
-  const historial        = getBalanceHistory(6);
-  const fijosPresupuesto = getFijos('gasto');
+  const fijosGasto = getFijos('gasto');
+  const objetivosAhorro = getAhorroObjetivos();
+  const ahorro = getAhorro(anioNum);
+  const estadisticas = getEstadisticasGastos(6);
+  const registrosLuz = getRegistroLuz();
+  const registrosAgua = getRegistroAgua();
+  const historial = getBalanceHistory(6);
 
   return (
-    <ResumenClient
+    <HogarResumenClient
+      anioActual={anioNum}
       mesActual={mesActual}
-      gastos={gastos}
-      prestamos={prestamos}
-      ingresos={ingresos}
-      catGasto={catGasto}
-      gastosxCat={gastosxCat}
+      mesGastos={mesGastos}
+      fijosGasto={fijosGasto}
+      objetivosAhorro={objetivosAhorro}
+      ahorro={ahorro}
+      estadisticas={estadisticas}
+      registrosLuz={registrosLuz}
+      registrosAgua={registrosAgua}
       historial={historial}
-      showPrestamos={false}
-      fijosPresupuesto={fijosPresupuesto}
-      estadisticasHref="/hogar/estadisticas"
     />
   );
 }

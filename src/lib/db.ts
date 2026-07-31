@@ -395,6 +395,18 @@ function runMigrations(db: Database.Database) {
     DELETE FROM prestamos;
   `);
 
+  // Migration: add candado de bloqueo a meses (Hogar) y personal_meses
+  for (const sql of [
+    'ALTER TABLE meses ADD COLUMN bloqueado INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE personal_meses ADD COLUMN bloqueado INTEGER NOT NULL DEFAULT 0',
+  ]) { try { db.exec(sql); } catch { /* already exists */ } }
+
+  // Migration: add emoji a los objetivos de ahorro (Hogar y Personal)
+  for (const sql of [
+    'ALTER TABLE personal_ahorro_objetivos ADD COLUMN emoji TEXT',
+    'ALTER TABLE ahorro_objetivos ADD COLUMN emoji TEXT',
+  ]) { try { db.exec(sql); } catch { /* already exists */ } }
+
   // Seed default admin user if no users exist
   const userCount = (db.prepare('SELECT COUNT(*) as n FROM users').get() as { n: number }).n;
   if (userCount === 0) {
@@ -413,6 +425,7 @@ export interface Mes {
   nombre: string;
   mes: number;
   anio: number;
+  bloqueado: number;
 }
 
 export interface Ingreso {
@@ -504,14 +517,34 @@ export function getNombreMes(mes: number, anio: number): string {
   return `${NOMBRES_MESES[mes - 1]} ${anio}`;
 }
 
+export function getMesActual(): { mes: number; anio: number } {
+  const now = new Date();
+  return { mes: now.getMonth() + 1, anio: now.getFullYear() };
+}
+
+export function esMesVencido(mes: number, anio: number): boolean {
+  const { mes: mesActual, anio: anioActual } = getMesActual();
+  return anio < anioActual || (anio === anioActual && mes < mesActual);
+}
+
+function autoLockMes(db: Database.Database, m: Mes): Mes {
+  if (!m.bloqueado && esMesVencido(m.mes, m.anio)) {
+    db.prepare('UPDATE meses SET bloqueado = 1 WHERE id = ?').run(m.id);
+    return { ...m, bloqueado: 1 };
+  }
+  return m;
+}
+
 export function getMeses(): Mes[] {
   const db = getDb();
-  return db.prepare('SELECT * FROM meses ORDER BY anio DESC, mes DESC').all() as Mes[];
+  const rows = db.prepare('SELECT * FROM meses ORDER BY anio DESC, mes DESC').all() as Mes[];
+  return rows.map(m => autoLockMes(db, m));
 }
 
 export function getMes(mes: number, anio: number): Mes | undefined {
   const db = getDb();
-  return db.prepare('SELECT * FROM meses WHERE mes = ? AND anio = ?').get(mes, anio) as Mes | undefined;
+  const row = db.prepare('SELECT * FROM meses WHERE mes = ? AND anio = ?').get(mes, anio) as Mes | undefined;
+  return row ? autoLockMes(db, row) : undefined;
 }
 
 export function getOrCreateMes(mes: number, anio: number): Mes {
@@ -521,6 +554,25 @@ export function getOrCreateMes(mes: number, anio: number): Mes {
   const nombre = getNombreMes(mes, anio);
   db.prepare('INSERT INTO meses (nombre, mes, anio) VALUES (?, ?, ?)').run(nombre, mes, anio);
   return getMes(mes, anio)!;
+}
+
+export function setMesBloqueado(mesId: number, bloqueado: boolean): void {
+  getDb().prepare('UPDATE meses SET bloqueado = ? WHERE id = ?').run(bloqueado ? 1 : 0, mesId);
+}
+
+export function isMesBloqueado(mesId: number): boolean {
+  const row = getDb().prepare('SELECT bloqueado FROM meses WHERE id = ?').get(mesId) as { bloqueado: number } | undefined;
+  return !!row?.bloqueado;
+}
+
+export function getMesIdDeGasto(id: number): number | undefined {
+  const row = getDb().prepare('SELECT mes_id FROM gastos WHERE id = ?').get(id) as { mes_id: number } | undefined;
+  return row?.mes_id;
+}
+
+export function getMesIdDeIngreso(id: number): number | undefined {
+  const row = getDb().prepare('SELECT mes_id FROM ingresos WHERE id = ?').get(id) as { mes_id: number } | undefined;
+  return row?.mes_id;
 }
 
 export function getGastos(mesId: number): Gasto[] {
@@ -1074,21 +1126,21 @@ export function updatePersonalAhorroMes(userId: number, anio: number, mes: numbe
 
 export interface PersonalAhorroObjetivo {
   id: number; user_id: number; nombre: string; objetivo: number;
-  fecha_objetivo: string; aportado: number; created_at: string;
+  fecha_objetivo: string; aportado: number; emoji: string | null; created_at: string;
 }
 
 export function getPersonalAhorroObjetivos(userId: number): PersonalAhorroObjetivo[] {
   return getDb().prepare('SELECT * FROM personal_ahorro_objetivos WHERE user_id = ? ORDER BY fecha_objetivo').all(userId) as PersonalAhorroObjetivo[];
 }
-export function createPersonalAhorroObjetivo(userId: number, data: { nombre: string; objetivo: number; fecha_objetivo: string }): void {
+export function createPersonalAhorroObjetivo(userId: number, data: { nombre: string; objetivo: number; fecha_objetivo: string; emoji: string | null }): void {
   getDb().prepare(
-    'INSERT INTO personal_ahorro_objetivos (user_id, nombre, objetivo, fecha_objetivo) VALUES (?, ?, ?, ?)'
-  ).run(userId, data.nombre, data.objetivo, data.fecha_objetivo);
+    'INSERT INTO personal_ahorro_objetivos (user_id, nombre, objetivo, fecha_objetivo, emoji) VALUES (?, ?, ?, ?, ?)'
+  ).run(userId, data.nombre, data.objetivo, data.fecha_objetivo, data.emoji);
 }
-export function updatePersonalAhorroObjetivoDatos(id: number, userId: number, data: { nombre: string; objetivo: number; fecha_objetivo: string }): void {
+export function updatePersonalAhorroObjetivoDatos(id: number, userId: number, data: { nombre: string; objetivo: number; fecha_objetivo: string; emoji: string | null }): void {
   getDb().prepare(
-    'UPDATE personal_ahorro_objetivos SET nombre = ?, objetivo = ?, fecha_objetivo = ? WHERE id = ? AND user_id = ?'
-  ).run(data.nombre, data.objetivo, data.fecha_objetivo, id, userId);
+    'UPDATE personal_ahorro_objetivos SET nombre = ?, objetivo = ?, fecha_objetivo = ?, emoji = ? WHERE id = ? AND user_id = ?'
+  ).run(data.nombre, data.objetivo, data.fecha_objetivo, data.emoji, id, userId);
 }
 export function updatePersonalAhorroObjetivoAportado(id: number, userId: number, aportado: number): void {
   getDb().prepare('UPDATE personal_ahorro_objetivos SET aportado = ? WHERE id = ? AND user_id = ?').run(aportado, id, userId);
@@ -1137,21 +1189,21 @@ export function updateAhorroMes(anio: number, mes: number, aportado: number): vo
 
 export interface AhorroObjetivo {
   id: number; nombre: string; objetivo: number;
-  fecha_objetivo: string; aportado: number; created_at: string;
+  fecha_objetivo: string; aportado: number; emoji: string | null; created_at: string;
 }
 
 export function getAhorroObjetivos(): AhorroObjetivo[] {
   return getDb().prepare('SELECT * FROM ahorro_objetivos ORDER BY fecha_objetivo').all() as AhorroObjetivo[];
 }
-export function createAhorroObjetivo(data: { nombre: string; objetivo: number; fecha_objetivo: string }): void {
+export function createAhorroObjetivo(data: { nombre: string; objetivo: number; fecha_objetivo: string; emoji: string | null }): void {
   getDb().prepare(
-    'INSERT INTO ahorro_objetivos (nombre, objetivo, fecha_objetivo) VALUES (?, ?, ?)'
-  ).run(data.nombre, data.objetivo, data.fecha_objetivo);
+    'INSERT INTO ahorro_objetivos (nombre, objetivo, fecha_objetivo, emoji) VALUES (?, ?, ?, ?)'
+  ).run(data.nombre, data.objetivo, data.fecha_objetivo, data.emoji);
 }
-export function updateAhorroObjetivoDatos(id: number, data: { nombre: string; objetivo: number; fecha_objetivo: string }): void {
+export function updateAhorroObjetivoDatos(id: number, data: { nombre: string; objetivo: number; fecha_objetivo: string; emoji: string | null }): void {
   getDb().prepare(
-    'UPDATE ahorro_objetivos SET nombre = ?, objetivo = ?, fecha_objetivo = ? WHERE id = ?'
-  ).run(data.nombre, data.objetivo, data.fecha_objetivo, id);
+    'UPDATE ahorro_objetivos SET nombre = ?, objetivo = ?, fecha_objetivo = ?, emoji = ? WHERE id = ?'
+  ).run(data.nombre, data.objetivo, data.fecha_objetivo, data.emoji, id);
 }
 export function updateAhorroObjetivoAportado(id: number, aportado: number): void {
   getDb().prepare('UPDATE ahorro_objetivos SET aportado = ? WHERE id = ?').run(aportado, id);
@@ -1206,12 +1258,28 @@ export function deletePersonalGastoMes(id: number, userId: number): void {
 
 // ── Personal: Meses creados ────────────────────────────────────────────────
 
-export interface PersonalMes { id: number; user_id: number; mes: number; anio: number; }
+export interface PersonalMes { id: number; user_id: number; mes: number; anio: number; bloqueado: number; }
+
+function autoLockPersonalMes(db: Database.Database, m: PersonalMes): PersonalMes {
+  if (!m.bloqueado && esMesVencido(m.mes, m.anio)) {
+    db.prepare('UPDATE personal_meses SET bloqueado = 1 WHERE id = ?').run(m.id);
+    return { ...m, bloqueado: 1 };
+  }
+  return m;
+}
 
 export function getPersonalMeses(userId: number): PersonalMes[] {
-  return getDb().prepare(
+  const db = getDb();
+  const rows = db.prepare(
     'SELECT * FROM personal_meses WHERE user_id = ? ORDER BY anio DESC, mes DESC'
   ).all(userId) as PersonalMes[];
+  return rows.map(m => autoLockPersonalMes(db, m));
+}
+
+export function getPersonalMes(userId: number, mes: number, anio: number): PersonalMes | undefined {
+  const db = getDb();
+  const row = db.prepare('SELECT * FROM personal_meses WHERE user_id = ? AND mes = ? AND anio = ?').get(userId, mes, anio) as PersonalMes | undefined;
+  return row ? autoLockPersonalMes(db, row) : undefined;
 }
 
 export function personalMesExists(userId: number, mes: number, anio: number): boolean {
@@ -1220,6 +1288,23 @@ export function personalMesExists(userId: number, mes: number, anio: number): bo
 
 export function createPersonalMes(userId: number, mes: number, anio: number): void {
   getDb().prepare('INSERT OR IGNORE INTO personal_meses (user_id, mes, anio) VALUES (?, ?, ?)').run(userId, mes, anio);
+}
+
+export function setPersonalMesBloqueado(userId: number, mes: number, anio: number, bloqueado: boolean): void {
+  getDb().prepare('UPDATE personal_meses SET bloqueado = ? WHERE user_id = ? AND mes = ? AND anio = ?').run(bloqueado ? 1 : 0, userId, mes, anio);
+}
+
+export function isPersonalMesBloqueado(userId: number, anio: number, mes: number): boolean {
+  const row = getDb().prepare('SELECT bloqueado FROM personal_meses WHERE user_id = ? AND mes = ? AND anio = ?').get(userId, mes, anio) as { bloqueado: number } | undefined;
+  return !!row?.bloqueado;
+}
+
+export function getPersonalGastoMesRef(id: number, userId: number): { anio: number; mes: number } | undefined {
+  return getDb().prepare('SELECT anio, mes FROM personal_gastos_mes WHERE id = ? AND user_id = ?').get(id, userId) as { anio: number; mes: number } | undefined;
+}
+
+export function getPersonalIngresoMesRef(id: number, userId: number): { anio: number; mes: number } | undefined {
+  return getDb().prepare('SELECT anio, mes FROM personal_ingresos_mes WHERE id = ? AND user_id = ?').get(id, userId) as { anio: number; mes: number } | undefined;
 }
 
 export function clearPersonalMesGastos(userId: number, mes: number, anio: number): void {

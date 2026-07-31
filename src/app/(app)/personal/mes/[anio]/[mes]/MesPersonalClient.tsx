@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { PersonalGastoMes, PersonalIngresoMes, PersonalCategoria, PersonalMes, PersonalGastoFijo, PersonalIngresoFijo } from '@/lib/db';
-import { BanknoteIcon, ReceiptIcon, BankIcon, PencilIcon, TrashIcon, SettingsIcon } from '@/components/icons';
+import { BanknoteIcon, ReceiptIcon, BankIcon, PencilIcon, TrashIcon, SettingsIcon, LockIcon, UnlockIcon } from '@/components/icons';
 import type { PersonalBanco } from '@/lib/db';
 import { autoText } from '@/components/ColorDots';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -33,6 +33,7 @@ interface Props {
   anio: number;
   mes: number;
   mesExists: boolean;
+  bloqueado: boolean;
   meses: PersonalMes[];
   gastos: PersonalGastoMes[];
   ingresos: PersonalIngresoMes[];
@@ -49,7 +50,7 @@ type ModalState =
   | { type: 'nuevoMes' };
 
 export default function MesPersonalClient({
-  anio, mes, mesExists,
+  anio, mes, mesExists, bloqueado: initBloqueado,
   meses: initMeses,
   gastos: initGastos,
   ingresos: initIngresos,
@@ -67,10 +68,24 @@ export default function MesPersonalClient({
   const [modal, setModal] = useState<ModalState>({ type: 'none' });
   const [loading, setLoading] = useState(false);
   const [confirmState, setConfirmState] = useState<{ msg: string; fn: () => Promise<void> } | null>(null);
+  const [bloqueado, setBloqueado] = useState(initBloqueado);
+  const [togglingBloqueo, setTogglingBloqueo] = useState(false);
 
   useEffect(() => { setMeses(initMeses); },   [initMeses]);
   useEffect(() => { setGastos(initGastos); },   [initGastos]);
   useEffect(() => { setIngresos(initIngresos); }, [initIngresos]);
+  useEffect(() => { setBloqueado(initBloqueado); }, [initBloqueado]);
+
+  async function toggleBloqueo() {
+    setTogglingBloqueo(true);
+    const next = !bloqueado;
+    await fetch('/api/personal/mes/bloqueo', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ anio, mes, bloqueado: next }),
+    });
+    setBloqueado(next);
+    setTogglingBloqueo(false);
+    router.refresh();
+  }
 
   const totalIngresos  = ingresos.reduce((s, i) => s + i.importe, 0);
   const totalGastos    = gastos.reduce((s, g) => s + g.importe, 0);
@@ -169,11 +184,25 @@ export default function MesPersonalClient({
             </svg>
           </div>
           <h1 className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>{nombre}</h1>
+          {bloqueado && (
+            <span className="flex items-center gap-1.5 px-2 sm:px-3 py-1 text-xs font-semibold rounded-full" style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
+              <LockIcon className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Bloqueado</span>
+            </span>
+          )}
           <InfoExpand title="¿Qué es Mes?">
-            <p>Aquí registras todos los gastos del mes con su categoría, fecha y banco. Al crear el mes puedes importar automáticamente los datos de tu Presupuesto para no tener que volver a introducirlos. Solo puedes crear el mes actual o, como máximo, el siguiente; el resto se irán habilitando a medida que avance el calendario.</p>
+            <p>Aquí registras todos los gastos del mes con su categoría, fecha y banco. Al crear el mes puedes importar automáticamente los datos de tu Presupuesto para no tener que volver a introducirlos. Solo puedes crear el mes actual o, como máximo, el siguiente; el resto se irán habilitando a medida que avance el calendario. Usa el candado para bloquear o desbloquear la imputación de gastos e ingresos; los meses ya vencidos se bloquean automáticamente.</p>
           </InfoExpand>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={toggleBloqueo}
+            disabled={togglingBloqueo}
+            title={bloqueado ? 'Desbloquear mes' : 'Bloquear mes'}
+            className="w-10 h-10 flex items-center justify-center rounded-2xl border transition-colors disabled:opacity-50"
+            style={{ background: 'var(--bg-sidebar)', borderColor: 'var(--btn-border)', color: bloqueado ? '#ef4444' : 'var(--text-primary)' }}
+          >
+            {bloqueado ? <LockIcon className="w-4 h-4" /> : <UnlockIcon className="w-4 h-4" />}
+          </button>
           <button
             onClick={() => setModal({ type: 'nuevoMes' })}
             className="px-4 py-2.5 text-sm font-semibold rounded-2xl border transition-colors"
@@ -250,7 +279,7 @@ export default function MesPersonalClient({
       <Section
         title="Ingresos" icon={<BanknoteIcon className="w-4 h-4" />} badge={fmt(totalIngresos)}
         headerClass="bg-success-dark"
-        onAdd={() => setModal({ type: 'ingreso' })}
+        onAdd={bloqueado ? undefined : () => setModal({ type: 'ingreso' })}
       >
         {ingresos.length === 0 ? <EmptyRow /> : (
           <div className="overflow-x-auto">
@@ -259,21 +288,23 @@ export default function MesPersonalClient({
                 <tr>
                   <Th>Concepto</Th>
                   <Th>Importe</Th>
-                  <Th align="right">Acciones</Th>
+                  {!bloqueado && <Th align="right">Acciones</Th>}
                 </tr>
               </thead>
               <tbody>
                 {ingresos.map(i => (
-                  <tr key={i.id} className="group" style={{ cursor: isMobile ? 'pointer' : undefined }}
-                    onClick={() => { if (isMobile) setModal({ type: 'ingreso', item: i }); }}>
+                  <tr key={i.id} className="group" style={{ cursor: isMobile && !bloqueado ? 'pointer' : undefined }}
+                    onClick={() => { if (isMobile && !bloqueado) setModal({ type: 'ingreso', item: i }); }}>
                     <td className="py-3 px-4">
                       <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{i.concepto}</span>
                       {i.comentario && <p className="text-xs truncate max-w-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{i.comentario}</p>}
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap font-mono font-semibold text-success">{fmt(i.importe)}</td>
-                    <td className="py-3 pr-3 text-right whitespace-nowrap">
-                      <RowActions onEdit={() => setModal({ type: 'ingreso', item: i })} onDelete={() => deleteIngreso(i.id)} />
-                    </td>
+                    {!bloqueado && (
+                      <td className="py-3 pr-3 text-right whitespace-nowrap">
+                        <RowActions onEdit={() => setModal({ type: 'ingreso', item: i })} onDelete={() => deleteIngreso(i.id)} />
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -286,7 +317,7 @@ export default function MesPersonalClient({
       <Section
         title="Gastos" icon={<ReceiptIcon className="w-4 h-4" />} badge={fmt(totalGastos)}
         headerClass="bg-orange-600"
-        onAdd={() => setModal({ type: 'gasto' })}
+        onAdd={bloqueado ? undefined : () => setModal({ type: 'gasto' })}
       >
         {gastos.length === 0 ? <EmptyRow /> : (
           <div className="overflow-x-auto">
@@ -298,15 +329,15 @@ export default function MesPersonalClient({
                   <Th>Importe</Th>
                   <Th>Categoría</Th>
                   <Th>Banco</Th>
-                  <Th align="right">Acciones</Th>
+                  {!bloqueado && <Th align="right">Acciones</Th>}
                 </tr>
               </thead>
               <tbody>
                 {gastos.map(g => {
                   const banco = bancos.find(b => b.nombre === g.banco);
                   return (
-                    <tr key={g.id} className="group" style={{ cursor: isMobile ? 'pointer' : undefined }}
-                      onClick={() => { if (isMobile) setModal({ type: 'gasto', item: g }); }}>
+                    <tr key={g.id} className="group" style={{ cursor: isMobile && !bloqueado ? 'pointer' : undefined }}
+                      onClick={() => { if (isMobile && !bloqueado) setModal({ type: 'gasto', item: g }); }}>
                       <td className="py-3 px-4">
                         <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{g.concepto}</span>
                         {g.comentario && <p className="text-xs truncate max-w-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{g.comentario}</p>}
@@ -319,9 +350,11 @@ export default function MesPersonalClient({
                           <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: banco.color, color: autoText(banco.color) }}>{banco.nombre}</span>
                         ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                       </td>
-                      <td className="py-3 pr-3 text-right whitespace-nowrap">
-                        <RowActions onEdit={() => setModal({ type: 'gasto', item: g })} onDelete={() => deleteGasto(g.id)} />
-                      </td>
+                      {!bloqueado && (
+                        <td className="py-3 pr-3 text-right whitespace-nowrap">
+                          <RowActions onEdit={() => setModal({ type: 'gasto', item: g })} onDelete={() => deleteGasto(g.id)} />
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

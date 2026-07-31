@@ -25,9 +25,44 @@ const TIPO_META: Record<Tipo, { color: string; emoji: string }> = {
 
 const RELEASES: Release[] = [
   {
+    version: 'v1.6.2',
+    fecha: '31 de julio de 2026',
+    destacado: true,
+    intro: 'Candado por Mes, Objetivos de ahorro con botones de añadir/retirar, y un Resumen renovado en Personal y Hogar con categorías con más gasto y filtros de Estadísticas más completos.',
+    grupos: [
+      {
+        tipo: 'Novedades',
+        items: [
+          'Mes (Personal y Hogar): candado para bloquear o desbloquear la imputación de gastos e ingresos; los meses vencidos se bloquean automáticamente y se pueden desbloquear para corregir datos.',
+          'Objetivos de ahorro (Personal y Hogar): emoji junto al nombre, botones de Añadir y Retirar dinero (en vez de editar el total a mano), y el porcentaje sobre la barra de progreso con "300 € de 500 €" debajo.',
+          'Resumen (Personal y Hogar): rediseñado con accesos directos a Presupuesto, Mes y Ahorro desde las tarjetas principales, calendario de próximos pagos que toma los gastos reales del Mes, y nueva tarjeta de categorías con más gasto de los últimos 6 meses.',
+          'Resumen (Hogar): nueva tarjeta con los últimos registros de Luz y Agua.',
+          'Estadísticas (Personal y Hogar): nuevos filtros de período "Mes actual" y "Año actual", además de los ya existentes.',
+        ],
+      },
+      {
+        tipo: 'Mejoras',
+        items: [
+          'El logo de la aplicación (escritorio y móvil) cambia entre modo Hogar y Personal al pulsarlo.',
+          'Objetivo anual de ahorro: admite aportaciones en 0 o negativas para marcar meses sin aportación o con retirada, y recalcula la cuota mensual dinámicamente según el progreso.',
+          'Registros de Luz y Agua: gráfica de consumo (kWh/m³) siempre visible junto a la de importe, con el mismo color.',
+          'Estadísticas: el selector de período pasa a ser un desplegable, más cómodo en móvil y sin problemas de desbordamiento.',
+          'Ajustes pasa a llamarse Configuración en el menú lateral.',
+        ],
+      },
+      {
+        tipo: 'Correcciones',
+        items: [
+          'La tematización del usuario se guarda en la base de datos: el tema elegido se aplica igual entrando desde cualquier dispositivo.',
+          'Objetivo anual de ahorro: corregido el cálculo de la cuota mensual cuando el mes en curso ya tenía una aportación registrada.',
+          'Estadísticas: la flecha del desplegable de período ya no se sale de la tarjeta en Safari para iOS.',
+        ],
+      },
+    ],
+  },
+  {
     version: 'v1.5.0',
     fecha: '20 de julio de 2026',
-    destacado: true,
     intro: 'Nueva sección de Apariencia en Mi Perfil: elige entre 6 temas visuales, modo claro/oscuro/sistema y colores de acento propios para Personal y Hogar. Tu preferencia viaja contigo entre dispositivos.',
     grupos: [
       {

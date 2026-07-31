@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getPersonalGastosMes, createPersonalGastoMes, getPersonalCategorias } from '@/lib/db';
+import { getPersonalGastosMes, createPersonalGastoMes, getPersonalCategorias, isPersonalMesBloqueado } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -24,6 +24,9 @@ export async function POST(request: NextRequest) {
   const { anio, mes, concepto, importe, categoria, banco, fecha, comentario } = await request.json();
   if (!anio || !mes || !concepto?.trim() || importe == null) {
     return NextResponse.json({ error: 'Campos requeridos' }, { status: 400 });
+  }
+  if (isPersonalMesBloqueado(session.id, Number(anio), Number(mes))) {
+    return NextResponse.json({ error: 'Este mes está bloqueado' }, { status: 403 });
   }
 
   createPersonalGastoMes(session.id, Number(anio), Number(mes), {
