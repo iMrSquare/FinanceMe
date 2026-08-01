@@ -25,7 +25,7 @@ const TIPO_META: Record<Tipo, { color: string; emoji: string }> = {
 
 const RELEASES: Release[] = [
   {
-    version: 'v1.6.3',
+    version: 'v1.1.1',
     fecha: '1 de agosto de 2026',
     destacado: true,
     intro: 'Tanda de correcciones tras el cambio de mes de julio a agosto: suscripciones que desaparecían del calendario, la cuota de Ahorro mensual mal calculada, el Mes de Hogar que se quedaba "atascado", y duplicados al importar datos.',
@@ -46,13 +46,17 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: 'v1.6.2',
+    version: 'v1.1.0',
     fecha: '31 de julio de 2026',
-    intro: 'Candado por Mes, Objetivos de ahorro con botones de añadir/retirar, y un Resumen renovado en Personal y Hogar con categorías con más gasto y filtros de Estadísticas más completos.',
+    intro: 'Nueva sección de Apariencia en Mi Perfil (temas, modo claro/oscuro/sistema y colores de acento), candado por Mes, Objetivos de ahorro con botones de añadir/retirar, y un Resumen renovado en Personal y Hogar con categorías con más gasto y filtros de Estadísticas más completos.',
     grupos: [
       {
         tipo: 'Novedades',
         items: [
+          'Apariencia (Mi Perfil): nueva tarjeta para elegir tema — Clásico, Ámbar, Monokai, Dracula, Vino o Contraste — cada uno con su propia paleta de colores y forma de esquinas.',
+          'Apariencia: modo claro, oscuro o según el sistema, ahora seleccionable desde Mi Perfil (antes solo había un interruptor claro/oscuro en el menú lateral).',
+          'Apariencia: colores de acento de Personal y Hogar personalizables de forma independiente al tema elegido, con opción de restablecer al valor del tema.',
+          'Nuevo logo de la aplicación, actualizado también en el favicon y el icono de instalación.',
           'Mes (Personal y Hogar): candado para bloquear o desbloquear la imputación de gastos e ingresos; los meses vencidos se bloquean automáticamente y se pueden desbloquear para corregir datos.',
           'Objetivos de ahorro (Personal y Hogar): emoji junto al nombre, botones de Añadir y Retirar dinero (en vez de editar el total a mano), y el porcentaje sobre la barra de progreso con "300 € de 500 €" debajo.',
           'Resumen (Personal y Hogar): rediseñado con accesos directos a Presupuesto, Mes y Ahorro desde las tarjetas principales, calendario de próximos pagos que toma los gastos reales del Mes, y nueva tarjeta de categorías con más gasto de los últimos 6 meses.',
@@ -63,6 +67,8 @@ const RELEASES: Release[] = [
       {
         tipo: 'Mejoras',
         items: [
+          'Mi Perfil reorganizado: perfil de usuario y cambiar contraseña juntos en una columna; apariencia, tutorial y tus datos personales en la otra.',
+          'La pantalla de inicio de sesión se muestra siempre en tema claro, para que el acceso sea consistente sea cual sea tu tema elegido.',
           'El logo de la aplicación (escritorio y móvil) cambia entre modo Hogar y Personal al pulsarlo.',
           'Objetivo anual de ahorro: admite aportaciones en 0 o negativas para marcar meses sin aportación o con retirada, y recalcula la cuota mensual dinámicamente según el progreso.',
           'Registros de Luz y Agua: gráfica de consumo (kWh/m³) siempre visible junto a la de importe, con el mismo color.',
@@ -73,6 +79,8 @@ const RELEASES: Release[] = [
       {
         tipo: 'Correcciones',
         items: [
+          'Registros de luz y agua: la gráfica de importes sigue ahora el color del tema y de la cabecera de su tabla — antes se quedaba siempre en negro y no reaccionaba al cambiar de tema.',
+          'Menú lateral (forma colapsada): el menú de usuario ya no aparece cortado o invisible al pulsarlo.',
           'La tematización del usuario se guarda en la base de datos: el tema elegido se aplica igual entrando desde cualquier dispositivo.',
           'Objetivo anual de ahorro: corregido el cálculo de la cuota mensual cuando el mes en curso ya tenía una aportación registrada.',
           'Estadísticas: la flecha del desplegable de período ya no se sale de la tarjeta en Safari para iOS.',
@@ -81,105 +89,36 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: 'v1.5.0',
-    fecha: '20 de julio de 2026',
-    intro: 'Nueva sección de Apariencia en Mi Perfil: elige entre 6 temas visuales, modo claro/oscuro/sistema y colores de acento propios para Personal y Hogar. Tu preferencia viaja contigo entre dispositivos.',
-    grupos: [
-      {
-        tipo: 'Novedades',
-        items: [
-          'Apariencia (Mi Perfil): nueva tarjeta para elegir tema — Clásico, Ámbar, Monokai, Dracula, Vino o Contraste — cada uno con su propia paleta de colores y forma de esquinas.',
-          'Apariencia: modo claro, oscuro o según el sistema, ahora seleccionable desde Mi Perfil (antes solo había un interruptor claro/oscuro en el menú lateral).',
-          'Apariencia: colores de acento de Personal y Hogar personalizables de forma independiente al tema elegido, con opción de restablecer al valor del tema.',
-          'Nuevo logo de la aplicación, actualizado también en el favicon y el icono de instalación.',
-        ],
-      },
-      {
-        tipo: 'Mejoras',
-        items: [
-          'Mi Perfil reorganizado: perfil de usuario y cambiar contraseña juntos en una columna; apariencia, tutorial y tus datos personales en la otra.',
-          'La pantalla de inicio de sesión se muestra siempre en tema claro, para que el acceso sea consistente sea cual sea tu tema elegido.',
-        ],
-      },
-      {
-        tipo: 'Correcciones',
-        items: [
-          'Registros de luz y agua: la gráfica de importes sigue ahora el color del tema y de la cabecera de su tabla — antes se quedaba siempre en negro y no reaccionaba al cambiar de tema.',
-          'Menú lateral (forma colapsada): el menú de usuario ya no aparece cortado o invisible al pulsarlo.',
-        ],
-      },
-    ],
-  },
-  {
-    version: 'v1.4.9',
+    version: 'v1.0.0',
     fecha: '18 de julio de 2026',
-    intro: 'Objetivo anual de ahorro en el Hogar (igual que en Personal), nuevo estado "Neutro" en el Balance y una tanda de correcciones de fiabilidad en Gestión y Presupuesto.',
+    intro: 'Primera versión estable de FinanceMe: Modo Personal completo, mejoras significativas al Modo Hogar, Objetivos de ahorro, tutorial de bienvenida y una notable tanda de fiabilidad en Presupuesto, Gestión y Mes.',
     grupos: [
       {
         tipo: 'Novedades',
         items: [
+          'Modo Personal — Seguimiento mensual: registra gastos e ingresos mes a mes con categorías, bancos y fechas.',
+          'Modo Personal — Presupuesto: gastos fijos y suscripciones como base del mes, con auto-rellenado al abrir un nuevo mes.',
+          'Modo Personal — Estadísticas: gráficos de evolución de gastos por categoría con selector de período (3 meses, 6 meses, todo).',
+          'Modo Personal — Gestión: administra tus categorías y bancos desde una sección dedicada.',
+          'Objetivos de ahorro: crea objetivos concretos (importe y fecha límite) en Personal y Hogar, con cálculo automático de la aportación mensual necesaria y seguimiento del progreso.',
+          'Tutorial de bienvenida: guía de inicio que explica el flujo de trabajo de la app, se muestra automáticamente la primera vez y se puede volver a abrir desde Mi Perfil.',
+          'Iconos de información: botón desplegable en las páginas principales que explica para qué sirve cada apartado.',
+          'Página de novedades (esta misma) accesible desde el número de versión del menú lateral.',
+          'Mes: solo se puede crear el mes actual o, como máximo, el siguiente; el resto se van habilitando a medida que avanza el calendario.',
+          'Suscripciones: nuevo interruptor para activar o desactivar el redondeo al alza del total mensual en la fila automática del Presupuesto.',
+          'Presupuesto: los gastos con fecha de vencimiento se eliminan automáticamente en cuanto esa fecha queda atrás.',
           'Ahorro (Hogar): nueva pestaña "Objetivo anual", igual que en Personal — define un objetivo de ahorro anual, sigue el desglose mes a mes y visualiza el progreso, junto a los objetivos de ahorro concretos ya existentes.',
           'Presupuesto (Hogar): nueva fila automática "Ahorro mensual" (objetivo anual ÷ 12), con categoría y banco configurables, igual que en Personal.',
           'Mes: la tarjeta de Balance añade el estado "Neutro" (gris, con "=") cuando ingresos y gastos coinciden exactamente, junto a Superávit y Déficit.',
         ],
       },
       {
-        tipo: 'Correcciones',
-        items: [
-          'Gestión (móvil): al escribir un nombre largo de categoría o banco, el campo ya no empuja el botón OK fuera de la pantalla.',
-          'Editar una categoría o un banco: el cambio de nombre se propaga ahora a todos los gastos, gastos fijos y configuraciones automáticas que ya lo usaban, tanto en Hogar como en Personal.',
-          'Mes de Hogar: la tabla de Gastos usa el mismo contraste automático de texto que el resto de la app, en vez de texto blanco fijo sobre colores claros.',
-          'Presupuesto de Hogar: al volver de Gestión, la tabla de gastos, los ingresos y las filas automáticas se actualizan al instante sin recargar la página.',
-          'Presupuesto de Hogar: los filtros de categoría y banco muestran ahora todas las categorías y bancos configurados en Gestión, no solo los que ya se usan en algún gasto.',
-          'Mes: al importar el Presupuesto para crear un mes nuevo, las filas automáticas de Ahorro mensual y Objetivos de ahorro ya incluyen la categoría y el banco configurados.',
-        ],
-      },
-    ],
-  },
-  {
-    version: 'v1.4.2',
-    fecha: '28 de junio de 2026',
-    intro: 'Límite de creación de meses, redondeo configurable en Suscripciones y un repaso de fiabilidad en Presupuesto y Objetivos de ahorro.',
-    grupos: [
-      {
-        tipo: 'Novedades',
-        items: [
-          'Mes: solo se puede crear el mes actual o, como máximo, el siguiente; el resto se van habilitando a medida que avanza el calendario.',
-          'Suscripciones: nuevo interruptor para activar o desactivar el redondeo al alza del total mensual en la fila automática del Presupuesto.',
-          'Presupuesto: los gastos con fecha de vencimiento se eliminan automáticamente en cuanto esa fecha queda atrás.',
-        ],
-      },
-      {
-        tipo: 'Correcciones',
-        items: [
-          'Gestión: al crear o editar una categoría o banco y volver a Presupuesto, la lista se actualiza al instante sin recargar la página.',
-          'Vencimiento: formato de fecha unificado (DD-MM-AAAA) en los presupuestos de Personal y Hogar.',
-          'Presupuesto: las categorías y bancos con fondo claro ya muestran el texto en color oscuro para mejorar la legibilidad.',
-          'Objetivos de ahorro: el selector de mes y año vuelve a funcionar correctamente en Safari.',
-          'Hogar: la fila automática de Objetivos de ahorro ya se suma al total de Gastos Fijos.',
-          'En móvil, las filas automáticas del Presupuesto (Suscripciones, Ahorro, Objetivos) ya se pueden editar tocándolas, igual que el resto de filas.',
-          'El contador de conceptos de la tabla de Gastos Fijos ya tiene en cuenta las filas automáticas.',
-        ],
-      },
-    ],
-  },
-  {
-    version: 'v1.4.0',
-    fecha: '27 de junio de 2026',
-    intro: 'Objetivos de ahorro, tutorial de bienvenida y un buen repaso de import/export y diseño.',
-    grupos: [
-      {
-        tipo: 'Novedades',
-        items: [
-          'Objetivos de ahorro: crea objetivos concretos (importe y fecha límite) en Personal y Hogar, con cálculo automático de la aportación mensual necesaria y seguimiento del progreso.',
-          'Tutorial de bienvenida: guía de inicio que explica el flujo de trabajo de la app, se muestra automáticamente la primera vez y se puede volver a abrir desde Mi Perfil.',
-          'Iconos de información: botón desplegable en las páginas principales que explica para qué sirve cada apartado.',
-          'Página de novedades (esta misma) accesible desde el número de versión del menú lateral.',
-        ],
-      },
-      {
         tipo: 'Mejoras',
         items: [
+          'Hogar — Nueva vista de mes rediseñada, más clara y consistente con el resto de la app.',
+          'Hogar — Presupuesto con soporte de fecha de cobro, banco y vencimiento.',
+          'Hogar — Calendario de pagos y próximos pagos integrados en el Resumen, tomando los datos del presupuesto.',
+          'Hogar — Estadísticas con gráfico apilado por categoría, tarjetas de detalle y selector de período.',
           'La aportación mensual de los objetivos en progreso se añade automáticamente al Presupuesto, con categoría y banco configurables.',
           'Presupuesto: cabecera de tabla con color propio para distinguirla de los títulos de columna.',
           'Mes de Hogar: cabeceras de tabla unificadas con las de Personal (icono, tamaño y color).',
@@ -190,74 +129,26 @@ const RELEASES: Release[] = [
       {
         tipo: 'Correcciones',
         items: [
+          'Import/Export Personal completo: el backup incluye meses, gastos, ingresos y configuración de presupuesto automático.',
+          'Migración de préstamos: los registros de la tabla de préstamos se migran automáticamente a gastos al arrancar, sin pérdida de datos.',
+          'Corrección de tipos en el menú lateral.',
           'Import/Export Personal y Hogar: el backup ahora incluye todos los datos (objetivos de ahorro, ingresos fijos, presupuesto automático, registros de luz y agua) y deja de perder los campos de banco, cobro y vencimiento al importar.',
           'Personal: al sobrescribir o reimportar un mes, las filas automáticas (Suscripciones, Ahorro y Objetivos) se vuelven a generar, igual que en Hogar.',
           'Tutorial: en móvil se puede desplazar todo el contenido y el botón de cierre queda siempre accesible.',
           'Iconos de información: el desplegable ya no se sale de la pantalla en móvil.',
-        ],
-      },
-    ],
-  },
-  {
-    version: 'v1.0.0',
-    fecha: '6 de junio de 2026',
-    intro: 'Primera versión estable: Modo Personal completo y mejoras significativas al Modo Hogar.',
-    grupos: [
-      {
-        tipo: 'Novedades',
-        items: [
-          'Modo Personal — Seguimiento mensual: registra gastos e ingresos mes a mes con categorías, bancos y fechas.',
-          'Modo Personal — Presupuesto: gastos fijos y suscripciones como base del mes, con auto-rellenado al abrir un nuevo mes.',
-          'Modo Personal — Estadísticas: gráficos de evolución de gastos por categoría con selector de período (3 meses, 6 meses, todo).',
-          'Modo Personal — Gestión: administra tus categorías y bancos desde una sección dedicada.',
-        ],
-      },
-      {
-        tipo: 'Mejoras',
-        items: [
-          'Hogar — Nueva vista de mes rediseñada, más clara y consistente con el resto de la app.',
-          'Hogar — Presupuesto con soporte de fecha de cobro, banco y vencimiento.',
-          'Hogar — Calendario de pagos y próximos pagos integrados en el Resumen, tomando los datos del presupuesto.',
-          'Hogar — Estadísticas con gráfico apilado por categoría, tarjetas de detalle y selector de período.',
-        ],
-      },
-      {
-        tipo: 'Correcciones',
-        items: [
-          'Import/Export Personal completo: el backup incluye meses, gastos, ingresos y configuración de presupuesto automático.',
-          'Migración de préstamos: los registros de la tabla de préstamos se migran automáticamente a gastos al arrancar, sin pérdida de datos.',
-          'Corrección de tipos en el menú lateral.',
-        ],
-      },
-    ],
-  },
-  {
-    version: 'v0.9.2',
-    fecha: '24 de mayo de 2026',
-    grupos: [
-      {
-        tipo: 'Correcciones',
-        items: [
-          'Corrección del avatar de usuario.',
-          'Corrección del modal de inicio del módulo de Hogar.',
-          'Mejoras en el README.',
-        ],
-      },
-    ],
-  },
-  {
-    version: 'v0.9.1',
-    fecha: '24 de mayo de 2026',
-    intro: 'Primera versión pública de FinanceMe, una aplicación web de gestión financiera para uso personal y del hogar.',
-    grupos: [
-      {
-        tipo: 'Novedades',
-        items: [
-          'Hogar — Registro mensual de gastos compartidos, préstamos y gastos fijos.',
-          'Hogar — Seguimiento de consumo de luz y agua con histórico de lecturas.',
-          'Hogar — Resumen y estadísticas por mes.',
-          'Personal — Control de gastos por categoría, suscripciones, ahorro mensual y presupuesto configurable.',
-          'General — Autenticación con JWT y roles, import/export de datos, diseño responsive instalable como PWA y base de datos local SQLite.',
+          'Gestión: al crear o editar una categoría o banco y volver a Presupuesto, la lista se actualiza al instante sin recargar la página.',
+          'Vencimiento: formato de fecha unificado (DD-MM-AAAA) en los presupuestos de Personal y Hogar.',
+          'Presupuesto: las categorías y bancos con fondo claro ya muestran el texto en color oscuro para mejorar la legibilidad.',
+          'Objetivos de ahorro: el selector de mes y año vuelve a funcionar correctamente en Safari.',
+          'Hogar: la fila automática de Objetivos de ahorro ya se suma al total de Gastos Fijos.',
+          'En móvil, las filas automáticas del Presupuesto (Suscripciones, Ahorro, Objetivos) ya se pueden editar tocándolas, igual que el resto de filas.',
+          'El contador de conceptos de la tabla de Gastos Fijos ya tiene en cuenta las filas automáticas.',
+          'Gestión (móvil): al escribir un nombre largo de categoría o banco, el campo ya no empuja el botón OK fuera de la pantalla.',
+          'Editar una categoría o un banco: el cambio de nombre se propaga ahora a todos los gastos, gastos fijos y configuraciones automáticas que ya lo usaban, tanto en Hogar como en Personal.',
+          'Mes de Hogar: la tabla de Gastos usa el mismo contraste automático de texto que el resto de la app, en vez de texto blanco fijo sobre colores claros.',
+          'Presupuesto de Hogar: al volver de Gestión, la tabla de gastos, los ingresos y las filas automáticas se actualizan al instante sin recargar la página.',
+          'Presupuesto de Hogar: los filtros de categoría y banco muestran ahora todas las categorías y bancos configurados en Gestión, no solo los que ya se usan en algún gasto.',
+          'Mes: al importar el Presupuesto para crear un mes nuevo, las filas automáticas de Ahorro mensual y Objetivos de ahorro ya incluyen la categoría y el banco configurados.',
         ],
       },
     ],

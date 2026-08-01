@@ -1,6 +1,6 @@
 {
   "name": "financeme",
-  "version": "1.6.3",
+  "version": "1.1.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
