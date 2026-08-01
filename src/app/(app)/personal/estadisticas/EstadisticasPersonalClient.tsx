@@ -40,8 +40,14 @@ const PERIOD_OPTIONS: { label: string; value: PeriodValue }[] = [
   { label: 'Todo', value: 999 },
 ];
 
+function defaultPeriod(mesesDisponibles: number): PeriodValue {
+  if (mesesDisponibles >= 6) return 6;
+  if (mesesDisponibles >= 3) return 3;
+  return 1;
+}
+
 export default function EstadisticasPersonalClient({ data }: Props) {
-  const [period, setPeriod] = useState<PeriodValue>(6);
+  const [period, setPeriod] = useState<PeriodValue>(() => defaultPeriod(data.mesesLabels.length));
   const stackedRef = useRef<HTMLCanvasElement>(null);
   const stackedChart = useRef<Chart | null>(null);
   const miniRefs = useRef<(HTMLCanvasElement | null)[]>([]);

@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { mensualNecesario } from './ahorroObjetivos';
+import { objetivoMensualAhorro } from './ahorro';
 import type { SessionUser } from './auth-edge';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'financeme.db');
@@ -656,10 +657,10 @@ export function applyFijosToMes(mesId: number, mes: number, anio: number) {
   const autoConfigs = getPresupuestoAutoConfigsHogar();
 
   const ahorroAnual = getAhorro(anio);
-  const ahorroMensual = ahorroAnual.objetivo_anual / 12;
+  const ahorroMensual = objetivoMensualAhorro(ahorroAnual.objetivo_anual, ahorroAnual.meses, anio);
   if (ahorroMensual > 0) {
     const cfg = autoConfigs.find(c => c.tipo === 'ahorro');
-    insertGasto.run(mesId, 'Ahorro mensual', null, cfg?.categoria ?? null, cfg?.banco ?? null, ahorroMensual, `Objetivo ${ahorroAnual.objetivo_anual} € / año ÷ 12`);
+    insertGasto.run(mesId, 'Ahorro mensual', null, cfg?.categoria ?? null, cfg?.banco ?? null, ahorroMensual, `Objetivo ${ahorroAnual.objetivo_anual} € / año, cuota recalculada según lo aportado`);
   }
 
   const objetivosMensual = getAhorroObjetivos().reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);

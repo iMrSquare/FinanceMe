@@ -179,7 +179,8 @@ function Th({ children, align = 'left' }: { children?: React.ReactNode; align?: 
 
 // ── Componente principal ─────────────────────────────────────────────────────
 interface Props {
-  mesObj: Mes;
+  mesObj: Mes | null;
+  mesExists: boolean;
   gastos: Gasto[];
   ingresos: Ingreso[];
   categoriasGasto: Categoria[];
@@ -194,7 +195,7 @@ const fieldInputCls = 'w-full rounded-xl px-3 py-2 text-sm focus:outline-none fo
 const fieldInputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
 
 export default function HogarMesPageClient({
-  mesObj, gastos: initGastos, ingresos: initIngresos,
+  mesObj, mesExists, gastos: initGastos, ingresos: initIngresos,
   categoriasGasto, categoriasBanco, meses, nombre, canEdit = true,
 }: Props) {
   const router = useRouter();
@@ -206,17 +207,17 @@ export default function HogarMesPageClient({
   const [nuevoMesOpen, setNuevoMesOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState<{ msg: string; fn: () => Promise<void> } | null>(null);
-  const [bloqueado, setBloqueado] = useState(!!mesObj.bloqueado);
+  const [bloqueado, setBloqueado] = useState(!!mesObj?.bloqueado);
   const [togglingBloqueo, setTogglingBloqueo] = useState(false);
 
   useEffect(() => { setGastos(initGastos); }, [initGastos]);
   useEffect(() => { setIngresos(initIngresos); }, [initIngresos]);
-  useEffect(() => { setBloqueado(!!mesObj.bloqueado); }, [mesObj.bloqueado]);
+  useEffect(() => { setBloqueado(!!mesObj?.bloqueado); }, [mesObj?.bloqueado]);
 
   async function toggleBloqueo() {
     setTogglingBloqueo(true);
     const next = !bloqueado;
-    await fetch(`/api/meses/${mesObj.id}/bloqueo`, {
+    await fetch(`/api/meses/${mesObj!.id}/bloqueo`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bloqueado: next }),
     });
     setBloqueado(next);
@@ -225,6 +226,41 @@ export default function HogarMesPageClient({
   }
 
   const puedeEditar = canEdit && !bloqueado;
+
+  // ── Sin meses creados — pantalla de primer arranque ─────────────────────
+  if (!mesExists || !mesObj) {
+    return (
+      <div className="space-y-8">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(14,165,233,0.12)' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-hogar)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </div>
+          <h1 className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Mes</h1>
+        </div>
+        <div className="glass-card rounded-3xl p-12 text-center">
+          <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(14,165,233,0.1)' }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent-hogar)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Sin meses creados</h2>
+          <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>Crea tu primer mes para empezar a registrar ingresos y gastos del hogar.</p>
+          {canEdit && (
+            <button
+              onClick={() => setNuevoMesOpen(true)}
+              className="px-6 py-3 rounded-2xl text-sm font-bold text-white shadow-lg"
+              style={{ background: 'linear-gradient(135deg, var(--accent-hogar), color-mix(in srgb, var(--accent-hogar) 75%, black))' }}
+            >
+              + Crear primer mes
+            </button>
+          )}
+        </div>
+        {nuevoMesOpen && <NuevoMesModal meses={meses} onClose={() => setNuevoMesOpen(false)} />}
+      </div>
+    );
+  }
 
   const gastosSorted = [...gastos].sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? '') || a.id - b.id);
   const totalIngresos = ingresos.reduce((s, i) => s + (i.aportacion ?? 0), 0);
@@ -235,7 +271,7 @@ export default function HogarMesPageClient({
   async function saveIngreso() {
     if (!ingresoModal) return;
     setSaving(true);
-    const body = { mes_id: mesObj.id, inquilino: ingresoModal.inquilino, aportacion: Number(ingresoModal.aportacion) || 0, comentario: ingresoModal.comentario || null };
+    const body = { mes_id: mesObj!.id, inquilino: ingresoModal.inquilino, aportacion: Number(ingresoModal.aportacion) || 0, comentario: ingresoModal.comentario || null };
     if (ingresoModal.id) {
       await fetch(`/api/ingresos/${ingresoModal.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       setIngresos(prev => prev.map(i => i.id === ingresoModal.id ? { ...i, ...body } : i));
@@ -262,7 +298,7 @@ export default function HogarMesPageClient({
   async function saveGasto() {
     if (!gastoModal) return;
     setSaving(true);
-    const body = { mes_id: mesObj.id, gasto: gastoModal.gasto, fecha: gastoModal.fecha || null, categoria: gastoModal.categoria || null, banco: gastoModal.banco || null, importe: Number(gastoModal.importe) || 0, comentario: gastoModal.comentario || null };
+    const body = { mes_id: mesObj!.id, gasto: gastoModal.gasto, fecha: gastoModal.fecha || null, categoria: gastoModal.categoria || null, banco: gastoModal.banco || null, importe: Number(gastoModal.importe) || 0, comentario: gastoModal.comentario || null };
     if (gastoModal.id) {
       await fetch(`/api/gastos/${gastoModal.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       setGastos(prev => prev.map(g => g.id === gastoModal.id ? { ...g, ...body } : g));

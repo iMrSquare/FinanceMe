@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import type { PublicUser } from '@/lib/db';
 import { validateUsername, validatePassword } from '@/lib/validation';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ImportOverwriteDialog } from '@/components/ImportOverwriteDialog';
 import Image from 'next/image';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -41,6 +42,7 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
   const [importing, setImporting] = useState(false);
   const [ioMsg, setIoMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [pendingImport, setPendingImport] = useState<Record<string, unknown> | null>(null);
+  const [dupInfo, setDupInfo] = useState<{ count: number; breakdown: Record<string, number> } | null>(null);
 
   async function handleExport() {
     const res = await fetch(`/api/export/${ioSeccion}`);
@@ -73,14 +75,37 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
     }
   }
 
-  async function doImport(json: Record<string, unknown>) {
+  async function checkThenImport(json: Record<string, unknown>) {
     setImporting(true);
     setIoMsg(null);
     try {
       const res = await fetch(`/api/import/${ioSeccion}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(json),
+        body: JSON.stringify({ ...json, mode: 'check' }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setIoMsg({ type: 'err', text: data.error ?? 'Error al importar' }); setImporting(false); return; }
+      if (data.duplicates > 0) {
+        setDupInfo({ count: data.duplicates, breakdown: data.breakdown });
+        setImporting(false);
+      } else {
+        await doImport(json, true);
+      }
+    } catch {
+      setIoMsg({ type: 'err', text: 'Error al importar los datos' });
+      setImporting(false);
+    }
+  }
+
+  async function doImport(json: Record<string, unknown>, overwrite: boolean) {
+    setImporting(true);
+    setIoMsg(null);
+    try {
+      const res = await fetch(`/api/import/${ioSeccion}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...json, mode: 'apply', overwrite }),
       });
       const data = await res.json();
       if (!res.ok) { setIoMsg({ type: 'err', text: data.error ?? 'Error al importar' }); return; }
@@ -494,7 +519,7 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
           </svg>
           <h2 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>Importación y Exportación</h2>
         </div>
-        <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>Exporta o importa los datos de Hogar en formato JSON. Al importar, los datos existentes serán reemplazados. Los datos personales se gestionan desde cada perfil de usuario.</p>
+        <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>Exporta o importa los datos de Hogar en formato JSON. Al importar, si se detectan registros que ya existen se te preguntará si quieres sobrescribirlos o mantener los actuales. Los datos personales se gestionan desde cada perfil de usuario.</p>
 
         <div className="flex flex-col sm:flex-row gap-3">
           {/* Export */}
@@ -536,13 +561,22 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
           onCancel={() => setConfirmState(null)}
         />
       )}
-      {pendingImport && (
+      {pendingImport && !dupInfo && (
         <ConfirmDialog
           message="¿Importar datos de Hogar?"
-          detail="Los datos existentes serán reemplazados por los del archivo. Esta acción no se puede deshacer."
+          detail="Se añadirán los datos del archivo a los que ya hay. Si se detectan registros duplicados, se te preguntará si quieres sobrescribirlos."
           confirmLabel="Importar"
-          onConfirm={async () => { const json = pendingImport; setPendingImport(null); await doImport(json); }}
+          onConfirm={() => checkThenImport(pendingImport)}
           onCancel={() => setPendingImport(null)}
+        />
+      )}
+      {pendingImport && dupInfo && (
+        <ImportOverwriteDialog
+          count={dupInfo.count}
+          breakdown={dupInfo.breakdown}
+          onOverwrite={async () => { const json = pendingImport; setPendingImport(null); setDupInfo(null); await doImport(json, true); }}
+          onSkip={async () => { const json = pendingImport; setPendingImport(null); setDupInfo(null); await doImport(json, false); }}
+          onCancel={() => { setPendingImport(null); setDupInfo(null); }}
         />
       )}
     </div>

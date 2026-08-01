@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { monthlyEquivalent } from '@/lib/billing';
 import { mensualNecesario } from '@/lib/ahorroObjetivos';
+import { objetivoMensualAhorro } from '@/lib/ahorro';
 import {
   createPersonalMes, getPersonalGastos, createPersonalGastoMes,
   getPersonalIngresosFijos, createPersonalIngresoMes,
@@ -45,7 +46,7 @@ function applyVirtualRows(userId: number, anioNum: number, mesNum: number) {
   }
 
   const ahorro = getPersonalAhorro(userId, anioNum);
-  const ahorroMensual = ahorro.objetivo_anual / 12;
+  const ahorroMensual = objetivoMensualAhorro(ahorro.objetivo_anual, ahorro.meses, anioNum);
   if (ahorroMensual > 0) {
     const cfg = autoConfigs.find(c => c.tipo === 'ahorro');
     createPersonalGastoMes(userId, anioNum, mesNum, {
@@ -54,7 +55,7 @@ function applyVirtualRows(userId: number, anioNum: number, mesNum: number) {
       categoria: cfg?.categoria ?? null,
       banco: cfg?.banco ?? null,
       fecha: null,
-      comentario: `Objetivo ${ahorro.objetivo_anual} € / año ÷ 12 redondeado`,
+      comentario: `Objetivo ${ahorro.objetivo_anual} € / año, cuota recalculada según lo aportado`,
     });
   }
 

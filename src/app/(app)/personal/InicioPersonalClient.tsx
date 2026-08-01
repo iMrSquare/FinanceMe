@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { nextBillingDate, monthlyEquivalent } from '@/lib/billing';
+import { billingDayInMonth, monthlyEquivalent } from '@/lib/billing';
+import { objetivoMensualAhorro } from '@/lib/ahorro';
 import InfoExpand from '@/components/InfoExpand';
 import type { PersonalGastoFijo, PersonalGastoMes, PersonalSuscripcion, PersonalAhorro, PersonalMesEvolucion, PresupuestoAutoConfig, EstadisticasData } from '@/lib/db';
 import {
@@ -19,6 +20,9 @@ const DIAS_SEMANA = ['Lu','Ma','Mi','Ju','Vi','Sá','Do'];
 
 interface CalEvent { day: number; nombre: string; importe: number; tipo: 'gasto' | 'suscripcion'; }
 
+// Las suscripciones se muestran antes que los gastos ya registrados del mes.
+const tipoRank = (tipo: CalEvent['tipo']) => tipo === 'suscripcion' ? 0 : 1;
+
 function Calendario({ events }: { events: CalEvent[] }) {
   const today = new Date();
   const year = today.getFullYear();
@@ -28,6 +32,7 @@ function Calendario({ events }: { events: CalEvent[] }) {
 
   const byDay: Record<number, CalEvent[]> = {};
   events.forEach(e => { if (!byDay[e.day]) byDay[e.day] = []; byDay[e.day].push(e); });
+  Object.values(byDay).forEach(list => list.sort((a, b) => tipoRank(a.tipo) - tipoRank(b.tipo)));
 
   const cells: (number | null)[] = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
   while (cells.length % 7 !== 0) cells.push(null);
@@ -117,11 +122,12 @@ export default function InicioPersonalClient() {
 
   const suscRedondeo  = (autoConfigs.find(c => c.tipo === 'suscripciones')?.redondeo ?? 1) === 1;
   const suscVirtual   = totalSuscMensual > 0 ? (suscRedondeo ? roundUp5(totalSuscMensual) : totalSuscMensual) : 0;
-  const ahorroVirtual = (ahorro?.objetivo_anual ?? 0) > 0 ? ahorro!.objetivo_anual / 12 : 0;
+  const ahorroVirtual = ahorro ? objetivoMensualAhorro(ahorro.objetivo_anual, ahorro.meses, new Date().getFullYear()) : 0;
   const presupuestoTotal = totalGastos + suscVirtual + ahorroVirtual;
 
   const topCategorias = (estadisticas?.categorias ?? []).slice(0, 5);
 
+  const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
   const calEvents: CalEvent[] = [
     ...mesGastos.filter(g => g.fecha).map(g => ({
@@ -129,12 +135,14 @@ export default function InicioPersonalClient() {
       nombre: g.concepto, importe: g.importe, tipo: 'gasto' as const,
     })),
     ...suscs.filter(s => s.cobro)
-      .map(s => ({ next: nextBillingDate(s.cobro!, s.periodicidad), nombre: s.nombre, importe: s.importe, tipo: 'suscripcion' as const }))
-      .filter(({ next }) => next.getMonth() === currentMonth)
-      .map(({ next, nombre, importe, tipo }) => ({ day: next.getDate(), nombre, importe, tipo })),
+      .map(s => ({ day: billingDayInMonth(s.cobro!, s.periodicidad, currentYear, currentMonth), nombre: s.nombre, importe: s.importe, tipo: 'suscripcion' as const }))
+      .filter((e): e is { day: number; nombre: string; importe: number; tipo: 'suscripcion' } => e.day !== null),
   ];
 
-  const proximos = [...calEvents].sort((a, b) => a.day - b.day).filter(e => e.day >= new Date().getDate()).slice(0, 5);
+  const proximos = calEvents
+    .filter(e => e.day >= new Date().getDate())
+    .sort((a, b) => a.day - b.day)
+    .slice(0, 10);
 
   // Charts de evolución
   useEffect(() => {
@@ -311,7 +319,7 @@ export default function InicioPersonalClient() {
       {/* Calendar + upcoming */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="glass-card rounded-3xl p-6 order-first lg:order-last">
-          <h2 className="font-bold text-lg mb-4" style={{ color: 'var(--text-primary)' }}>Próximos pagos</h2>
+          <h2 className="font-bold text-lg mb-4" style={{ color: 'var(--text-primary)' }}>Próximos 10 pagos</h2>
           {proximos.length === 0 ? (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Sin pagos pendientes este mes</p>
           ) : (

@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react';
 import InfoExpand from '@/components/InfoExpand';
 import type { PersonalAhorro, PersonalAhorroMes } from '@/lib/db';
+import { objetivoMensualAhorro } from '@/lib/ahorro';
 
 const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -132,21 +133,7 @@ export default function AhorroClient() {
   const currentYear = new Date().getFullYear();
   const isViewingCurrentYear = year === currentYear;
 
-  // Cuota mensual recalculada: lo que falta para el objetivo repartido entre los
-  // meses que quedan, en función de lo conseguido hasta ahora. El mes actual solo
-  // cuenta como "restante" si todavía no se ha registrado ninguna aportación en él;
-  // si ya tiene un valor (incluso 0 explícito no se puede distinguir del vacío, pero
-  // un valor distinto de 0 sí), se considera cerrado y no vuelve a contarse en el divisor.
-  const currentMonthYaAportado = isViewingCurrentYear && meses[currentMonth]?.aportado !== 0;
-  const totalHastaAhora = isViewingCurrentYear
-    ? meses.slice(0, currentMonth + 1).reduce((s, m) => s + m.aportado, 0)
-    : totalAportado;
-  const mesesRestantes = isViewingCurrentYear
-    ? Math.max(currentMonthYaAportado ? 11 - currentMonth : 12 - currentMonth, 1)
-    : 12;
-  const objetivoMensual = hasGoal
-    ? (isViewingCurrentYear ? (objetivoAnual - totalHastaAhora) / mesesRestantes : objetivoMensualBase)
-    : 0;
+  const objetivoMensual = objetivoMensualAhorro(objetivoAnual, meses, year);
 
   return (
     <div className="space-y-6">

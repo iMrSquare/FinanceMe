@@ -4,6 +4,7 @@ import Link from 'next/link';
 import InfoExpand from '@/components/InfoExpand';
 import { BoltIcon, DropletIcon } from '@/components/icons';
 import { mensualNecesario } from '@/lib/ahorroObjetivos';
+import { objetivoMensualAhorro } from '@/lib/ahorro';
 import type { Fijo, AhorroObjetivo, Ahorro, Mes, Gasto, EstadisticasData, RegistroLuz, RegistroAgua, MesBalance } from '@/lib/db';
 import {
   Chart, LineElement, LineController, PointElement,
@@ -98,7 +99,7 @@ export default function HogarResumenClient({
 
   const totalFijosGasto = fijosGasto.reduce((s, f) => s + f.importe, 0);
   const objetivosVirtual = objetivosAhorro.reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
-  const ahorroVirtual = ahorro.objetivo_anual > 0 ? ahorro.objetivo_anual / 12 : 0;
+  const ahorroVirtual = objetivoMensualAhorro(ahorro.objetivo_anual, ahorro.meses, anioActual);
   const presupuestoTotal = totalFijosGasto + objetivosVirtual + ahorroVirtual;
   const presupuestoConceptos = fijosGasto.length + (objetivosVirtual > 0 ? 1 : 0) + (ahorroVirtual > 0 ? 1 : 0);
 

@@ -25,9 +25,29 @@ const TIPO_META: Record<Tipo, { color: string; emoji: string }> = {
 
 const RELEASES: Release[] = [
   {
+    version: 'v1.6.3',
+    fecha: '1 de agosto de 2026',
+    destacado: true,
+    intro: 'Tanda de correcciones tras el cambio de mes de julio a agosto: suscripciones que desaparecían del calendario, la cuota de Ahorro mensual mal calculada, el Mes de Hogar que se quedaba "atascado", y duplicados al importar datos.',
+    grupos: [
+      {
+        tipo: 'Correcciones',
+        items: [
+          'Resumen (Personal): las suscripciones ya no desaparecen del calendario ni de "Próximos pagos" en cuanto pasa su día de cobro dentro del mes.',
+          'Resumen (Personal): "Próximos pagos" pasa a "Próximos 10 pagos" (antes 5), mezclando gastos y suscripciones ordenados por fecha; en el calendario, cuando un día tiene muchos pagos, las suscripciones se muestran antes que los gastos ya registrados.',
+          'Ahorro mensual automático (Presupuesto y Resumen, Personal y Hogar): ahora usa la misma cuota recalculada que la página de Ahorro (según lo aportado y los meses que quedan) en vez de una media fija del objetivo anual entre 12.',
+          'Estadísticas (Personal y Hogar): el filtro de período por defecto se adapta al histórico disponible — 6 meses si los hay, si no 3, y si tampoco hay, el mes actual.',
+          'Mes (Hogar): visitar la página de un mes ya no lo crea vacío en silencio — antes esto podía dejar sin efecto el botón "Crear mes" al no importar los gastos fijos; ahora se comporta igual que en Personal.',
+          'Exportar Hogar: el backup incluye ahora también el objetivo anual de ahorro y sus aportaciones mensuales, que antes no se guardaban.',
+          'Importar datos (Personal y Hogar): reimportar el mismo archivo ya no duplica gastos fijos, suscripciones, objetivos de ahorro, fijos ni registros de luz/agua — si se detectan registros ya existentes, se avisa y se puede elegir sobrescribirlos o mantener los actuales.',
+          'Importar objetivos de ahorro (Personal y Hogar): se restaura también el emoji, que se perdía al importar.',
+        ],
+      },
+    ],
+  },
+  {
     version: 'v1.6.2',
     fecha: '31 de julio de 2026',
-    destacado: true,
     intro: 'Candado por Mes, Objetivos de ahorro con botones de añadir/retirar, y un Resumen renovado en Personal y Hogar con categorías con más gasto y filtros de Estadísticas más completos.',
     grupos: [
       {

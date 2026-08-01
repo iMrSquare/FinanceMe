@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import type { SessionUser } from '@/lib/auth';
 import { validatePassword } from '@/lib/validation';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ImportOverwriteDialog } from '@/components/ImportOverwriteDialog';
 import { useTutorial } from '@/components/TutorialProvider';
 import { HelpIcon } from '@/components/icons';
 import AppearanceCard from '@/components/AppearanceCard';
@@ -46,6 +47,7 @@ export default function PerfilClient({ session }: Props) {
   const [importing, setImporting] = useState(false);
   const [ioMsg, setIoMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [pendingImport, setPendingImport] = useState<Record<string, unknown> | null>(null);
+  const [dupInfo, setDupInfo] = useState<{ count: number; breakdown: Record<string, number> } | null>(null);
 
   async function handleExport() {
     setIoMsg(null);
@@ -79,14 +81,37 @@ export default function PerfilClient({ session }: Props) {
     }
   }
 
-  async function doImport(json: Record<string, unknown>) {
+  async function checkThenImport(json: Record<string, unknown>) {
     setImporting(true);
     setIoMsg(null);
     try {
       const res = await fetch('/api/import/personal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(json),
+        body: JSON.stringify({ ...json, mode: 'check' }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setIoMsg({ type: 'err', text: data.error ?? 'Error al importar' }); setImporting(false); return; }
+      if (data.duplicates > 0) {
+        setDupInfo({ count: data.duplicates, breakdown: data.breakdown });
+        setImporting(false);
+      } else {
+        await doImport(json, true);
+      }
+    } catch {
+      setIoMsg({ type: 'err', text: 'Error al importar los datos' });
+      setImporting(false);
+    }
+  }
+
+  async function doImport(json: Record<string, unknown>, overwrite: boolean) {
+    setImporting(true);
+    setIoMsg(null);
+    try {
+      const res = await fetch('/api/import/personal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...json, mode: 'apply', overwrite }),
       });
       const data = await res.json();
       if (!res.ok) { setIoMsg({ type: 'err', text: data.error ?? 'Error al importar' }); return; }
@@ -403,7 +428,7 @@ export default function PerfilClient({ session }: Props) {
           </svg>
           <h2 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>Mis datos personales</h2>
         </div>
-        <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>Exporta o importa tus datos personales en formato JSON. Al importar, los datos existentes serán reemplazados.</p>
+        <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>Exporta o importa tus datos personales en formato JSON. Al importar, si se detectan registros que ya existen se te preguntará si quieres sobrescribirlos o mantener los actuales.</p>
 
         <div className="flex flex-col sm:flex-row gap-3">
           <button
@@ -441,13 +466,22 @@ export default function PerfilClient({ session }: Props) {
       <footer className="mt-10 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
         FinanceMe &copy; {new Date().getFullYear()} — <a href="https://imrsquare.com" target="_blank" rel="noopener noreferrer" className="hover:underline">imrsquare.com</a>
       </footer>
-      {pendingImport && (
+      {pendingImport && !dupInfo && (
         <ConfirmDialog
           message="¿Importar datos personales?"
-          detail="Los datos existentes serán reemplazados por los del archivo. Esta acción no se puede deshacer."
+          detail="Se añadirán los datos del archivo a los que ya tienes. Si se detectan registros duplicados, se te preguntará si quieres sobrescribirlos."
           confirmLabel="Importar"
-          onConfirm={async () => { const json = pendingImport; setPendingImport(null); await doImport(json); }}
+          onConfirm={() => checkThenImport(pendingImport)}
           onCancel={() => setPendingImport(null)}
+        />
+      )}
+      {pendingImport && dupInfo && (
+        <ImportOverwriteDialog
+          count={dupInfo.count}
+          breakdown={dupInfo.breakdown}
+          onOverwrite={async () => { const json = pendingImport; setPendingImport(null); setDupInfo(null); await doImport(json, true); }}
+          onSkip={async () => { const json = pendingImport; setPendingImport(null); setDupInfo(null); await doImport(json, false); }}
+          onCancel={() => { setPendingImport(null); setDupInfo(null); }}
         />
       )}
     </div>

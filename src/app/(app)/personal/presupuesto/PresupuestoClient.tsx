@@ -6,6 +6,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import InfoExpand from '@/components/InfoExpand';
 import { monthlyEquivalent } from '@/lib/billing';
 import { mensualNecesario } from '@/lib/ahorroObjetivos';
+import { objetivoMensualAhorro } from '@/lib/ahorro';
 import { useIsMobile } from '@/lib/useIsMobile';
 import { autoText } from '@/components/ColorDots';
 import GestionClient from '../gestion/GestionClient';
@@ -250,7 +251,7 @@ export default function PresupuestoClient() {
 
   const suscMensualReal = suscs.reduce((s, sub) => s + monthlyEquivalent(sub.importe, sub.periodicidad), 0);
   const suscVirtual = suscMensualReal > 0 ? (suscCfg.redondeo ? roundUp5(suscMensualReal) : suscMensualReal) : 0;
-  const ahorroMensualReal = ahorro ? ahorro.objetivo_anual / 12 : 0;
+  const ahorroMensualReal = ahorro ? objetivoMensualAhorro(ahorro.objetivo_anual, ahorro.meses, new Date().getFullYear()) : 0;
   const ahorroVirtual = ahorroMensualReal > 0 ? ahorroMensualReal : 0;
   const objetivosMensualReal = objetivos.reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
   const objetivosVirtual = objetivosMensualReal > 0 ? objetivosMensualReal : 0;
@@ -356,7 +357,7 @@ export default function PresupuestoClient() {
               {ahorroVirtual > 0 ? fmt(ahorroVirtual) : '—'}
             </p>
             {ahorroVirtual > 0 && ahorro && (
-              <p className="hidden sm:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{fmt(ahorro.objetivo_anual)}/año ÷ 12 = {fmt(ahorroVirtual)}</p>
+              <p className="hidden sm:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Objetivo {fmt(ahorro.objetivo_anual)}/año, cuota recalculada: {fmt(ahorroVirtual)}</p>
             )}
           </div>
         </div>
@@ -492,7 +493,7 @@ export default function PresupuestoClient() {
                           <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Ahorro mensual</span>
                           <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(var(--color-warning-rgb),0.15)', color: 'var(--color-warning)' }}>Auto</span>
                         </div>
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{fmt(ahorro!.objetivo_anual)}/año ÷ 12</p>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Objetivo {fmt(ahorro!.objetivo_anual)}/año, recalculado según lo aportado</p>
                       </td>
                       <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-warning)' }}>{fmt(ahorroVirtual)}</td>
                       <td className="px-4 py-3">

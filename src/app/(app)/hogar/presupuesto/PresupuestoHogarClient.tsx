@@ -8,6 +8,7 @@ import { PencilIcon, TrashIcon, SettingsIcon } from '@/components/icons';
 import { autoText } from '@/components/ColorDots';
 import { useIsMobile } from '@/lib/useIsMobile';
 import { mensualNecesario } from '@/lib/ahorroObjetivos';
+import { objetivoMensualAhorro } from '@/lib/ahorro';
 import GestionHogarClient from '../gestion/GestionHogarClient';
 
 const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -213,7 +214,7 @@ export default function PresupuestoHogarClient({
   const objetivosCfg = autoConfigs.find(c => c.tipo === 'objetivos') ?? { tipo: 'objetivos' as const, banco: null, categoria: null };
   const objetivosMatchesFiltro = (!filtroCategoria || objetivosCfg.categoria === filtroCategoria) && (!filtroBanco || objetivosCfg.banco === filtroBanco);
 
-  const ahorroVirtual = ahorro.objetivo_anual > 0 ? ahorro.objetivo_anual / 12 : 0;
+  const ahorroVirtual = objetivoMensualAhorro(ahorro.objetivo_anual, ahorro.meses, new Date().getFullYear());
   const ahorroCfg = autoConfigs.find(c => c.tipo === 'ahorro') ?? { tipo: 'ahorro' as const, banco: null, categoria: null };
   const ahorroMatchesFiltro = (!filtroCategoria || ahorroCfg.categoria === filtroCategoria) && (!filtroBanco || ahorroCfg.banco === filtroBanco);
 
@@ -419,7 +420,7 @@ export default function PresupuestoHogarClient({
                         <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Ahorro mensual</span>
                         <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(var(--color-warning-rgb),0.15)', color: 'var(--color-warning)' }}>Auto</span>
                       </div>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{fmt(ahorro.objetivo_anual)}/año ÷ 12</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Objetivo {fmt(ahorro.objetivo_anual)}/año, recalculado según lo aportado</p>
                     </td>
                     <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-warning)' }}>-{fmt(ahorroVirtual)}</td>
                     <td className="px-4 py-3"><CategoryBadge nombre={ahorroCfg.categoria} categorias={catGasto} /></td>
