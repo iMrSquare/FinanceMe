@@ -1,28 +1,11 @@
-'use client';
-import { useEffect } from 'react';
+import { redirect } from 'next/navigation';
+import { getSession } from '@/lib/auth';
+import { getUserById, rutaInicio } from '@/lib/db';
 
-export default function RootPage() {
-  useEffect(() => {
-    const saved = localStorage.getItem('app-mode');
-    window.location.replace(saved === 'hogar' ? '/hogar' : '/personal');
-  }, []);
-
-  return (
-    <div style={{
-      display: 'flex',
-      height: '100svh',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'var(--bg-page)',
-    }}>
-      <div style={{
-        width: 44,
-        height: 44,
-        border: '3px solid var(--accent-primary)',
-        borderTopColor: 'transparent',
-        borderRadius: '50%',
-        animation: 'spin 0.75s linear infinite',
-      }} />
-    </div>
-  );
+// Entrada de la app (y de la PWA): abre el modo que el usuario eligió en Apariencia
+export default async function RootPage() {
+  const session = await getSession();
+  if (!session) redirect('/login');
+  const user = getUserById(session.id);
+  redirect(user ? rutaInicio(user) : '/personal');
 }

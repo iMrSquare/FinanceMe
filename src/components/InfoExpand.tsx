@@ -34,12 +34,15 @@ export default function InfoExpand({ title = '¿Qué es esto?', children }: Prop
       setOpen(false);
     }
     function onDismiss() { setOpen(false); }
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') { setOpen(false); btnRef.current?.focus(); } }
     document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKey);
     window.addEventListener('resize', onDismiss);
     // Close on scroll of any container (fixed popover would otherwise detach).
     window.addEventListener('scroll', onDismiss, true);
     return () => {
       document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
       window.removeEventListener('resize', onDismiss);
       window.removeEventListener('scroll', onDismiss, true);
     };
@@ -53,10 +56,11 @@ export default function InfoExpand({ title = '¿Qué es esto?', children }: Prop
         onClick={() => setOpen(o => !o)}
         aria-label={title}
         title={title}
-        className="w-7 h-7 rounded-full flex items-center justify-center transition-colors shrink-0"
+        aria-expanded={open}
+        className="w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 cursor-pointer hover:bg-[var(--btn-hover)] focus-visible:outline-2 focus-visible:outline-[var(--accent-mode)]"
         style={{
-          color: open ? 'var(--sidebar-hover-c)' : 'var(--text-muted)',
-          background: open ? 'var(--sidebar-hover-bg)' : 'var(--btn-hover)',
+          color: open ? 'var(--accent-mode)' : 'var(--text-muted)',
+          background: open ? 'color-mix(in srgb, var(--accent-mode) 12%, transparent)' : undefined,
         }}
       >
         <InfoIcon className="w-4 h-4" />
@@ -64,10 +68,11 @@ export default function InfoExpand({ title = '¿Qué es esto?', children }: Prop
       {open && pos && (
         <div
           ref={popRef}
-          className="fixed z-[120] glass-card rounded-2xl p-4 text-sm shadow-xl"
-          style={{ top: pos.top, left: pos.left, width: pos.width, color: 'var(--text-secondary)' }}
+          role="note"
+          className="fixed z-[120] fm-card p-4 text-sm leading-relaxed"
+          style={{ top: pos.top, left: pos.left, width: pos.width, color: 'var(--text-secondary)', boxShadow: '0 12px 32px rgba(10,16,28,.18)' }}
         >
-          <p className="font-bold mb-1.5" style={{ color: 'var(--text-primary)' }}>{title}</p>
+          <p className="font-semibold mb-1.5" style={{ color: 'var(--text-primary)' }}>{title}</p>
           {children}
         </div>
       )}

@@ -1,9 +1,10 @@
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getAllUsers } from '@/lib/db';
+import { getUpdateInfo } from '@/lib/updates';
 import AjustesClient from './AjustesClient';
 
-export const metadata = { title: 'Configuración — FinanceMe Hogar' };
+export const metadata = { title: 'Configuración — FinanceMe' };
 
 export default async function AjustesPage() {
   const session = await getSession();
@@ -11,5 +12,5 @@ export default async function AjustesPage() {
   if (session.role !== 'admin') redirect('/');
 
   const users = getAllUsers();
-  return <AjustesClient users={users} currentUserId={session.id} />;
+  return <AjustesClient users={users} currentUserId={session.id} updates={getUpdateInfo()} />;
 }

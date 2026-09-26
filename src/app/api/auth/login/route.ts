@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserByUsername, toSessionUser } from '@/lib/db';
+import { getUserByUsername, rutaInicio, toSessionUser } from '@/lib/db';
 import { verifyPassword, AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS } from '@/lib/auth';
 import { createToken } from '@/lib/auth-edge';
 
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   const mustChangePassword = user.must_change_password === 1;
   const token = await createToken(toSessionUser(user));
 
-  const response = NextResponse.json({ ok: true, role: user.role, mustChangePassword });
+  const response = NextResponse.json({ ok: true, role: user.role, mustChangePassword, inicio: rutaInicio(user) });
   response.cookies.set(AUTH_COOKIE_NAME, token, AUTH_COOKIE_OPTIONS);
   return response;
 }

@@ -1,13 +1,7 @@
-import { BackToModulos } from '@/components/modulos/ModulosHub';
-import AhorroTabs from './AhorroTabs';
+import AhorroView from '@/components/ahorro/AhorroView';
 
-export const metadata = { title: 'Ahorro Personal — FinanceMe' };
+export const metadata = { title: 'Ahorro anual — FinanceMe Personal' };
 
 export default function AhorroPage() {
-  return (
-    <div className="space-y-6">
-      <BackToModulos href="/personal/modulos" />
-      <AhorroTabs />
-    </div>
-  );
+  return <AhorroView scope="personal" vista="anual" />;
 }

@@ -1,4 +1,6 @@
+import { Sparkles, Wrench, Bug, type LucideIcon } from 'lucide-react';
 import VersionSeenMarker from '@/components/VersionSeenMarker';
+import PageHeader from '@/components/ui/PageHeader';
 
 export const metadata = { title: 'Novedades — FinanceMe' };
 
@@ -17,10 +19,10 @@ interface Release {
   grupos: Grupo[];
 }
 
-const TIPO_META: Record<Tipo, { color: string; emoji: string }> = {
-  Novedades: { color: 'var(--color-success)', emoji: '✨' },
-  Mejoras: { color: 'var(--accent-primary)', emoji: '🔧' },
-  Correcciones: { color: 'var(--color-warning)', emoji: '🐛' },
+const TIPO_META: Record<Tipo, { color: string; Icon: LucideIcon }> = {
+  Novedades: { color: 'var(--money-in)', Icon: Sparkles },
+  Mejoras: { color: 'var(--accent-mode)', Icon: Wrench },
+  Correcciones: { color: 'var(--color-warning)', Icon: Bug },
 };
 
 const RELEASES: Release[] = [
@@ -28,23 +30,40 @@ const RELEASES: Release[] = [
     version: 'v1.2.0',
     fecha: '26 de septiembre de 2026',
     destacado: true,
-    intro: 'Nueva sección Avisos con notificaciones en el dispositivo, Módulos para agrupar Registros, Recurrentes y Ahorro, Recurrentes también en Hogar, tablas ordenables y filtros avanzados en Estadísticas.',
+    intro: 'Nuevo diseño más sobrio y profesional, pensado también para el móvil, nueva sección Avisos con notificaciones en el dispositivo, Módulos para agrupar Registros, Recurrentes, Ahorro anual y Objetivos, Recurrentes también en Hogar, tablas ordenables y filtros avanzados en Estadísticas.',
     grupos: [
       {
         tipo: 'Novedades',
         items: [
+          'Nuevo diseño en toda la aplicación: interfaz más sobria, tipografía IBM Plex Sans, cifras alineadas en columnas y superficies sólidas. Nuevo tema predeterminado, Institucional (azul marino, con los acentos verde de Personal y azul de Hogar de siempre), que sustituye a Clásico; también se retiran Monokai y Dracula, y quien los usaba pasa a Institucional. Ámbar, Vino y Contraste siguen disponibles en Mi perfil › Apariencia.',
+          'Apariencia: nueva opción para elegir con qué modo, Personal u Hogar, se abre la aplicación al iniciar sesión o al abrir la app instalada.',
+          'Iconos de categoría: cada categoría lleva un icono de su color, elegido en una galería de más de 160 iconos con buscador. Las categorías existentes reciben automáticamente uno según su nombre, y el icono aparece delante de cada gasto en el Mes y el Presupuesto.',
+          'Categorías y Bancos (antes Gestión): nueva página común a Personal y Hogar, con paleta de colores, color personalizado y el icono de banco teñido con el color de cada banco.',
+          'Navegación en el móvil: barra inferior con Resumen como botón central; cambio entre Personal y Hogar desde el menú de tu cuenta (avatar), donde también se accede a Mi perfil tocando tu tarjeta de usuario. La cabecera indica el modo activo con su color.',
+          'Menú lateral contraíble en escritorio para ganar espacio; el modo activo se muestra bajo el nombre de la aplicación.',
+          'Aviso de actualizaciones: los administradores ven cuándo hay una versión nueva publicada, con sus novedades y cómo actualizar en Configuración › Actualizaciones. Tras actualizar el servidor, quien tenga la aplicación abierta recibe un aviso para recargarla.',
           'Avisos (Personal y Hogar): lista de próximos pagos de este mes y del siguiente — gastos del Presupuesto con día de cobro y Recurrentes —, en color los próximos y en gris los que ya han pasado.',
           'Avisos: notificaciones en el dispositivo (Android, iOS y escritorio) la víspera y el mismo día de cada pago, activables por dispositivo y con botón de prueba. Requieren HTTPS; en iPhone/iPad, tener la app instalada en la pantalla de inicio (iOS 16.4+).',
-          'Módulos (Personal y Hogar): nuevo apartado que agrupa las herramientas adicionales. En Hogar contiene Registros de luz y agua, Recurrentes y Ahorro; en Personal, Recurrentes y Ahorro.',
+          'Módulos (Personal y Hogar): nuevo apartado que agrupa las herramientas adicionales. En Hogar contiene Registros de luz y agua, Recurrentes, Ahorro anual y Objetivos; en Personal, Recurrentes, Ahorro anual y Objetivos. Ahorro anual y Objetivos pasan a ser dos módulos independientes en lugar de pestañas de una misma página.',
           'Recurrentes en Hogar: seguros, comunidad, IBI y otros pagos mensuales, trimestrales o anuales de la casa, con su fila automática en el Presupuesto.',
-          'Recurrentes (antes Suscripciones): nueva opción para añadirlos al Mes como una línea con el total mensual o desglosados, cada uno con su importe y fecha. Los trimestrales y anuales solo se añaden en el mes en que se cobran.',
+          'Recurrentes (antes Suscripciones): nueva opción, en la propia página de Recurrentes, para añadirlos al Presupuesto y al Mes como una línea con el total mensual o desglosados. Desglosados, cada uno lleva su importe, día de cobro, categoría y banco, que también se pueden cambiar tocando la fila en el Presupuesto. Los trimestrales y anuales solo se añaden en el mes en que se cobran.',
           'Tablas del Mes (Personal y Hogar): ordenables por cualquier columna pulsando su cabecera; el orden elegido se recuerda al volver.',
-          'Estadísticas: filtros por periodo (último mes, 3, 6 o 12 meses, año actual, todo o un rango personalizado, incluidos años anteriores) y por categorías.',
+          'Estadísticas: filtros por periodo (último mes, 3, 6 o 12 meses, año actual, todo o un rango personalizado, incluidos años anteriores) y por categorías, recogidos en un desplegable que muestra el filtro activo y el total.',
         ],
       },
       {
         tipo: 'Mejoras',
         items: [
+          'En el móvil, las tablas se muestran como listas con el icono de la categoría y la fecha, la categoría y el banco en una sola línea; los formularios se abren como hoja inferior, con campos y botones más grandes.',
+          'Importes con el mismo formato en toda la aplicación (separador de miles y signo menos tipográfico); los gastos del Mes se muestran en rojo y los ingresos en verde.',
+          'Confirmaciones breves al guardar o eliminar, estados vacíos con indicaciones de qué hacer y esqueletos de carga en lugar de pantallas en blanco.',
+          'Diálogos más accesibles: se cierran con Escape, mantienen el foco del teclado dentro y lo devuelven al cerrar.',
+          'Los emojis de la interfaz se sustituyen por iconos; los emojis que eliges para tus objetivos de ahorro se mantienen.',
+          'Pantalla de inicio de sesión, Mi perfil y Configuración renovadas con el nuevo diseño. En Configuración, cada rol explica qué puede hacer y la lista de usuarios se adapta al móvil.',
+          'Tutorial de bienvenida renovado, paso a paso: bienvenida, foto de perfil, apariencia (tema, modo claro u oscuro y modo de inicio) y una pantalla para cada parte básica de la aplicación. Se muestra una vez a todos los usuarios al actualizar; después, solo desde Mi perfil › Tutorial.',
+          'La fila automática de los objetivos de ahorro en el Presupuesto y el Mes pasa a llamarse «Objetivos», igual que su módulo.',
+          'Resumen renovado en Personal y Hogar: tarjeta inicial como la del Mes con el balance del mes, el Presupuesto, los Recurrentes, el Ahorro anual y los Objetivos, y cada cifra lleva a su sección. Próximos pagos, calendario más claro en el móvil, Recurrentes (ahora también en Hogar), categorías con más gasto y una gráfica de ingresos y gastos.',
+          'Selector de temas con una vista previa de cada tema en el modo claro u oscuro que tengas activo.',
           'Suscripciones pasa a llamarse Recurrentes en toda la aplicación. Los enlaces antiguos redirigen automáticamente.',
           'Presupuesto, Recurrentes y tablas de gastos fijos usan la misma ordenación, ahora numérica en importes y días de cobro.',
           'Importar y exportar datos incluye los Recurrentes de Hogar y la configuración de redondeo y desglose de las filas automáticas.',
@@ -194,47 +213,32 @@ const RELEASES: Release[] = [
 
 export default function ChangelogPage() {
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <div className="max-w-3xl mx-auto">
       <VersionSeenMarker />
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(var(--accent-primary-rgb),0.12)' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 8v4l3 3" /><circle cx="12" cy="12" r="9" />
-          </svg>
-        </div>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Novedades</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Historial de versiones de FinanceMe</p>
-        </div>
-        <a
-          href="https://github.com/iMrSquare/FinanceMe"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Ver en GitHub"
-          title="Ver en GitHub"
-          className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border transition-colors"
-          style={{ borderColor: 'var(--btn-border)', background: 'var(--bg-card)', color: 'var(--text-secondary)' }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.08 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.34-5.47-5.95 0-1.31.47-2.39 1.24-3.23-.13-.31-.54-1.53.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02 0 2.05.14 3 .4 2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.25 2.87.12 3.18.77.84 1.24 1.92 1.24 3.23 0 4.62-2.81 5.64-5.49 5.94.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12 12 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z" />
-          </svg>
-        </a>
-      </div>
+      <PageHeader title="Novedades" subtitle="Historial de versiones de FinanceMe"
+        actions={
+          <a
+            href="https://github.com/iMrSquare/FinanceMe"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Ver en GitHub"
+            title="Ver en GitHub"
+            className="w-11 h-11 rounded-[var(--radius-control)] grid place-items-center border transition-colors hover:bg-[var(--btn-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-mode)]"
+            style={{ borderColor: 'var(--btn-border)', background: 'var(--bg-card)', color: 'var(--text-secondary)' }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.08 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.34-5.47-5.95 0-1.31.47-2.39 1.24-3.23-.13-.31-.54-1.53.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02 0 2.05.14 3 .4 2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.25 2.87.12 3.18.77.84 1.24 1.92 1.24 3.23 0 4.62-2.81 5.64-5.49 5.94.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12 12 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z" />
+            </svg>
+          </a>
+        } />
 
-      {/* Releases */}
-      <div className="space-y-6">
+      <div className="space-y-5">
         {RELEASES.map(rel => (
-          <div key={rel.version} className="glass-card rounded-3xl p-6 sm:p-8">
-            <div className="flex flex-wrap items-center gap-3 mb-1">
-              <span
-                className="px-3 py-1 rounded-full text-sm font-bold text-white"
-                style={{ background: rel.destacado ? 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' : 'var(--text-muted)' }}
-              >
-                {rel.version}
-              </span>
+          <article key={rel.version} className="fm-card p-5 sm:p-7" aria-labelledby={`rel-${rel.version}`}>
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h2 id={`rel-${rel.version}`} className="text-xl font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{rel.version}</h2>
               {rel.destacado && (
-                <span className="px-2.5 py-1 rounded-full text-xs font-bold" style={{ background: 'rgba(var(--color-success-rgb),0.12)', color: 'var(--color-success)' }}>
+                <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: 'color-mix(in srgb, var(--accent-mode) 12%, transparent)', color: 'var(--accent-mode)' }}>
                   Actual
                 </span>
               )}
@@ -242,35 +246,35 @@ export default function ChangelogPage() {
             </div>
 
             {rel.intro && (
-              <p className="text-sm mt-2 mb-5" style={{ color: 'var(--text-secondary)' }}>{rel.intro}</p>
+              <p className="text-[15px] mt-2 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{rel.intro}</p>
             )}
 
-            <div className={rel.intro ? 'space-y-5' : 'space-y-5 mt-4'}>
+            <div className="space-y-5 mt-5">
               {rel.grupos.map(grupo => {
-                const meta = TIPO_META[grupo.tipo];
+                const { color, Icon } = TIPO_META[grupo.tipo];
                 return (
-                  <div key={grupo.tipo}>
-                    <h3 className="font-bold text-sm mb-2 flex items-center gap-2" style={{ color: meta.color }}>
-                      <span>{meta.emoji}</span>{grupo.tipo}
+                  <section key={grupo.tipo}>
+                    <h3 className="font-semibold text-sm mb-2 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                      <Icon className="w-4 h-4" style={{ color }} aria-hidden="true" />{grupo.tipo}
                     </h3>
-                    <ul className="space-y-1.5">
+                    <ul className="space-y-2 pl-6">
                       {grupo.items.map((item, i) => (
-                        <li key={i} className="flex gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                          <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: meta.color }} />
-                          <span className="leading-relaxed">{item}</span>
+                        <li key={i} className="relative text-sm leading-relaxed before:content-[''] before:absolute before:-left-4 before:top-[0.6em] before:w-1 before:h-1 before:rounded-full before:bg-[var(--text-muted)]"
+                          style={{ color: 'var(--text-secondary)' }}>
+                          {item}
                         </li>
                       ))}
                     </ul>
-                  </div>
+                  </section>
                 );
               })}
             </div>
-          </div>
+          </article>
         ))}
       </div>
 
       <footer className="mt-10 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-        FinanceMe &copy; {new Date().getFullYear()} — <a href="https://imrsquare.com" target="_blank" rel="noopener noreferrer" className="hover:underline">imrsquare.com</a>
+        FinanceMe &copy; {new Date().getFullYear()} · <a href="https://imrsquare.com" target="_blank" rel="noopener noreferrer" className="hover:underline">imrsquare.com</a>
       </footer>
     </div>
   );

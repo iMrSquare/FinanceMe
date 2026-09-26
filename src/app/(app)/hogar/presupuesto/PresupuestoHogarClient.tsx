@@ -1,155 +1,21 @@
 'use client';
-import { SortableTh, useTableSort, type SortAccessor } from '@/components/SortableTable';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Fijo, Categoria, AhorroObjetivo, Ahorro, PresupuestoAutoConfig, HogarRecurrente } from '@/lib/db';
 import AutoConfigModal from '@/components/AutoConfigModal';
-import { importeVirtualRecurrentes, totalMensualRecurrentes, PERIODICIDAD_LABEL } from '@/lib/recurrentes';
-import { monthlyEquivalent } from '@/lib/billing';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import InfoExpand from '@/components/InfoExpand';
-import { PencilIcon, TrashIcon, SettingsIcon } from '@/components/icons';
-import { autoText } from '@/components/ColorDots';
-import { useIsMobile } from '@/lib/useIsMobile';
+import { useToast } from '@/components/ui/Feedback';
+import PresupuestoView, { FijoFormModal, fijoVacio, fijoAForm, type AutoRow, type FijoForm, type FijoRow, type IngresoFijoRow } from '@/components/presupuesto/PresupuestoView';
+import { IngresoFormModal, ingresoVacio, type IngresoForm } from '@/components/mes/MesView';
+import { filasRecurrentes, RecurrenteAjustesModal } from '@/components/recurrentes/RecurrentesPresupuesto';
 import { mensualNecesario } from '@/lib/ahorroObjetivos';
 import { objetivoMensualAhorro } from '@/lib/ahorro';
-import GestionHogarClient from '../gestion/GestionHogarClient';
+import { formatEUR } from '@/lib/format';
 
-const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
-const fmtDate = (d: string | null) => {
-  const m = d?.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : '—';
-};
+type AutoTipo = 'recurrentes' | 'ahorro' | 'objetivos';
+const AUTO_TITULOS: Record<AutoTipo, string> = { recurrentes: 'Recurrentes', ahorro: 'Ahorro mensual', objetivos: 'Objetivos' };
+const INFO = 'El Presupuesto son los gastos e ingresos fijos del Hogar que se repiten cada mes. Crea antes las categorías y bancos: los filtros y las estadísticas se basan en ellos. Al crear un Mes, estos datos se importan automáticamente. Un gasto con fecha de vencimiento deja de importarse cuando esa fecha queda atrás.';
 
-const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border transition-colors appearance-none';
-const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
-const selectStyle = { ...inputStyle, paddingTop: '8px', paddingBottom: '8px' };
-
-type TipoFijo = 'gasto' | 'ingreso';
-type SortKey = 'gasto' | 'importe' | 'categoria' | 'banco' | 'cobro' | 'vencimiento';
-const SORT_FIJOS: Record<SortKey, SortAccessor<Fijo>> = {
-  gasto:       { get: f => f.gasto, type: 'text' },
-  importe:     { get: f => f.importe, type: 'number' },
-  categoria:   { get: f => f.categoria, type: 'text' },
-  banco:       { get: f => f.banco, type: 'text' },
-  cobro:       { get: f => (f.cobro ? Number(f.cobro) : null), type: 'number' },
-  vencimiento: { get: f => f.vencimiento, type: 'date' },
-};
-
-interface FijoForm {
-  id?: number;
-  tipo: TipoFijo;
-  gasto: string;
-  categoria: string;
-  banco: string;
-  importe: string;
-  cobro: string;
-  vencimiento: string;
-  comentario: string;
-}
-
-function emptyGasto(): FijoForm  { return { tipo: 'gasto',   gasto: '', categoria: '', banco: '', importe: '', cobro: '', vencimiento: '', comentario: '' }; }
-function emptyIngreso(): FijoForm { return { tipo: 'ingreso', gasto: '', categoria: '', banco: '', importe: '', cobro: '', vencimiento: '', comentario: '' }; }
-
-function CategoryBadge({ nombre, categorias }: { nombre: string | null; categorias: Categoria[] }) {
-  if (!nombre) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
-  const cat = categorias.find(c => c.nombre === nombre);
-  const bg = cat?.color ?? 'var(--text-secondary)';
-  return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold" style={{ background: bg, color: autoText(bg) }}>{nombre}</span>;
-}
-
-// ── Modal añadir / editar fijo ───────────────────────────────────────────────
-function FijoModal({ form, setForm, catGasto, catPrestamo, onClose, onSave, saving }: {
-  form: FijoForm; setForm: (f: FijoForm) => void;
-  catGasto: Categoria[]; catPrestamo: Categoria[];
-  onClose: () => void; onSave: () => void; saving: boolean;
-}) {
-  const set = (k: keyof FijoForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setForm({ ...form, [k]: e.target.value });
-
-  const isEditing = !!form.id;
-  const isIngreso = form.tipo === 'ingreso';
-  const title = isEditing
-    ? (isIngreso ? 'Editar ingreso' : 'Editar gasto fijo')
-    : (isIngreso ? 'Nuevo ingreso' : 'Nuevo gasto fijo');
-
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="glass-card rounded-3xl p-8 w-full max-w-md">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="font-bold text-xl" style={{ color: 'var(--text-primary)' }}>{title}</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ color: 'var(--text-muted)', background: 'var(--btn-hover)' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-              {isIngreso ? 'Concepto' : 'Gasto'} *
-            </label>
-            <input value={form.gasto} onChange={set('gasto')} className={inputCls} style={inputStyle} placeholder={isIngreso ? 'Ej: Nómina' : 'Ej: Hipoteca'} />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Importe (€) *</label>
-            <input type="number" step="0.01" min="0" value={form.importe} onChange={set('importe')} className={inputCls} style={inputStyle} placeholder="0.00" />
-          </div>
-          {!isIngreso && (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                {catGasto.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Categoría</label>
-                    <select value={form.categoria} onChange={set('categoria')} className={inputCls} style={inputStyle}>
-                      <option value="">Sin categoría</option>
-                      {catGasto.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
-                    </select>
-                  </div>
-                )}
-                {catPrestamo.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Banco</label>
-                    <select value={form.banco} onChange={set('banco')} className={inputCls} style={inputStyle}>
-                      <option value="">Sin banco</option>
-                      {catPrestamo.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
-                    </select>
-                  </div>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Día de cobro</label>
-                  <input type="number" min="1" max="31" value={form.cobro} onChange={set('cobro')} className={inputCls} style={inputStyle} placeholder="Ej: 15" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Vencimiento</label>
-                  <input type="date" value={form.vencimiento} onChange={set('vencimiento')} className={inputCls} style={inputStyle} />
-                </div>
-              </div>
-            </>
-          )}
-          <div>
-            <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Comentario</label>
-            <input value={form.comentario} onChange={set('comentario')} className={inputCls} style={inputStyle} placeholder="Opcional…" />
-          </div>
-        </div>
-        <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>Cancelar</button>
-          <button onClick={onSave} disabled={saving || !form.gasto.trim() || !form.importe} className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-50 shadow-lg shadow-accent-primary/30" style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}>
-            {saving ? 'Guardando…' : isEditing ? 'Guardar' : 'Crear'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-// ── Helpers de cabecera de tabla ─────────────────────────────────────────────
-function PlainTh({ label }: { label: string }) {
-  return <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>{label}</th>;
-}
-
-// ── Componente principal ─────────────────────────────────────────────────────
 interface Props {
   gastosFijos: Fijo[];
   ingresosFijos: Fijo[];
@@ -162,451 +28,138 @@ interface Props {
   canEdit: boolean;
 }
 
+const aFijoRow = (f: Fijo): FijoRow => ({ id: f.id, concepto: f.gasto, comentario: f.comentario, importe: f.importe, categoria: f.categoria, banco: f.banco, cobro: f.cobro, vencimiento: f.vencimiento });
+
 export default function PresupuestoHogarClient({
-  gastosFijos: initGastos,
-  ingresosFijos: initIngresos,
-  catGasto: initCatGasto,
-  catPrestamo: initCatPrestamo,
-  objetivosAhorro,
-  ahorro,
-  autoConfigs: initAutoConfigs,
-  recurrentes,
-  canEdit,
+  gastosFijos, ingresosFijos, catGasto, catPrestamo, objetivosAhorro, ahorro, autoConfigs: initAutoConfigs, recurrentes, canEdit,
 }: Props) {
   const router = useRouter();
-  const isMobile = useIsMobile();
-  const [gastos, setGastos] = useState<Fijo[]>(initGastos);
-  const [ingresos, setIngresos] = useState<Fijo[]>(initIngresos);
-  const [catGasto, setCatGasto] = useState<Categoria[]>(initCatGasto);
-  const [catPrestamo, setCatPrestamo] = useState<Categoria[]>(initCatPrestamo);
-  const [autoConfigs, setAutoConfigs] = useState<PresupuestoAutoConfig[]>(initAutoConfigs);
-  const [editingAuto, setEditingAuto] = useState<'objetivos' | 'ahorro' | 'recurrentes' | null>(null);
-  const [view, setView] = useState<'main' | 'gestion'>('main');
-  const [modal, setModal] = useState<FijoForm | null>(null);
+  const toast = useToast();
+  const [autoConfigs, setAutoConfigs] = useState(initAutoConfigs);
+  const [filtros, setFiltros] = useState({ categoria: '', banco: '' });
+  const [fijoForm, setFijoForm] = useState<FijoForm | null>(null);
+  const [ingresoForm, setIngresoForm] = useState<IngresoForm | null>(null);
+  const [editingAuto, setEditingAuto] = useState<AutoTipo | null>(null);
+  const [recEdit, setRecEdit] = useState<HogarRecurrente | null>(null);
   const [saving, setSaving] = useState(false);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [filtroCategoria, setFiltroCategoria] = useState('');
-  const [filtroBanco, setFiltroBanco] = useState('');
+  const [confirm, setConfirm] = useState<{ msg: string; fn: () => Promise<void> } | null>(null);
 
-  useEffect(() => { setCatGasto(initCatGasto); }, [initCatGasto]);
-  useEffect(() => { setCatPrestamo(initCatPrestamo); }, [initCatPrestamo]);
-  useEffect(() => { setGastos(initGastos); }, [initGastos]);
-  useEffect(() => { setIngresos(initIngresos); }, [initIngresos]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza con los datos del servidor tras router.refresh()
   useEffect(() => { setAutoConfigs(initAutoConfigs); }, [initAutoConfigs]);
 
-
-  const { sorted: gastosFiltered, sortKey, sortAsc, toggleSort } = useTableSort(
-    gastos
-      .filter(f => !filtroCategoria || f.categoria === filtroCategoria)
-      .filter(f => !filtroBanco || f.banco === filtroBanco),
-    SORT_FIJOS,
-    { defaultKey: 'gasto', storageKey: 'sort:hogar-presupuesto' },
-  );
-
-  const totalGastos   = gastos.reduce((s, f) => s + f.importe, 0);
-  const totalIngresos = ingresos.reduce((s, f) => s + f.importe, 0);
-  const totalFiltrado = gastosFiltered.reduce((s, f) => s + f.importe, 0);
-
-  const autoCfg = (tipo: 'objetivos' | 'ahorro' | 'recurrentes'): PresupuestoAutoConfig =>
+  const autoConfig = (tipo: AutoTipo): PresupuestoAutoConfig =>
     autoConfigs.find(c => c.tipo === tipo) ?? { tipo, banco: null, categoria: null, redondeo: 1, desglose: 0 };
 
-  const recCfg = autoCfg('recurrentes');
-  const recDesglose = recCfg.desglose === 1;
-  const recActivos = recurrentes.filter(r => r.importe > 0);
-  const recMensualReal = totalMensualRecurrentes(recurrentes);
-  const recVirtual = importeVirtualRecurrentes(recurrentes, recCfg);
-  const recMatchesFiltro = (!filtroCategoria || recCfg.categoria === filtroCategoria) && (!filtroBanco || recCfg.banco === filtroBanco);
-
-  const objetivosVirtual = objetivosAhorro.reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
-  const objetivosCfg = autoCfg('objetivos');
-  const objetivosMatchesFiltro = (!filtroCategoria || objetivosCfg.categoria === filtroCategoria) && (!filtroBanco || objetivosCfg.banco === filtroBanco);
-
-  const ahorroVirtual = objetivoMensualAhorro(ahorro.objetivo_anual, ahorro.meses, new Date().getFullYear());
-  const ahorroCfg = autoCfg('ahorro');
-  const ahorroMatchesFiltro = (!filtroCategoria || ahorroCfg.categoria === filtroCategoria) && (!filtroBanco || ahorroCfg.banco === filtroBanco);
-
-  const totalGastosConVirtuales = totalGastos + recVirtual + (objetivosVirtual > 0 ? objetivosVirtual : 0) + (ahorroVirtual > 0 ? ahorroVirtual : 0);
-  const totalFiltradoConVirtuales = totalFiltrado + (recVirtual > 0 && recMatchesFiltro ? recVirtual : 0) + (objetivosVirtual > 0 && objetivosMatchesFiltro ? objetivosVirtual : 0) + (ahorroVirtual > 0 && ahorroMatchesFiltro ? ahorroVirtual : 0);
-  const conceptosTotal = gastos.length + (recVirtual > 0 ? (recDesglose ? recActivos.length : 1) : 0) + (objetivosVirtual > 0 ? 1 : 0) + (ahorroVirtual > 0 ? 1 : 0);
-
-  function renderRecurrenteRow(key: string, titulo: string, subtitulo: string, importe: number) {
-    return (
-      <tr key={key} style={{ borderBottom: '1px solid var(--divider)', background: 'rgba(139,92,246,0.04)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
-        onClick={() => { if (isMobile && canEdit) setEditingAuto('recurrentes'); }}>
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{titulo}</span>
-            <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }}>Auto</span>
-          </div>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{subtitulo}</p>
-        </td>
-        <td className="px-4 py-3 font-mono font-bold tabular-nums" style={{ color: '#8b5cf6' }}>-{fmt(importe)}</td>
-        <td className="px-4 py-3"><CategoryBadge nombre={recCfg.categoria} categorias={catGasto} /></td>
-        <td className="px-4 py-3"><CategoryBadge nombre={recCfg.banco} categorias={catPrestamo} /></td>
-        <td className="px-4 py-3" colSpan={2} />
-        {canEdit && (
-          <td className="px-4 py-3 text-right whitespace-nowrap">
-            <div className="flex items-center justify-end gap-1">
-              <button onClick={e => { e.stopPropagation(); setEditingAuto('recurrentes'); }} aria-label="Configurar recurrentes" className="p-1.5 rounded-lg transition-colors cursor-pointer" style={{ color: 'var(--text-muted)' }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-            </div>
-          </td>
-        )}
-      </tr>
-    );
+  // ── Filas automáticas ──
+  const autos: AutoRow[] = [];
+  const recCfg = autoConfig('recurrentes');
+  autos.push(...filasRecurrentes(recurrentes, recCfg, 'recurrentes'));
+  const ahorroMensual = objetivoMensualAhorro(ahorro.objetivo_anual, ahorro.meses, new Date().getFullYear());
+  if (ahorroMensual > 0) {
+    const cfg = autoConfig('ahorro');
+    autos.push({ key: 'ahorro', tipo: 'ahorro', concepto: 'Ahorro mensual', importe: ahorroMensual, categoria: cfg.categoria, banco: cfg.banco,
+      subtitulo: `Objetivo de ${formatEUR(ahorro.objetivo_anual)} al año, recalculado según lo aportado` });
+  }
+  const objetivosMensual = objetivosAhorro.reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
+  if (objetivosMensual > 0) {
+    const cfg = autoConfig('objetivos');
+    autos.push({ key: 'objetivos', tipo: 'objetivos', concepto: 'Objetivos', importe: objetivosMensual, categoria: cfg.categoria, banco: cfg.banco,
+      subtitulo: 'Aportación mensual para los objetivos en curso' });
   }
 
-  async function handleSave() {
-    if (!modal) return;
+  const ingresosRows: IngresoFijoRow[] = ingresosFijos.map(i => ({ id: i.id, concepto: i.gasto, comentario: i.comentario, importe: i.importe }));
+
+  async function guardar(tipo: 'gasto' | 'ingreso', id: number | undefined, body: Record<string, unknown>) {
     setSaving(true);
-    const body = {
-      tipo: modal.tipo,
-      gasto: modal.gasto,
-      categoria: modal.tipo === 'gasto' ? (modal.categoria || null) : null,
-      banco: modal.tipo === 'gasto' ? (modal.banco || null) : null,
-      importe: Number(modal.importe),
-      cobro: modal.cobro || null,
-      vencimiento: modal.vencimiento || null,
-      comentario: modal.comentario || null,
-    };
-    const setter = modal.tipo === 'gasto' ? setGastos : setIngresos;
-    if (modal.id) {
-      await fetch(`/api/fijos/${modal.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      setter(prev => prev.map(f => f.id === modal.id ? { ...f, ...body, id: modal.id! } : f));
-    } else {
-      const res = await fetch('/api/fijos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      const created = await res.json();
-      setter(prev => [...prev, created]);
-    }
-    setSaving(false); setModal(null); router.refresh();
-  }
-
-  async function handleDelete(id: number) {
-    const isGasto = gastos.some(f => f.id === id);
-    await fetch(`/api/fijos/${id}`, { method: 'DELETE' });
-    if (isGasto) setGastos(prev => prev.filter(f => f.id !== id));
-    else setIngresos(prev => prev.filter(f => f.id !== id));
-    setDeleteId(null);
-  }
-
-  function openEdit(f: Fijo) {
-    setModal({
-      id: f.id,
-      tipo: f.tipo as TipoFijo,
-      gasto: f.gasto,
-      categoria: f.categoria ?? '',
-      banco: f.banco ?? '',
-      importe: String(f.importe),
-      cobro: f.cobro ?? '',
-      vencimiento: f.vencimiento ?? '',
-      comentario: f.comentario ?? '',
+    const res = await fetch(id ? `/api/fijos/${id}` : '/api/fijos', {
+      method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo, ...body }),
     });
+    setSaving(false);
+    if (!res.ok) { toast((await res.json().catch(() => ({}))).error ?? 'No se pudo guardar', 'error'); return false; }
+    router.refresh();
+    return true;
   }
 
-  if (view === 'gestion') {
-    return (
-      <div className="space-y-6">
-        <button onClick={() => { setView('main'); router.refresh(); }} className="flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-xl border transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'var(--bg-card)' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          Volver a Presupuesto
-        </button>
-        <GestionHogarClient />
-      </div>
-    );
+  async function guardarFijo() {
+    if (!fijoForm) return;
+    const ok = await guardar('gasto', fijoForm.id, {
+      gasto: fijoForm.concepto.trim(), importe: Number(fijoForm.importe) || 0, categoria: fijoForm.categoria || null, banco: fijoForm.banco || null,
+      cobro: fijoForm.cobro || null, vencimiento: fijoForm.vencimiento || null, comentario: fijoForm.comentario || null,
+    });
+    if (ok) { setFijoForm(null); toast('Gasto fijo guardado'); }
   }
+
+  async function guardarIngreso() {
+    if (!ingresoForm) return;
+    const ok = await guardar('ingreso', ingresoForm.id, {
+      gasto: ingresoForm.concepto.trim(), importe: Number(ingresoForm.importe) || 0, categoria: null, banco: null, cobro: null, vencimiento: null, comentario: ingresoForm.comentario || null,
+    });
+    if (ok) { setIngresoForm(null); toast('Ingreso fijo guardado'); }
+  }
+
+  const borrar = (id: number, concepto: string, aviso: string) => setConfirm({ msg: `¿Eliminar «${concepto}»?`, fn: async () => {
+    await fetch(`/api/fijos/${id}`, { method: 'DELETE' });
+    toast(aviso);
+    router.refresh();
+  }});
 
   return (
-    <div className="space-y-6">
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(var(--accent-primary-rgb),0.12)' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-            </svg>
-          </div>
-          <div>
-            <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Presupuesto</h1>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Entradas fijas que se importan al crear un nuevo mes</p>
-          </div>
-          <InfoExpand title="¿Qué es Presupuesto?">
-            <p>El Presupuesto son los gastos fijos del Hogar que se repiten cada mes, junto a los ingresos. Crea primero las categorías y bancos en Gestión, ya que de ahí se nutren los filtros y las estadísticas. Al crear un nuevo Mes, estos datos se importan automáticamente. Si un gasto tiene fecha de vencimiento, se eliminará automáticamente del Presupuesto en cuanto esa fecha quede atrás.</p>
-          </InfoExpand>
-        </div>
-        <div className="flex gap-2 items-center">
-          {canEdit && (
-            <button onClick={() => setView('gestion')} className="flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-sm font-semibold border transition-colors shrink-0" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'var(--bg-card)' }}>
-              <SettingsIcon className="w-4 h-4" /> <span className="hidden sm:inline">Gestión</span>
-            </button>
-          )}
-          {canEdit && (
-            <button onClick={() => setModal(emptyGasto())} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold text-white shadow-lg shadow-accent-primary/30" style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Nuevo Gasto
-            </button>
-          )}
-        </div>
-      </div>
+    <>
+      <PresupuestoView
+        scope="hogar"
+        canEdit={canEdit}
+        info={INFO}
+        fijos={gastosFijos.map(aFijoRow)}
+        autos={autos}
+        ingresos={ingresosRows}
+        categorias={catGasto}
+        bancos={catPrestamo}
+        filtroCategoria={filtros.categoria}
+        filtroBanco={filtros.banco}
+        onFiltro={f => setFiltros(prev => ({ ...prev, ...f }))}
+        onAddFijo={() => setFijoForm(fijoVacio())}
+        onEditFijo={f => setFijoForm(fijoAForm(f))}
+        onDeleteFijo={f => borrar(f.id, f.concepto, 'Gasto fijo eliminado')}
+        onEditAuto={a => {
+          const r = a.recurrenteId ? recurrentes.find(x => x.id === a.recurrenteId) : undefined;
+          if (r) setRecEdit(r); else setEditingAuto(a.tipo as AutoTipo);
+        }}
+        onAddIngreso={() => setIngresoForm(ingresoVacio())}
+        onEditIngreso={i => setIngresoForm({ id: i.id, concepto: i.concepto, importe: String(i.importe), fecha: '', comentario: i.comentario ?? '' })}
+        onDeleteIngreso={i => borrar(i.id, i.concepto, 'Ingreso fijo eliminado')}
+        onGestion={canEdit ? () => router.push('/hogar/gestion') : undefined}
+      />
 
-      {/* ── Cards de resumen ── */}
-      <div className="grid grid-cols-2 gap-2 md:gap-4">
-        <div className="glass-card rounded-2xl md:rounded-3xl p-3 md:p-6">
-          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wide mb-1 md:mb-2" style={{ color: '#f97316' }}>Gastos fijos</p>
-          <p className="text-sm md:text-3xl font-extrabold leading-tight" style={{ color: totalGastosConVirtuales > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>{totalGastosConVirtuales > 0 ? fmt(totalGastosConVirtuales) : '—'}</p>
-          <p className="hidden md:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{conceptosTotal} concepto{conceptosTotal !== 1 ? 's' : ''}</p>
-        </div>
-        <div className="glass-card rounded-2xl md:rounded-3xl p-3 md:p-6">
-          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wide mb-1 md:mb-2" style={{ color: 'var(--color-success)' }}>Ingresos</p>
-          <p className="text-sm md:text-3xl font-extrabold leading-tight" style={{ color: totalIngresos > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>{totalIngresos > 0 ? fmt(totalIngresos) : '—'}</p>
-          <p className="hidden md:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{ingresos.length} entrada{ingresos.length !== 1 ? 's' : ''}</p>
-        </div>
-      </div>
-
-      {/* ── Filtros ── */}
-      <div className="flex gap-2 flex-wrap items-center">
-        <select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)} className={inputCls.replace('w-full', 'w-auto')} style={selectStyle}>
-          <option value="">Todas las categorías</option>
-          {catGasto.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
-        </select>
-        <select value={filtroBanco} onChange={e => setFiltroBanco(e.target.value)} className={inputCls.replace('w-full', 'w-auto')} style={selectStyle}>
-          <option value="">Todos los bancos</option>
-          {catPrestamo.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
-        </select>
-        {(filtroCategoria || filtroBanco) && (
-          <>
-            <button onClick={() => { setFiltroCategoria(''); setFiltroBanco(''); }} className="px-3 py-2 rounded-xl text-sm font-medium border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)' }}>✕ Limpiar</button>
-            <div className="ml-auto flex items-center gap-3 px-4 py-2 rounded-2xl" style={{ background: 'rgba(var(--accent-primary-rgb),0.1)', border: '1px solid rgba(var(--accent-primary-rgb),0.2)' }}>
-              <span className="text-sm font-medium" style={{ color: 'var(--accent-primary)' }}>{gastosFiltered.length} de {gastos.length}</span>
-              <span className="text-base font-extrabold" style={{ color: 'var(--accent-primary)' }}>{fmt(totalFiltradoConVirtuales)}</span>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* ── Tabla de gastos fijos ── */}
-      <div className="glass-card rounded-3xl overflow-hidden">
-        <div className="px-6 py-4 bg-orange-600">
-          <h2 className="font-bold text-base text-white">
-            Gastos fijos
-            <span className="ml-2 text-sm font-normal text-white/80">{conceptosTotal} concepto{conceptosTotal !== 1 ? 's' : ''}</span>
-          </h2>
-        </div>
-        <div className="overflow-x-auto">
-          {gastosFiltered.length === 0 && !(recVirtual > 0 && recMatchesFiltro) && !(objetivosVirtual > 0 && objetivosMatchesFiltro) && !(ahorroVirtual > 0 && ahorroMatchesFiltro) ? (
-            <p className="py-14 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-              {gastos.length === 0 ? 'Sin gastos fijos — pulsa "+ Nuevo" para añadir' : 'Ningún gasto coincide con el filtro.'}
-            </p>
-          ) : (
-            <table className="w-full min-w-[700px] text-sm">
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--divider)', background: 'var(--bg-page)' }}>
-                  <SortableTh label="Gasto" sortKey="gasto" activeKey={sortKey} asc={sortAsc} onSort={toggleSort} className="text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }} />
-                  <SortableTh label="Importe" sortKey="importe" activeKey={sortKey} asc={sortAsc} onSort={toggleSort} className="text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }} />
-                  <SortableTh label="Categoría" sortKey="categoria" activeKey={sortKey} asc={sortAsc} onSort={toggleSort} className="text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }} />
-                  <SortableTh label="Banco" sortKey="banco" activeKey={sortKey} asc={sortAsc} onSort={toggleSort} className="text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }} />
-                  <SortableTh label="Cobro" sortKey="cobro" activeKey={sortKey} asc={sortAsc} onSort={toggleSort} className="text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }} />
-                  <SortableTh label="Vencimiento" sortKey="vencimiento" activeKey={sortKey} asc={sortAsc} onSort={toggleSort} className="text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }} />
-                  {canEdit && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Acciones</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {gastosFiltered.map(f => (
-                  <tr key={f.id} style={{ borderBottom: '1px solid var(--divider)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
-                    onClick={() => { if (isMobile && canEdit) openEdit(f); }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-page)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
-                    <td className="px-4 py-3">
-                      <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{f.gasto}</span>
-                      {f.comentario && <p className="text-xs truncate max-w-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{f.comentario}</p>}
-                    </td>
-                    <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-error)' }}>-{fmt(f.importe)}</td>
-                    <td className="px-4 py-3"><CategoryBadge nombre={f.categoria} categorias={catGasto} /></td>
-                    <td className="px-4 py-3"><CategoryBadge nombre={f.banco} categorias={catPrestamo} /></td>
-                    <td className="px-4 py-3 text-sm" style={{ color: f.cobro ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                      {f.cobro ? `Día ${f.cobro}` : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-sm" style={{ color: f.vencimiento ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                      {fmtDate(f.vencimiento)}
-                    </td>
-                    {canEdit && (
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={e => { e.stopPropagation(); openEdit(f); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
-                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
-                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                          <button onClick={e => { e.stopPropagation(); setDeleteId(f.id); }} className="p-1.5 rounded-lg transition-colors text-error"
-                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
-                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-
-                {/* Filas virtuales: Recurrentes (una total o una por recurrente) */}
-                {recVirtual > 0 && recMatchesFiltro && (recDesglose
-                  ? recActivos.map(r => renderRecurrenteRow(
-                      `rec-${r.id}`, r.nombre,
-                      r.periodicidad === 'mensual' ? 'Mensual' : `${PERIODICIDAD_LABEL[r.periodicidad]} · ${fmt(r.importe)} → ${fmt(monthlyEquivalent(r.importe, r.periodicidad))}/mes`,
-                      monthlyEquivalent(r.importe, r.periodicidad)))
-                  : renderRecurrenteRow('rec-total', 'Recurrentes', `${fmt(recMensualReal)}/mes real${recCfg.redondeo ? ' → redondeado al alza' : ''}`, recVirtual))}
-
-                {/* Fila virtual: Ahorro mensual */}
-                {ahorroVirtual > 0 && ahorroMatchesFiltro && (
-                  <tr style={{ background: 'rgba(var(--color-warning-rgb),0.04)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
-                    onClick={() => { if (isMobile && canEdit) setEditingAuto('ahorro'); }}>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Ahorro mensual</span>
-                        <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(var(--color-warning-rgb),0.15)', color: 'var(--color-warning)' }}>Auto</span>
-                      </div>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Objetivo {fmt(ahorro.objetivo_anual)}/año, recalculado según lo aportado</p>
-                    </td>
-                    <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-warning)' }}>-{fmt(ahorroVirtual)}</td>
-                    <td className="px-4 py-3"><CategoryBadge nombre={ahorroCfg.categoria} categorias={catGasto} /></td>
-                    <td className="px-4 py-3"><CategoryBadge nombre={ahorroCfg.banco} categorias={catPrestamo} /></td>
-                    <td className="px-4 py-3" colSpan={2} />
-                    {canEdit && (
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={e => { e.stopPropagation(); setEditingAuto('ahorro'); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
-                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
-                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                )}
-
-                {/* Fila virtual: Objetivos de ahorro */}
-                {objetivosVirtual > 0 && objetivosMatchesFiltro && (
-                  <tr style={{ background: 'rgba(var(--color-warning-rgb),0.04)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
-                    onClick={() => { if (isMobile && canEdit) setEditingAuto('objetivos'); }}>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Objetivos de ahorro</span>
-                        <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(var(--color-warning-rgb),0.15)', color: 'var(--color-warning)' }}>Auto</span>
-                      </div>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Suma de objetivos en progreso</p>
-                    </td>
-                    <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-warning)' }}>-{fmt(objetivosVirtual)}</td>
-                    <td className="px-4 py-3"><CategoryBadge nombre={objetivosCfg.categoria} categorias={catGasto} /></td>
-                    <td className="px-4 py-3"><CategoryBadge nombre={objetivosCfg.banco} categorias={catPrestamo} /></td>
-                    <td className="px-4 py-3" colSpan={2} />
-                    {canEdit && (
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={e => { e.stopPropagation(); setEditingAuto('objetivos'); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
-                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
-                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-
-      {/* ── Tabla de ingresos ── */}
-      <div className="glass-card rounded-3xl overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 bg-success-dark">
-          <h2 className="font-bold text-base text-white">
-            Ingresos
-            <span className="ml-2 text-sm font-normal text-white/80">{ingresos.length} entrada{ingresos.length !== 1 ? 's' : ''}</span>
-          </h2>
-          {canEdit && (
-            <button onClick={() => setModal(emptyIngreso())} className="flex items-center gap-1.5 py-1.5 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-2xl transition-colors px-3 text-sm">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Nuevo
-            </button>
-          )}
-        </div>
-        <div className="overflow-x-auto">
-          {ingresos.length === 0 ? (
-            <p className="py-14 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Sin ingresos — pulsa "+ Nuevo" para añadir</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--divider)', background: 'var(--bg-page)' }}>
-                  <PlainTh label="Concepto" />
-                  <PlainTh label="Importe" />
-                  {canEdit && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Acciones</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {ingresos.map(f => (
-                  <tr key={f.id} style={{ borderBottom: '1px solid var(--divider)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
-                    onClick={() => { if (isMobile && canEdit) openEdit(f); }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-page)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
-                    <td className="px-4 py-3">
-                      <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{f.gasto}</span>
-                      {f.comentario && <p className="text-xs truncate max-w-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{f.comentario}</p>}
-                    </td>
-                    <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-success)' }}>{fmt(f.importe)}</td>
-                    {canEdit && (
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={e => { e.stopPropagation(); openEdit(f); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
-                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
-                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                          <button onClick={e => { e.stopPropagation(); setDeleteId(f.id); }} className="p-1.5 rounded-lg transition-colors text-error"
-                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
-                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-
-      {modal && (
-        <FijoModal
-          form={modal} setForm={setModal}
-          catGasto={catGasto} catPrestamo={catPrestamo}
-          onClose={() => setModal(null)} onSave={handleSave} saving={saving}
-        />
-      )}
-
-      {deleteId !== null && (
-        <ConfirmDialog message="¿Eliminar esta entrada fija?" onConfirm={() => handleDelete(deleteId)} onCancel={() => setDeleteId(null)} />
-      )}
-
+      {fijoForm && <FijoFormModal form={fijoForm} setForm={setFijoForm} categorias={catGasto} bancos={catPrestamo} onClose={() => setFijoForm(null)} onSave={guardarFijo} saving={saving} />}
+      {ingresoForm && <IngresoFormModal form={ingresoForm} setForm={setIngresoForm} conFecha={false} onClose={() => setIngresoForm(null)} onSave={guardarIngreso} saving={saving} />}
       {editingAuto && (
         <AutoConfigModal
-          titulo={editingAuto === 'recurrentes' ? 'Recurrentes' : editingAuto === 'ahorro' ? 'Ahorro mensual' : 'Objetivos de ahorro'}
-          color={editingAuto === 'recurrentes' ? '#8b5cf6' : 'var(--color-warning)'}
-          current={autoCfg(editingAuto)}
+          titulo={AUTO_TITULOS[editingAuto]}
+          color={editingAuto === 'recurrentes' ? 'var(--accent-mode)' : 'var(--saving)'}
+          current={autoConfig(editingAuto)}
           categorias={catGasto}
           bancos={catPrestamo}
           recurrentes={editingAuto === 'recurrentes'}
           onClose={() => setEditingAuto(null)}
-          onSave={async ({ banco, categoria, redondeo, desglose }) => {
-            await fetch('/api/presupuesto/auto', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: editingAuto, banco, categoria, redondeo, desglose }) });
-            const prevCfg = autoCfg(editingAuto);
-            setAutoConfigs(prev => [
-              ...prev.filter(c => c.tipo !== editingAuto),
-              {
-                tipo: editingAuto, banco, categoria,
-                redondeo: redondeo !== undefined ? (redondeo ? 1 : 0) : prevCfg.redondeo,
-                desglose: desglose !== undefined ? (desglose ? 1 : 0) : prevCfg.desglose,
-              },
+          recurrentesHref={`/hogar/modulos/recurrentes`}
+          onSave={async ({ banco, categoria, redondeo }) => {
+            await fetch('/api/presupuesto/auto', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: editingAuto, banco, categoria, redondeo }) });
+            const prev = autoConfig(editingAuto);
+            setAutoConfigs(list => [
+              ...list.filter(c => c.tipo !== editingAuto),
+              { tipo: editingAuto, banco, categoria, redondeo: redondeo !== undefined ? (redondeo ? 1 : 0) : prev.redondeo, desglose: prev.desglose },
             ]);
             setEditingAuto(null);
+            toast('Configuración guardada');
           }}
         />
       )}
-
-    </div>
+      {recEdit && (
+        <RecurrenteAjustesModal recurrente={recEdit} apiBase="/api/hogar/recurrentes" recurrentesHref={`/hogar/modulos/recurrentes`}
+          categorias={catGasto} bancos={catPrestamo} onClose={() => setRecEdit(null)}
+          onSaved={() => { setRecEdit(null); toast('Recurrente guardado'); router.refresh(); }} />
+      )}
+      {confirm && <ConfirmDialog message={confirm.msg} onConfirm={async () => { await confirm.fn(); setConfirm(null); }} onCancel={() => setConfirm(null)} />}
+    </>
   );
 }

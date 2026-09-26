@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { BellIcon, BellOffIcon } from '@/components/icons';
+import Button from '@/components/ui/Button';
 
 type Scope = 'hogar' | 'personal';
 type Estado = 'cargando' | 'insecure' | 'ios-install' | 'unsupported' | 'denied' | 'ready';
@@ -151,14 +152,14 @@ export default function NotificacionesCard({ scope, accent }: { scope: Scope; ac
   const aviso = estado !== 'cargando' && estado !== 'ready' ? MENSAJES[estado] : null;
 
   return (
-    <section className="glass-card rounded-3xl p-5" aria-labelledby="notif-title">
+    <section className="fm-card p-5" aria-labelledby="notif-title">
       <div className="flex items-center gap-4">
-        <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
+        <div className="w-11 h-11 rounded-[10px] flex items-center justify-center shrink-0"
           style={{ background: activo ? `color-mix(in srgb, ${accent} 14%, transparent)` : 'var(--btn-hover)', color: activo ? accent : 'var(--text-muted)' }}>
           {activo ? <BellIcon className="w-5 h-5" /> : <BellOffIcon className="w-5 h-5" />}
         </div>
         <div className="flex-1 min-w-0">
-          <h2 id="notif-title" className="font-bold" style={{ color: 'var(--text-primary)' }}>Notificaciones en este dispositivo</h2>
+          <h2 id="notif-title" className="font-semibold" style={{ color: 'var(--text-primary)' }}>Notificaciones en este dispositivo</h2>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             {estado === 'cargando' ? 'Comprobando…' : activo ? 'Activadas: aviso la víspera y el mismo día' : 'Desactivadas'}
           </p>
@@ -178,7 +179,7 @@ export default function NotificacionesCard({ scope, accent }: { scope: Scope; ac
       </div>
 
       {aviso && (
-        <div className="mt-4 rounded-2xl p-3 text-sm" role="note" style={{ background: 'rgba(var(--color-warning-rgb),0.1)', border: '1px solid rgba(var(--color-warning-rgb),0.25)' }}>
+        <div className="mt-4 rounded-[var(--radius-control)] p-3 text-sm" role="note" style={{ background: 'rgba(var(--color-warning-rgb),0.1)', border: '1px solid rgba(var(--color-warning-rgb),0.25)' }}>
           <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{aviso.titulo}</p>
           <p className="mt-0.5" style={{ color: 'var(--text-secondary)' }}>{aviso.texto}</p>
         </div>
@@ -186,11 +187,7 @@ export default function NotificacionesCard({ scope, accent }: { scope: Scope; ac
 
       {activo && (
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button type="button" onClick={probar} disabled={ocupado}
-            className="px-3 py-2 rounded-xl text-sm font-semibold border cursor-pointer disabled:opacity-50 min-h-[44px]"
-            style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'var(--bg-card)' }}>
-            Enviar prueba
-          </button>
+          <Button size="sm" onClick={probar} disabled={ocupado}>Enviar prueba</Button>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Actívalo en cada dispositivo donde quieras recibir los avisos.</p>
         </div>
       )}

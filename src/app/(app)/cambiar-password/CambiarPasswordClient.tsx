@@ -1,175 +1,61 @@
 'use client';
-import { useState, FormEvent } from 'react';
+import { useState } from 'react';
+import PasswordForm from '@/components/PasswordForm';
+import { LockIcon } from '@/components/icons';
 
 export default function CambiarPasswordClient({ forced }: { forced: boolean }) {
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError('');
-    if (newPassword !== confirmPassword) {
-      setError('Las contraseñas no coinciden');
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-      let data: Record<string, unknown> = {};
-      try { data = await res.json(); } catch { /* non-JSON */ }
-      if (!res.ok) { setError((data.error as string) ?? 'Error al cambiar contraseña'); return; }
-      setSuccess(true);
-      setTimeout(() => { window.location.href = '/personal'; }, 1500);
-    } catch {
-      setError('No se pudo conectar con el servidor');
-    } finally {
-      setLoading(false);
-    }
+  function handleSuccess() {
+    setSuccess(true);
+    setTimeout(() => { window.location.href = '/'; }, 1500);
   }
 
-  const successBanner = (
-    <div
-      className="flex flex-col items-center gap-3 py-6"
-      style={{ color: 'var(--text-primary)' }}
-    >
-      <div className="w-14 h-14 rounded-full flex items-center justify-center text-3xl" style={{ background: 'rgba(16,185,129,0.15)' }}>
-        ✓
+  const cabecera = (
+    <div className="flex items-start gap-3 mb-5">
+      <span className="fm-caticon" style={{ ['--fm-c' as string]: 'var(--accent-mode)' }} aria-hidden="true"><LockIcon /></span>
+      <div>
+        <h1 id="pwd-title" className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+          {forced ? 'Establece tu contraseña' : 'Cambiar contraseña'}
+        </h1>
+        {forced && (
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+            Por seguridad, crea una contraseña personal antes de continuar.
+          </p>
+        )}
       </div>
-      <p className="text-base font-bold">¡Contraseña cambiada!</p>
-      <p className="text-sm text-center" style={{ color: 'var(--text-secondary)' }}>
-        Accediendo a la aplicación…
-      </p>
     </div>
   );
 
-  const form = (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div>
-        <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-          Contraseña actual
-        </label>
-        <input
-          type="password"
-          autoComplete="current-password"
-          value={currentPassword}
-          onChange={e => setCurrentPassword(e.target.value)}
-          required
-          className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border transition-colors"
-          style={{ background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' }}
-          placeholder="••••••••"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-          Nueva contraseña
-        </label>
-        <input
-          type="password"
-          autoComplete="new-password"
-          value={newPassword}
-          onChange={e => setNewPassword(e.target.value)}
-          required
-          className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border transition-colors"
-          style={{ background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' }}
-          placeholder="Mínimo 8 caracteres"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-          Confirmar contraseña
-        </label>
-        <input
-          type="password"
-          autoComplete="new-password"
-          value={confirmPassword}
-          onChange={e => setConfirmPassword(e.target.value)}
-          required
-          className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border transition-colors"
-          style={{ background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' }}
-          placeholder="••••••••"
-        />
-      </div>
-
-      {error && (
-        <p className="text-sm text-error font-medium text-center">{error}</p>
-      )}
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-accent-primary/30 disabled:opacity-60"
-        style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}
-      >
-        {loading ? 'Guardando…' : 'Guardar contraseña'}
-      </button>
-    </form>
+  const contenido = success ? (
+    <div role="status" className="flex flex-col items-center gap-2 py-6 text-center">
+      <span className="fm-caticon !w-12 !h-12" style={{ ['--fm-c' as string]: 'var(--money-in)' }} aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+      </span>
+      <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Contraseña cambiada</p>
+      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Accediendo a la aplicación…</p>
+    </div>
+  ) : (
+    <>
+      {cabecera}
+      <PasswordForm onSuccess={handleSuccess} submitLabel="Guardar contraseña" block />
+    </>
   );
 
-  // Forced change: full-screen modal that blocks everything
+  // Cambio obligatorio: capa a pantalla completa que bloquea el resto de la app
   if (forced) {
     return (
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 500,
-          background: 'rgba(0,0,0,0.65)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '1rem',
-        }}
-      >
-        <div className="glass-card rounded-3xl p-8 w-full max-w-md shadow-2xl">
-          <div className="flex items-center gap-3 mb-2">
-            <div
-              className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl flex-shrink-0"
-              style={{ background: 'rgba(var(--accent-primary-rgb),0.15)' }}
-            >
-              🔐
-            </div>
-            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-              Establece tu contraseña
-            </h1>
-          </div>
-
-          {!success && (
-            <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
-              Por seguridad debes crear una contraseña personal antes de continuar.
-            </p>
-          )}
-
-          {success ? successBanner : form}
+      <div className="fm-overlay !items-center p-4" style={{ zIndex: 500 }}>
+        <div role="dialog" aria-modal="true" aria-labelledby="pwd-title" className="fm-dialog !rounded-[var(--radius-modal)] !p-6 max-w-md">
+          {contenido}
         </div>
       </div>
     );
   }
 
-  // Voluntary change (from profile settings)
   return (
-    <div className="min-h-[80vh] flex items-center justify-center">
-      <div className="w-full max-w-md">
-        <div className="glass-card rounded-3xl p-8">
-          {!success && (
-            <h1 className="text-xl font-bold mb-6" style={{ color: 'var(--text-primary)' }}>
-              Cambiar contraseña
-            </h1>
-          )}
-          {success ? successBanner : form}
-        </div>
-      </div>
+    <div className="min-h-[70vh] flex items-center justify-center">
+      <div className="fm-card w-full max-w-md p-6">{contenido}</div>
     </div>
   );
 }

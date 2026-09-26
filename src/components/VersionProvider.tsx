@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useState } from 'react';
 
 const VersionContext = createContext<{ show: boolean; dismiss: () => void } | null>(null);
 
@@ -12,10 +12,11 @@ export function useVersionNotification() {
 export default function VersionProvider({ hasNewVersion, children }: { hasNewVersion: boolean; children: React.ReactNode }) {
   const [show, setShow] = useState(hasNewVersion);
 
-  function dismiss() {
+  // Estable entre renders para poder usarse como dependencia de efectos (VersionSeenMarker)
+  const dismiss = useCallback(() => {
     setShow(false);
     fetch('/api/auth/dismiss-version', { method: 'POST' });
-  }
+  }, []);
 
   return <VersionContext.Provider value={{ show, dismiss }}>{children}</VersionContext.Provider>;
 }

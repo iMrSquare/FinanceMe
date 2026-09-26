@@ -1,20 +1,20 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { IBM_Plex_Sans } from 'next/font/google';
 import './globals.css';
 import { getSession } from '@/lib/auth';
 
-const inter = Inter({ subsets: ['latin'] });
+const plex = IBM_Plex_Sans({ subsets: ['latin'], weight: ['400', '500', '600'], display: 'swap' });
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#6366f1',
+  themeColor: '#172033',
 };
 
 export const metadata: Metadata = {
-  title: 'FinanceMe Hogar',
-  description: 'Gestión de gastos del hogar',
+  title: 'FinanceMe',
+  description: 'Finanzas personales y del hogar',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
@@ -26,13 +26,14 @@ export const metadata: Metadata = {
       { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
       { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
     ],
-    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180' }],
+    apple: [{ url: '/apple-touch-icon.png?v=1.2.0', sizes: '180x180' }],
   },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
-  const theme = session?.theme ?? 'indigo';
+  // Temas retirados (Clásico, Monokai, Dracula) caen en Institucional
+  const theme = ['institucional', 'ambar', 'rosa', 'contraste'].includes(session?.theme ?? '') ? session!.theme : 'institucional';
   const colorMode = session?.colorMode ?? 'system';
   const isDark = colorMode === 'dark';
 
@@ -77,7 +78,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           try { if (typeof window.ethereum === 'undefined') window.ethereum = {}; } catch {}
         ` }} />
       </head>
-      <body className={inter.className}>
+      <body className={plex.className}>
         {children}
       </body>
     </html>

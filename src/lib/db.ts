@@ -1,9 +1,11 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { mensualNecesario } from './ahorroObjetivos';
 import { objetivoMensualAhorro } from './ahorro';
 import { lineasRecurrentesMes } from './recurrentes';
+import { sugerirIcono } from './categoryIcons';
 import type { SessionUser } from './auth-edge';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'financeme.db');
@@ -400,6 +402,43 @@ function runMigrations(db: Database.Database) {
     'ALTER TABLE users ADD COLUMN accent_hogar TEXT',
   ]) { try { db.exec(sql); } catch { /* already exists */ } }
 
+  // v1.2.0: icono por categoría; a las existentes se les sugiere uno según su nombre
+  for (const sql of ['ALTER TABLE categorias ADD COLUMN icono TEXT', 'ALTER TABLE personal_categorias ADD COLUMN icono TEXT']) {
+    try { db.exec(sql); } catch { /* ya existe */ }
+  }
+  for (const tabla of ['categorias', 'personal_categorias'] as const) {
+    const sinIcono = db.prepare(`SELECT id, nombre FROM ${tabla} WHERE icono IS NULL`).all() as { id: number; nombre: string }[];
+    const set = db.prepare(`UPDATE ${tabla} SET icono = ? WHERE id = ?`);
+    for (const c of sinIcono) set.run(sugerirIcono(c.nombre), c.id);
+  }
+
+  // v1.2.0: el tema Institucional pasa a ser el predeterminado. Una sola vez, los usuarios
+  // que seguían con el tema de serie (Clásico) pasan a Institucional; los demás conservan el suyo.
+  const temaMigrado = db.prepare("SELECT value FROM app_settings WHERE key = 'tema_institucional'").get();
+  if (!temaMigrado) {
+    db.prepare("UPDATE users SET theme = 'institucional' WHERE theme = 'indigo'").run();
+    db.prepare("INSERT INTO app_settings (key, value) VALUES ('tema_institucional', '1')").run();
+  }
+  // v1.2.0: se retiran los temas Clásico, Monokai y Dracula; quien los usara pasa a Institucional
+  db.prepare("UPDATE users SET theme = 'institucional' WHERE theme IN ('indigo', 'monokai', 'dracula')").run();
+
+  // v1.2.0: el tutorial se renovó; una sola vez se vuelve a mostrar a todos los usuarios.
+  // Al cerrarlo se marca como visto y ya solo se abre desde Mi perfil › Tutorial.
+  if (!db.prepare("SELECT value FROM app_settings WHERE key = 'tutorial_v1_2_0'").get()) {
+    db.prepare('UPDATE users SET tutorial_seen = 0').run();
+    db.prepare("INSERT INTO app_settings (key, value) VALUES ('tutorial_v1_2_0', '1')").run();
+  }
+
+  // v1.2.0: cada recurrente lleva su categoría y banco (se usan al añadirlos desglosados)
+  for (const t of ['personal_suscripciones', 'hogar_recurrentes']) {
+    for (const col of ['categoria', 'banco']) {
+      try { db.exec(`ALTER TABLE ${t} ADD COLUMN ${col} TEXT`); } catch { /* ya existe */ }
+    }
+  }
+
+  // v1.2.0: modo (Personal u Hogar) con el que se abre la aplicación al iniciar sesión
+  try { db.exec("ALTER TABLE users ADD COLUMN modo_inicio TEXT NOT NULL DEFAULT 'personal'"); } catch { /* ya existe */ }
+
   // Migration: add banco column to personal_gastos_mes
   try { db.exec('ALTER TABLE personal_gastos_mes ADD COLUMN banco TEXT'); } catch {}
 
@@ -448,11 +487,10 @@ function runMigrations(db: Database.Database) {
   // Seed default admin user if no users exist
   const userCount = (db.prepare('SELECT COUNT(*) as n FROM users').get() as { n: number }).n;
   if (userCount === 0) {
-    const crypto = require('crypto') as typeof import('crypto');
     const salt = crypto.randomBytes(16).toString('hex');
     const hash = crypto.scryptSync('admin123', salt, 64).toString('hex');
     db.prepare(
-      'INSERT INTO users (nombre, username, password_hash, role, must_change_password) VALUES (?, ?, ?, ?, ?)'
+      "INSERT INTO users (nombre, username, password_hash, role, must_change_password, theme) VALUES (?, ?, ?, ?, ?, 'institucional')"
     ).run('Administrador', 'admin', `${salt}:${hash}`, 'admin', 1);
   }
 }
@@ -501,6 +539,7 @@ export interface Categoria {
   tipo: 'gasto' | 'prestamo' | 'luz' | 'agua';
   nombre: string;
   color: string;
+  icono?: string | null;
 }
 
 export interface RegistroAgua {
@@ -708,7 +747,7 @@ export function applyFijosToMes(mesId: number, mes: number, anio: number) {
   const objetivosMensual = getAhorroObjetivos().reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
   if (objetivosMensual > 0) {
     const cfg = autoConfigs.find(c => c.tipo === 'objetivos');
-    insertGasto.run(mesId, 'Objetivos de ahorro', null, cfg?.categoria ?? null, cfg?.banco ?? null, objetivosMensual, 'Aportación mensual necesaria para los objetivos de ahorro en progreso');
+    insertGasto.run(mesId, 'Objetivos', null, cfg?.categoria ?? null, cfg?.banco ?? null, objetivosMensual, 'Aportación mensual necesaria para los objetivos de ahorro en progreso');
   }
 }
 
@@ -760,6 +799,7 @@ export function getGastosPorCategoria(mesId: number): GastoCatTotal[] {
 export interface CategoriaStats {
   categoria: string;
   color: string;
+  icono?: string | null;
   totalesPorMes: number[];
   total: number;
   promedio: number;
@@ -773,7 +813,7 @@ export interface EstadisticasData {
   /** Todos los meses con datos (YYYY-MM, ascendente), para los filtros */
   disponibles?: string[];
   /** Todas las categorías del ámbito, para los filtros */
-  categoriasDisponibles?: { nombre: string; color: string }[];
+  categoriasDisponibles?: { nombre: string; color: string; icono?: string | null }[];
 }
 
 export interface EstadisticasFiltro {
@@ -805,11 +845,12 @@ function construirEstadisticas<T extends { anio: number; mes: number }>(
   meses: T[],
   label: (m: T) => string,
   rows: Array<{ anio: number; mes: number; categoria: string; total: number }>,
-  cats: Array<{ nombre: string; color: string }>,
+  cats: Array<{ nombre: string; color: string; icono?: string | null }>,
   palette: string[],
   f: EstadisticasFiltro,
 ): EstadisticasData {
   const colorMap = Object.fromEntries(cats.map(c => [c.nombre, c.color]));
+  const iconoMap = Object.fromEntries(cats.map(c => [c.nombre, c.icono ?? null]));
   const catNames = [...new Set([...cats.map(c => c.nombre), ...rows.map(r => r.categoria)])];
   const colorDe = (cat: string, i: number) => colorMap[cat] ?? palette[i % palette.length];
   const seleccion = f.categorias?.length ? new Set(f.categorias) : null;
@@ -818,7 +859,7 @@ function construirEstadisticas<T extends { anio: number; mes: number }>(
     .map((cat, i) => {
       const totalesPorMes = meses.map(m => rows.find(r => r.anio === m.anio && r.mes === m.mes && r.categoria === cat)?.total ?? 0);
       const total = totalesPorMes.reduce((s, v) => s + v, 0);
-      return { categoria: cat, color: colorDe(cat, i), totalesPorMes, total, promedio: meses.length > 0 ? total / meses.length : 0 };
+      return { categoria: cat, color: colorDe(cat, i), icono: iconoMap[cat] ?? null, totalesPorMes, total, promedio: meses.length > 0 ? total / meses.length : 0 };
     })
     .filter(c => c.total > 0 && (!seleccion || seleccion.has(c.categoria)))
     .sort((a, b) => b.total - a.total);
@@ -830,7 +871,7 @@ function construirEstadisticas<T extends { anio: number; mes: number }>(
     categorias,
     disponibles: mesesAsc.map(m => ymKey(m.anio, m.mes)),
     categoriasDisponibles: [
-      ...cats.map((c, i) => ({ nombre: c.nombre, color: colorDe(c.nombre, i) })),
+      ...cats.map((c, i) => ({ nombre: c.nombre, color: colorDe(c.nombre, i), icono: c.icono ?? null })),
       ...(hayMesesSinCategoria && !colorMap[SIN_CATEGORIA] ? [{ nombre: SIN_CATEGORIA, color: '#94a3b8' }] : []),
     ],
   };
@@ -842,7 +883,7 @@ export function getEstadisticasGastos(filtro: EstadisticasFiltro | number = 12):
   const mesesAsc = db.prepare('SELECT id, nombre, anio, mes FROM meses ORDER BY anio ASC, mes ASC')
     .all() as Array<{ id: number; nombre: string; anio: number; mes: number }>;
   const meses = filtrarMeses(mesesAsc, f);
-  const cats = db.prepare("SELECT nombre, color FROM categorias WHERE tipo='gasto' ORDER BY nombre").all() as Array<{ nombre: string; color: string }>;
+  const cats = db.prepare("SELECT nombre, color, icono FROM categorias WHERE tipo='gasto' ORDER BY nombre").all() as Array<{ nombre: string; color: string; icono: string | null }>;
   const PALETTE = ['#6366f1','#0ea5e9','#10b981','#f97316','#f59e0b','#ec4899','#8b5cf6','#06b6d4'];
 
   let rows: Array<{ anio: number; mes: number; categoria: string; total: number }> = [];
@@ -865,7 +906,7 @@ export function getPersonalEstadisticas(userId: number, filtro: EstadisticasFilt
   const mesesAsc = db.prepare('SELECT anio, mes FROM personal_meses WHERE user_id = ? ORDER BY anio ASC, mes ASC')
     .all(userId) as Array<{ anio: number; mes: number }>;
   const meses = filtrarMeses(mesesAsc, f);
-  const cats = db.prepare('SELECT nombre, color FROM personal_categorias WHERE user_id = ? ORDER BY nombre').all(userId) as Array<{ nombre: string; color: string }>;
+  const cats = db.prepare('SELECT nombre, color, icono FROM personal_categorias WHERE user_id = ? ORDER BY nombre').all(userId) as Array<{ nombre: string; color: string; icono: string | null }>;
   const PALETTE = ['#f97316','#10b981','#8b5cf6','#0ea5e9','#f59e0b','#ec4899','#6366f1','#06b6d4'];
 
   let rows: Array<{ anio: number; mes: number; categoria: string; total: number }> = [];
@@ -908,6 +949,7 @@ export interface DbUser {
   color_mode: 'light' | 'dark' | 'system';
   accent_personal: string | null;
   accent_hogar: string | null;
+  modo_inicio: 'personal' | 'hogar';
   created_at: string;
 }
 
@@ -937,7 +979,7 @@ export function getAllUsers(): PublicUser[] {
 
 export function createUser(nombre: string, username: string, passwordHash: string, role: 'admin' | 'editor' | 'visor'): void {
   const db = getDb();
-  db.prepare('INSERT INTO users (nombre, username, password_hash, role) VALUES (?, ?, ?, ?)').run(nombre, username, passwordHash, role);
+  db.prepare("INSERT INTO users (nombre, username, password_hash, role, theme) VALUES (?, ?, ?, ?, 'institucional')").run(nombre, username, passwordHash, role);
 }
 
 export function deleteUser(id: number): void {
@@ -1016,7 +1058,17 @@ export function toSessionUser(u: DbUser): SessionUser {
     colorMode: u.color_mode,
     accentPersonal: u.accent_personal,
     accentHogar: u.accent_hogar,
+    modoInicio: u.modo_inicio === 'hogar' ? 'hogar' : 'personal',
   };
+}
+
+export function updateUserModoInicio(id: number, modo: 'personal' | 'hogar'): void {
+  getDb().prepare('UPDATE users SET modo_inicio = ? WHERE id = ?').run(modo, id);
+}
+
+/** Ruta con la que se abre la aplicación: el modo elegido por el usuario, si tiene acceso a él */
+export function rutaInicio(u: Pick<DbUser, 'role' | 'modo_inicio'>): '/personal' | '/hogar' {
+  return u.modo_inicio === 'hogar' && (u.role === 'admin' || isHogarActivated()) ? '/hogar' : '/personal';
 }
 
 export function isHogarActivated(): boolean {
@@ -1037,19 +1089,19 @@ export function updateUserProfile(id: number, nombre: string): void {
 
 // ── Personal: Categorías ───────────────────────────────────────────────────
 
-export interface PersonalCategoria { id: number; user_id: number; nombre: string; color: string; }
+export interface PersonalCategoria { id: number; user_id: number; nombre: string; color: string; icono?: string | null; }
 
 export function getPersonalCategorias(userId: number): PersonalCategoria[] {
   return getDb().prepare('SELECT * FROM personal_categorias WHERE user_id = ? ORDER BY nombre').all(userId) as PersonalCategoria[];
 }
-export function createPersonalCategoria(userId: number, nombre: string, color: string): number {
-  const result = getDb().prepare('INSERT INTO personal_categorias (user_id, nombre, color) VALUES (?, ?, ?)').run(userId, nombre, color);
+export function createPersonalCategoria(userId: number, nombre: string, color: string, icono?: string | null): number {
+  const result = getDb().prepare('INSERT INTO personal_categorias (user_id, nombre, color, icono) VALUES (?, ?, ?, ?)').run(userId, nombre, color, icono || sugerirIcono(nombre));
   return Number(result.lastInsertRowid);
 }
-export function updatePersonalCategoria(id: number, userId: number, nombre: string, color: string): void {
+export function updatePersonalCategoria(id: number, userId: number, nombre: string, color: string, icono?: string | null): void {
   const db = getDb();
   const prev = db.prepare('SELECT nombre FROM personal_categorias WHERE id = ? AND user_id = ?').get(id, userId) as { nombre: string } | undefined;
-  db.prepare('UPDATE personal_categorias SET nombre = ?, color = ? WHERE id = ? AND user_id = ?').run(nombre, color, id, userId);
+  db.prepare('UPDATE personal_categorias SET nombre = ?, color = ?, icono = COALESCE(?, icono) WHERE id = ? AND user_id = ?').run(nombre, color, icono || null, id, userId);
   if (prev && prev.nombre !== nombre) {
     db.prepare('UPDATE personal_gastos_fijos SET categoria = ? WHERE categoria = ? AND user_id = ?').run(nombre, prev.nombre, userId);
     db.prepare('UPDATE personal_gastos_mes SET categoria = ? WHERE categoria = ? AND user_id = ?').run(nombre, prev.nombre, userId);
@@ -1141,6 +1193,7 @@ export function deletePersonalIngresoFijo(id: number, userId: number): void {
 export interface PersonalSuscripcion {
   id: number; user_id: number; nombre: string; importe: number;
   cobro: string | null; periodicidad: 'mensual' | 'trimestral' | 'anual'; comentario: string | null;
+  categoria: string | null; banco: string | null;
   created_at: string;
 }
 
@@ -1149,13 +1202,13 @@ export function getPersonalSuscripciones(userId: number): PersonalSuscripcion[] 
 }
 export function createPersonalSuscripcion(userId: number, data: Omit<PersonalSuscripcion, 'id' | 'user_id' | 'created_at'>): void {
   getDb().prepare(
-    'INSERT INTO personal_suscripciones (user_id, nombre, importe, cobro, periodicidad, comentario) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(userId, data.nombre, data.importe, data.cobro, data.periodicidad, data.comentario);
+    'INSERT INTO personal_suscripciones (user_id, nombre, importe, cobro, periodicidad, comentario, categoria, banco) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(userId, data.nombre, data.importe, data.cobro, data.periodicidad, data.comentario, data.categoria, data.banco);
 }
 export function updatePersonalSuscripcion(id: number, userId: number, data: Omit<PersonalSuscripcion, 'id' | 'user_id' | 'created_at'>): void {
   getDb().prepare(
-    'UPDATE personal_suscripciones SET nombre = ?, importe = ?, cobro = ?, periodicidad = ?, comentario = ? WHERE id = ? AND user_id = ?'
-  ).run(data.nombre, data.importe, data.cobro, data.periodicidad, data.comentario, id, userId);
+    'UPDATE personal_suscripciones SET nombre = ?, importe = ?, cobro = ?, periodicidad = ?, comentario = ?, categoria = ?, banco = ? WHERE id = ? AND user_id = ?'
+  ).run(data.nombre, data.importe, data.cobro, data.periodicidad, data.comentario, data.categoria, data.banco, id, userId);
 }
 export function deletePersonalSuscripcion(id: number, userId: number): void {
   getDb().prepare('DELETE FROM personal_suscripciones WHERE id = ? AND user_id = ?').run(id, userId);
@@ -1166,6 +1219,7 @@ export function deletePersonalSuscripcion(id: number, userId: number): void {
 export interface HogarRecurrente {
   id: number; nombre: string; importe: number;
   cobro: string | null; periodicidad: 'mensual' | 'trimestral' | 'anual'; comentario: string | null;
+  categoria: string | null; banco: string | null;
   created_at: string;
 }
 export type HogarRecurrenteInput = Omit<HogarRecurrente, 'id' | 'created_at'>;
@@ -1175,13 +1229,13 @@ export function getHogarRecurrentes(): HogarRecurrente[] {
 }
 export function createHogarRecurrente(data: HogarRecurrenteInput): void {
   getDb().prepare(
-    'INSERT INTO hogar_recurrentes (nombre, importe, cobro, periodicidad, comentario) VALUES (?, ?, ?, ?, ?)'
-  ).run(data.nombre, data.importe, data.cobro, data.periodicidad, data.comentario);
+    'INSERT INTO hogar_recurrentes (nombre, importe, cobro, periodicidad, comentario, categoria, banco) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run(data.nombre, data.importe, data.cobro, data.periodicidad, data.comentario, data.categoria, data.banco);
 }
 export function updateHogarRecurrente(id: number, data: HogarRecurrenteInput): void {
   getDb().prepare(
-    'UPDATE hogar_recurrentes SET nombre = ?, importe = ?, cobro = ?, periodicidad = ?, comentario = ? WHERE id = ?'
-  ).run(data.nombre, data.importe, data.cobro, data.periodicidad, data.comentario, id);
+    'UPDATE hogar_recurrentes SET nombre = ?, importe = ?, cobro = ?, periodicidad = ?, comentario = ?, categoria = ?, banco = ? WHERE id = ?'
+  ).run(data.nombre, data.importe, data.cobro, data.periodicidad, data.comentario, data.categoria, data.banco, id);
 }
 export function deleteHogarRecurrente(id: number): void {
   getDb().prepare('DELETE FROM hogar_recurrentes WHERE id = ?').run(id);

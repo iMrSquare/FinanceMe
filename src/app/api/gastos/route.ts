@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, getGastos, getMes, getOrCreateMes, isMesBloqueado } from '@/lib/db';
+import { getDb, getGastos, getMes, isMesBloqueado } from '@/lib/db';
 import { requireEditor, requireSession } from '@/lib/auth';
 
 export async function GET(req: Request) {

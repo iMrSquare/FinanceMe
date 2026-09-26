@@ -7,6 +7,8 @@ export interface RecurrenteLike {
   cobro: string | null;
   periodicidad: string;
   comentario?: string | null;
+  categoria?: string | null;
+  banco?: string | null;
 }
 
 export interface RecurrentesConfig {
@@ -68,6 +70,8 @@ export function lineasRecurrentesMes(items: RecurrenteLike[], cfg: RecurrentesCo
   const lineas: LineaMes[] = [];
   for (const r of items) {
     if (r.importe <= 0) continue;
+    // Desglosado: cada recurrente usa su categoría y banco; si no tiene, los de la fila automática
+    const base = { categoria: r.categoria || cfg.categoria || null, banco: r.banco || cfg.banco || null };
     const mensual = r.periodicidad === 'mensual';
     // Sin fecha de referencia no se sabe en qué mes cae un cobro trimestral/anual: se prorratea
     if (!mensual && (!r.cobro || isDayOnly(r.cobro))) {
@@ -100,5 +104,7 @@ export function parseRecurrenteBody(body: Record<string, unknown>) {
     cobro: typeof body.cobro === 'string' && body.cobro ? body.cobro : null,
     periodicidad,
     comentario: typeof body.comentario === 'string' && body.comentario ? body.comentario : null,
+    categoria: typeof body.categoria === 'string' && body.categoria ? body.categoria : null,
+    banco: typeof body.banco === 'string' && body.banco ? body.banco : null,
   };
 }

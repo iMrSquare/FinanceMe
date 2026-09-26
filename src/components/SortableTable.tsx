@@ -54,13 +54,14 @@ export function useTableSort<T, K extends string>(
   const sortKey = pref.key;
   const sortAsc = pref.asc;
 
-  function toggleSort(k: K) {
-    const next = { key: k, asc: sortKey === k ? !sortAsc : true };
+  function setSort(k: K, asc: boolean) {
+    const next = { key: k, asc };
     setOverride(next);
     if (storageKey) {
       try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch {}
     }
   }
+  const toggleSort = (k: K) => setSort(k, sortKey === k ? !sortAsc : true);
 
   const acc = accessors[sortKey];
   const sorted = useMemo(() => {
@@ -80,7 +81,7 @@ export function useTableSort<T, K extends string>(
     });
   }, [rows, acc, sortAsc, tieBreak]);
 
-  return { sorted, sortKey, sortAsc, toggleSort };
+  return { sorted, sortKey, sortAsc, toggleSort, setSort };
 }
 
 interface SortableThProps<K extends string> {

@@ -7,26 +7,21 @@ import type { SessionUser } from '@/lib/auth';
 import Logo from './Logo';
 import { APP_VERSION } from '@/lib/constants';
 import { useVersionNotification } from './VersionProvider';
+import Button from './ui/Button';
+import Modal from './ui/Modal';
 
-function ChevronLeftIcon() {
+function PanelIcon({ collapsed }: { collapsed: boolean }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="15 18 9 12 15 6"/>
-    </svg>
-  );
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 18 15 12 9 6"/>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" />
+      <path d={collapsed ? 'm13 10 2 2-2 2' : 'm15 10-2 2 2 2'} />
     </svg>
   );
 }
 
 function UserIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
     </svg>
   );
@@ -34,7 +29,7 @@ function UserIcon() {
 
 function SettingsIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="3"/>
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
     </svg>
@@ -43,31 +38,24 @@ function SettingsIcon() {
 
 function LogoutIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-      <polyline points="16 17 21 12 16 7"/>
-      <line x1="21" y1="12" x2="9" y2="12"/>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
     </svg>
   );
 }
 
-interface NavItem { href: string; label: string; shortLabel?: string; icon: React.ReactElement; color: string; }
+interface NavItem { href: string; label: string; icon: React.ReactElement; }
 
-const NAV_HOGAR: NavItem[] = [
-  { href: '/hogar',              label: 'Resumen',      icon: <GridIcon     className="w-[18px] h-[18px]" />, color: 'var(--accent-hogar)' },
-  { href: '/hogar/mes',          label: 'Mes',          icon: <CalendarIcon className="w-[18px] h-[18px]" />, color: 'var(--accent-hogar)' },
-  { href: '/hogar/presupuesto',  label: 'Presupuesto',  icon: <ReceiptIcon  className="w-[18px] h-[18px]" />, color: 'var(--accent-hogar)' },
-  { href: '/hogar/modulos',      label: 'Módulos',      icon: <ModulesIcon  className="w-[18px] h-[18px]" />, color: 'var(--accent-hogar)' },
-  { href: '/hogar/avisos',       label: 'Avisos',       icon: <BellIcon     className="w-[18px] h-[18px]" />, color: 'var(--accent-hogar)' },
+const iconCls = 'w-[18px] h-[18px]';
+const navFor = (base: '/hogar' | '/personal'): NavItem[] => [
+  { href: base, label: 'Resumen', icon: <GridIcon className={iconCls} /> },
+  { href: `${base}/mes`, label: 'Mes', icon: <CalendarIcon className={iconCls} /> },
+  { href: `${base}/presupuesto`, label: 'Presupuesto', icon: <ReceiptIcon className={iconCls} /> },
+  { href: `${base}/modulos`, label: 'Módulos', icon: <ModulesIcon className={iconCls} /> },
+  { href: `${base}/avisos`, label: 'Avisos', icon: <BellIcon className={iconCls} /> },
 ];
-
-const NAV_PERSONAL: NavItem[] = [
-  { href: '/personal',                label: 'Resumen',       icon: <GridIcon className="w-[18px] h-[18px]" />,    color: 'var(--accent-personal)' },
-  { href: '/personal/mes',            label: 'Mes',           icon: <CalendarIcon className="w-[18px] h-[18px]" />, color: 'var(--accent-personal)' },
-  { href: '/personal/presupuesto',    label: 'Presupuesto',   icon: <ReceiptIcon className="w-[18px] h-[18px]" />,  color: 'var(--accent-personal)' },
-  { href: '/personal/modulos',        label: 'Módulos',       icon: <ModulesIcon className="w-[18px] h-[18px]" />,  color: 'var(--accent-personal)' },
-  { href: '/personal/avisos',         label: 'Avisos',        icon: <BellIcon className="w-[18px] h-[18px]" />,     color: 'var(--accent-personal)' },
-];
+const NAV_HOGAR = navFor('/hogar');
+const NAV_PERSONAL = navFor('/personal');
 
 function withCenterResumen(items: NavItem[]): NavItem[] {
   const idx = items.findIndex(i => i.label === 'Resumen');
@@ -78,15 +66,14 @@ function withCenterResumen(items: NavItem[]): NavItem[] {
   return [...rest.slice(0, mid), resumen, ...rest.slice(mid)];
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Administrador',
-  editor: 'Editor',
-  visor: 'Visor',
-};
+interface Props {
+  session: SessionUser | null;
+  hogarActivated: boolean;
+  /** Versión publicada más reciente que la instalada (solo administradores) */
+  updateDisponible?: string | null;
+}
 
-interface Props { session: SessionUser | null; hogarActivated: boolean; }
-
-export default function Sidebar({ session, hogarActivated }: Props) {
+export default function Sidebar({ session, hogarActivated, updateDisponible }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const { show: hasNewVersion } = useVersionNotification();
@@ -100,6 +87,9 @@ export default function Sidebar({ session, hogarActivated }: Props) {
   const menuRef = useRef<HTMLDivElement>(null);
   const lastScrollRef = useRef(0);
 
+  const hogarBloqueado = !hogarActivated && session?.role !== 'admin';
+
+  /* eslint-disable react-hooks/set-state-in-effect -- sincroniza con localStorage y la ruta actual */
   useEffect(() => {
     if (localStorage.getItem('sidebar') === 'collapsed') setCollapsed(true);
     const saved = localStorage.getItem('app-mode');
@@ -116,7 +106,15 @@ export default function Sidebar({ session, hogarActivated }: Props) {
     }
     setMobileOpen(false);
     setPendingHref(null);
+    setNavHidden(false);
+    lastScrollRef.current = 0;
   }, [pathname]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // El acento de botones y navegación sigue al ámbito activo (ver globals.css)
+  useEffect(() => {
+    document.documentElement.dataset.ambito = mode;
+  }, [mode]);
 
   function toggleMode(next: 'hogar' | 'personal') {
     if (next === 'hogar' && !hogarActivated) {
@@ -128,7 +126,7 @@ export default function Sidebar({ session, hogarActivated }: Props) {
 
   function handleLogoClick() {
     const next = mode === 'personal' ? 'hogar' : 'personal';
-    if (next === 'hogar' && !hogarActivated && session?.role !== 'admin') return;
+    if (next === 'hogar' && hogarBloqueado) return;
     toggleMode(next);
   }
 
@@ -150,26 +148,22 @@ export default function Sidebar({ session, hogarActivated }: Props) {
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     }
-    if (menuOpen) document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    function handleKey(e: KeyboardEvent) { if (e.key === 'Escape') setMenuOpen(false); }
+    if (menuOpen) { document.addEventListener('mousedown', handleClick); document.addEventListener('keydown', handleKey); }
+    return () => { document.removeEventListener('mousedown', handleClick); document.removeEventListener('keydown', handleKey); };
   }, [menuOpen]);
 
-  // Prevent body scroll when mobile drawer is open
   useEffect(() => {
-    if (mobileOpen) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = '';
+    document.body.style.overflow = mobileOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [mobileOpen]);
 
-  // Hide bottom nav on scroll down, show on scroll up
+  // Oculta la barra inferior al bajar y la muestra al subir
   useEffect(() => {
     let el: HTMLElement | null = null;
     let remove: (() => void) | null = null;
-
     function attach() {
       el = document.querySelector('main');
       if (!el) return false;
@@ -184,19 +178,12 @@ export default function Sidebar({ session, hogarActivated }: Props) {
       remove = () => el!.removeEventListener('scroll', onScroll);
       return true;
     }
-
     if (!attach()) {
       const t = setTimeout(attach, 200);
       return () => clearTimeout(t);
     }
     return () => remove?.();
   }, []);
-
-  // Reset nav visibility on navigation
-  useEffect(() => {
-    setNavHidden(false);
-    lastScrollRef.current = 0;
-  }, [pathname]);
 
   function toggleCollapsed() {
     const next = !collapsed;
@@ -211,455 +198,227 @@ export default function Sidebar({ session, hogarActivated }: Props) {
 
   function isActive(href: string) {
     if (href === '/hogar') return pathname === '/hogar';
-    if (href === '/hogar/mes') return pathname.startsWith('/hogar/mes');
     if (href === '/personal') return pathname === '/personal';
     return pathname.startsWith(href);
   }
+  const isActiveMobile = (href: string) => (pendingHref ? pendingHref === href : isActive(href));
 
-  function isActiveMobile(href: string) {
-    return pendingHref ? pendingHref === href : isActive(href);
-  }
-
-  const initials = session
-    ? session.nombre.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-    : '??';
-
+  const initials = session ? session.nombre.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '??';
   const navItems = mode === 'personal' ? NAV_PERSONAL : NAV_HOGAR;
   const mobileNavItems = withCenterResumen(navItems);
+  const cambiarA = mode === 'personal' ? 'Hogar' : 'Personal';
+  const modoLabel = mode === 'personal' ? 'Personal' : 'Hogar';
+  const modoColor = mode === 'personal' ? 'var(--accent-personal)' : 'var(--accent-hogar)';
+
+  const avatar = (size: number) => session?.avatarUrl ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={session.avatarUrl} alt="" width={size} height={size} className="rounded-full object-cover shrink-0" style={{ width: size, height: size }} />
+  ) : (
+    <span className="rounded-full grid place-items-center font-semibold text-xs shrink-0" style={{ width: size, height: size, background: 'var(--accent-mode)', color: 'var(--on-accent)' }}>{initials}</span>
+  );
+
+  const tabs = () => (
+    <div className="fm-tabs" role="group" aria-label="Ámbito">
+      <button type="button" className="fm-tab" data-ambito="personal" aria-pressed={mode === 'personal'} onClick={() => { setMobileOpen(false); toggleMode('personal'); }}>
+        Personal
+      </button>
+      <button type="button" className="fm-tab" data-ambito="hogar" aria-pressed={mode === 'hogar'} onClick={() => { setMobileOpen(false); toggleMode('hogar'); }} disabled={hogarBloqueado}
+        title={hogarBloqueado ? 'Pendiente de activación por un administrador' : undefined}>
+        Hogar
+      </button>
+    </div>
+  );
+
+  const version = (
+    <Link href="/changelog" className="flex items-center justify-center gap-1.5 text-xs hover:underline" style={{ color: 'var(--text-muted)' }}>
+      {hasNewVersion ? (
+        <>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: 'var(--accent-mode)', color: 'var(--on-accent)' }}>Nuevo</span>
+          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{APP_VERSION}</span>
+        </>
+      ) : APP_VERSION}
+    </Link>
+  );
+
+  const avisoActualizacion = updateDisponible ? (
+    <Link href="/ajustes#actualizaciones" onClick={() => setMobileOpen(false)}
+      className="flex items-center justify-center gap-1.5 mt-1.5 text-xs font-medium hover:underline" style={{ color: 'var(--accent-mode)' }}>
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--accent-mode)' }} aria-hidden="true" />
+      {updateDisponible} disponible
+    </Link>
+  ) : null;
+
+  const menuLinkCls = 'flex items-center gap-3 px-4 py-3 text-sm font-medium w-full text-left transition-colors hover:bg-[var(--btn-hover)]';
 
   return (
     <>
-      {/* ── DESKTOP SIDEBAR ─────────────────────────────────── */}
+      {/* ── Escritorio ─────────────────────────────────────── */}
       <aside
-        className={`${collapsed ? 'w-16' : 'w-64'} shrink-0 hidden lg:flex flex-col border-r transition-all duration-300`}
+        className={`${collapsed ? 'w-[76px]' : 'w-64'} shrink-0 hidden lg:flex flex-col border-r transition-[width] duration-200`}
         style={{ background: 'var(--bg-sidebar)', borderColor: 'var(--sidebar-border)' }}
+        aria-label="Navegación principal"
       >
-        {/* Top */}
-        <div className="flex-1 flex flex-col px-3 pt-6 pb-3 min-h-0">
-
-          {/* Brand row */}
-          <div className={`flex items-center mb-8 ${collapsed ? 'justify-center' : 'justify-between px-1'}`}>
-            <div className="flex items-center gap-3 min-w-0">
-              <button
-                onClick={handleLogoClick}
-                className="w-9 h-9 rounded-xl overflow-hidden shrink-0 transition-transform hover:scale-105 active:scale-95"
-                title={`Cambiar a ${mode === 'personal' ? 'Hogar' : 'Personal'}`}
-              >
+        <div className={`flex-1 flex flex-col pt-5 pb-3 min-h-0 ${collapsed ? 'px-3 items-center' : 'px-4'}`}>
+          <div className={`flex items-center mb-6 gap-2 ${collapsed ? 'flex-col' : 'justify-between'}`}>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <button onClick={handleLogoClick} className="w-9 h-9 shrink-0 rounded-lg cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent-mode)]"
+                title={`Cambiar a ${cambiarA}`} aria-label={`Cambiar a ${cambiarA}`}>
                 <Logo mode={mode} className="w-full h-full" />
               </button>
               {!collapsed && (
-                <div className="min-w-0">
-                  <h1 className="font-bold text-base leading-tight truncate" style={{ color: 'var(--text-primary)' }}>FinanceMe</h1>
-                  <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>Control Financiero</p>
-                </div>
+                <span className="min-w-0 leading-tight">
+                  <span className="block font-semibold text-[17px] tracking-[-0.01em] truncate" style={{ color: 'var(--text-primary)' }}>FinanceMe</span>
+                  <span className="block text-xs font-medium" style={{ color: modoColor }}>{modoLabel}</span>
+                </span>
               )}
             </div>
-            {!collapsed && (
-              <button
-                onClick={toggleCollapsed}
-                className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-colors"
-                style={{ color: 'var(--text-muted)', background: 'var(--btn-hover)' }}
-                title="Colapsar"
-              >
-                <ChevronLeftIcon />
-              </button>
-            )}
+            <button onClick={toggleCollapsed}
+              className="w-8 h-8 rounded-lg grid place-items-center shrink-0 border cursor-pointer transition-colors hover:bg-[var(--btn-hover)] focus-visible:outline-2 focus-visible:outline-[var(--accent-mode)]"
+              style={{ color: 'var(--text-muted)', borderColor: 'var(--btn-border)' }}
+              title={collapsed ? 'Expandir menú' : 'Contraer menú'} aria-label={collapsed ? 'Expandir menú' : 'Contraer menú'} aria-expanded={!collapsed}>
+              <PanelIcon collapsed={collapsed} />
+            </button>
           </div>
 
-          {/* Mode switcher */}
           {!collapsed && (
             <div className="mb-5">
-              <div className="flex items-center gap-1 p-1 rounded-2xl" style={{ background: 'var(--btn-hover)' }}>
-                <button
-                  onClick={() => toggleMode('personal')}
-                  className="flex-1 py-1.5 rounded-xl text-xs font-bold transition-all"
-                  style={mode === 'personal'
-                    ? { background: 'var(--accent-personal)', color: '#fff', boxShadow: '0 2px 8px rgba(var(--accent-personal-rgb), 0.35)' }
-                    : { background: 'transparent', color: 'var(--text-muted)' }
-                  }
-                >
-                  Personal
-                </button>
-                <button
-                  onClick={() => toggleMode('hogar')}
-                  disabled={!hogarActivated && session?.role !== 'admin'}
-                  className="flex-1 py-1.5 rounded-xl text-xs font-bold transition-all"
-                  style={mode === 'hogar'
-                    ? { background: 'var(--accent-hogar)', color: '#fff', boxShadow: '0 2px 8px rgba(var(--accent-hogar-rgb), 0.35)' }
-                    : { background: 'transparent', color: 'var(--text-muted)', opacity: !hogarActivated && session?.role !== 'admin' ? 0.4 : 1, cursor: !hogarActivated && session?.role !== 'admin' ? 'not-allowed' : 'pointer' }
-                  }
-                  title={!hogarActivated && session?.role !== 'admin' ? 'Pendiente de activación por un administrador' : undefined}
-                >
-                  Hogar
-                </button>
-              </div>
-              {!hogarActivated && session?.role !== 'admin' && (
-                <p className="text-[10px] mt-1.5 text-center" style={{ color: 'var(--text-muted)' }}>
-                  Pendiente de activación por un administrador
-                </p>
+              {tabs()}
+              {hogarBloqueado && (
+                <p className="text-xs mt-1.5 text-center" style={{ color: 'var(--text-muted)' }}>Hogar pendiente de activación por un administrador</p>
               )}
             </div>
           )}
-          {/* Expand button when collapsed */}
-          {collapsed && (
-            <button
-              onClick={toggleCollapsed}
-              className="w-9 h-9 rounded-xl flex items-center justify-center mx-auto mb-6 transition-colors"
-              style={{ color: 'var(--text-muted)', background: 'var(--btn-hover)' }}
-              title="Expandir"
-            >
-              <ChevronRightIcon />
-            </button>
-          )}
 
-          {/* Nav */}
-          <nav className="space-y-1">
-            {navItems.map(({ href, label, icon, color }) => {
-              const active = isActive(href);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  title={collapsed ? label : undefined}
-                  className={`flex items-center py-2.5 rounded-2xl font-medium text-sm transition-all duration-200 ${collapsed ? 'justify-center px-2' : 'gap-3 px-3 hover:translate-x-0.5'}`}
-                  style={active
-                    ? { background: 'var(--sidebar-hover-bg)', color: 'var(--sidebar-hover-c)' }
-                    : { color: 'var(--text-secondary)' }
-                  }
-                  onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = 'var(--sidebar-hover-bg)'; (e.currentTarget as HTMLElement).style.color = 'var(--sidebar-hover-c)'; } }}
-                  onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = ''; (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; } }}
-                >
-                  <span style={{ color: active ? 'var(--sidebar-hover-c)' : color }}>{icon}</span>
-                  {!collapsed && label}
-                </Link>
-              );
-            })}
+          <nav className="flex flex-col gap-0.5 w-full" aria-label="Secciones">
+            {navItems.map(({ href, label, icon }) => (
+              <Link key={href} href={href} className={`fm-nav-item ${collapsed ? 'justify-center !px-0 w-12 mx-auto' : ''}`}
+                aria-current={isActive(href) ? 'page' : undefined} title={collapsed ? label : undefined} aria-label={collapsed ? label : undefined}>
+                {icon}
+                {!collapsed && label}
+              </Link>
+            ))}
           </nav>
         </div>
 
-        {/* Bottom */}
-        <div className="px-3 pb-6 space-y-2">
-          {/* User menu */}
-          <div className="relative" ref={menuRef}>
-            <button
-              onClick={() => setMenuOpen(o => !o)}
-              className={`w-full flex items-center ${collapsed ? 'justify-center' : 'gap-3 px-2'} py-2 rounded-2xl transition-colors`}
-              style={{ background: menuOpen ? 'var(--sidebar-hover-bg)' : 'transparent' }}
-              title={collapsed ? session?.nombre ?? 'Usuario' : undefined}
-            >
-              {session?.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={session.avatarUrl} alt={session.nombre} width={32} height={32} className="w-8 h-8 rounded-full object-cover shrink-0" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-accent-primary flex items-center justify-center text-white font-bold text-xs shrink-0">
-                  {initials}
-                </div>
-              )}
+        <div className={`pb-5 space-y-3 ${collapsed ? 'px-3' : 'px-4'}`}>
+          <div className="relative pt-3" ref={menuRef} style={{ borderTop: '1px solid var(--sidebar-border)' }}>
+            <button onClick={() => setMenuOpen(o => !o)} aria-expanded={menuOpen} aria-haspopup="menu"
+              className={`w-full flex items-center ${collapsed ? 'justify-center' : 'gap-3 px-2'} py-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--btn-hover)]`}
+              style={{ background: menuOpen ? 'var(--btn-hover)' : undefined }}
+              title={collapsed ? session?.nombre ?? 'Usuario' : undefined} aria-label={collapsed ? `Menú de ${session?.nombre ?? 'usuario'}` : undefined}>
+              {avatar(32)}
               {!collapsed && session && (
-                <div className="min-w-0 flex-1 text-left">
-                  <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{session.nombre}</p>
-                  <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>@{session.username}</p>
-                </div>
+                <span className="min-w-0 flex-1 text-left">
+                  <span className="block font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>{session.nombre}</span>
+                  <span className="block text-xs truncate" style={{ color: 'var(--text-muted)' }}>@{session.username}</span>
+                </span>
               )}
               {!collapsed && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0" style={{ color: 'var(--text-muted)', transform: menuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="shrink-0"
+                  style={{ color: 'var(--text-muted)', transform: menuOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>
                   <polyline points="18 15 12 9 6 15"/>
                 </svg>
               )}
             </button>
 
-            {/* Dropdown */}
             {menuOpen && (
-              <div
-                className="absolute bottom-full left-0 mb-2 w-56 rounded-2xl overflow-hidden shadow-xl z-50"
-                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}
-              >
-                <Link href="/perfil" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors w-full" style={{ color: 'var(--text-primary)' }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--sidebar-hover-bg)'} onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
-                  <UserIcon />Mi Perfil
-                </Link>
+              <div role="menu" className="absolute bottom-full left-0 mb-2 w-56 rounded-[var(--radius-card)] overflow-hidden z-50 fm-card" style={{ boxShadow: '0 12px 32px rgba(10,16,28,.18)' }}>
+                <Link role="menuitem" href="/perfil" onClick={() => setMenuOpen(false)} className={menuLinkCls} style={{ color: 'var(--text-primary)' }}><UserIcon />Mi perfil</Link>
                 {session?.role === 'admin' && (
-                  <Link href="/ajustes" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors w-full" style={{ color: 'var(--text-primary)' }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--sidebar-hover-bg)'} onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
-                    <SettingsIcon />Configuración
-                  </Link>
+                  <Link role="menuitem" href="/ajustes" onClick={() => setMenuOpen(false)} className={menuLinkCls} style={{ color: 'var(--text-primary)' }}><SettingsIcon />Configuración</Link>
                 )}
                 <div style={{ borderTop: '1px solid var(--divider)' }} />
-                <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors w-full text-left" style={{ color: '#ef4444' }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.08)'} onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
-                  <LogoutIcon />Cerrar sesión
-                </button>
+                <button role="menuitem" onClick={handleLogout} className={`${menuLinkCls} cursor-pointer`} style={{ color: 'var(--money-out)' }}><LogoutIcon />Cerrar sesión</button>
               </div>
             )}
           </div>
-          {!collapsed && (
-            <Link href="/changelog" className="flex items-center justify-center gap-1.5 mt-3 text-xs hover:underline">
-              {hasNewVersion ? (
-                <>
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white bg-error">new</span>
-                  <span className="px-2 py-0.5 rounded-full font-bold text-white bg-error">{APP_VERSION}</span>
-                </>
-              ) : (
-                <span style={{ color: 'var(--text-muted)' }}>{APP_VERSION}</span>
-              )}
-            </Link>
-          )}
+          {!collapsed && version}
+          {!collapsed && avisoActualizacion}
         </div>
       </aside>
 
-      {/* ── MOBILE HEADER ───────────────────────────────────── */}
-      <header
-        className="lg:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14 border-b"
-        style={{ background: 'var(--bg-sidebar)', borderColor: 'var(--sidebar-border)' }}
-      >
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={handleLogoClick}
-            className="w-8 h-8 rounded-xl overflow-hidden shrink-0 active:scale-95 transition-transform"
-            title={`Cambiar a ${mode === 'personal' ? 'Hogar' : 'Personal'}`}
-          >
+      {/* ── Cabecera móvil ─────────────────────────────────── */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between gap-3 px-4 h-14 border-b"
+        style={{ background: 'var(--bg-sidebar)', borderColor: 'var(--sidebar-border)' }}>
+        <div className="flex items-center gap-2 min-w-0">
+          <button onClick={handleLogoClick} className="w-8 h-8 shrink-0 rounded-lg" title={`Cambiar a ${cambiarA}`} aria-label={`Cambiar a ${cambiarA}`}>
             <Logo mode={mode} className="w-full h-full" />
           </button>
-          <div>
-            <p className="font-bold text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>FinanceMe</p>
-            <p className="text-[10px] leading-tight" style={{ color: mode === 'personal' ? 'var(--accent-personal)' : 'var(--accent-hogar)' }}>
-              {mode === 'personal' ? 'Personal' : 'Hogar'}
-            </p>
-          </div>
+          <span className="font-semibold text-base truncate" style={{ color: 'var(--text-primary)' }}>
+            FinanceMe <span aria-hidden="true" style={{ color: 'var(--text-muted)' }}>·</span> <span style={{ color: modoColor }}>{modoLabel}</span>
+          </span>
         </div>
-
-        <div className="relative">
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center"
-            aria-label="Abrir menú"
-          >
-            {session?.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={session.avatarUrl} alt={session.nombre} width={36} height={36} className="w-9 h-9 object-cover" />
-            ) : (
-              <div className="w-9 h-9 rounded-full bg-accent-primary flex items-center justify-center text-white font-bold text-xs">
-                {initials}
-              </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setMobileOpen(true)} className="relative rounded-full" aria-label="Abrir menú de usuario">
+            {avatar(34)}
+            {(hasNewVersion || updateDisponible) && (
+              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full" style={{ background: 'var(--money-out)', border: '2px solid var(--bg-sidebar)' }} aria-label="Hay una versión nueva" />
             )}
           </button>
-          {hasNewVersion && (
-            <span
-              className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-error text-white text-[10px] font-bold flex items-center justify-center"
-              style={{ border: '2px solid var(--bg-sidebar)' }}
-            >
-              1
-            </span>
-          )}
         </div>
       </header>
 
-      {/* ── MOBILE BOTTOM NAV ───────────────────────────────── */}
-      <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex border-t"
+      {/* ── Barra inferior móvil ───────────────────────────── */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex border-t" aria-label="Secciones"
         style={{
-          background: 'var(--bg-sidebar)',
-          borderColor: 'var(--sidebar-border)',
-          transform: navHidden ? 'translateY(100%)' : 'translateY(0)',
-          transition: 'transform 300ms ease',
+          background: 'var(--bg-sidebar)', borderColor: 'var(--sidebar-border)',
+          transform: navHidden ? 'translateY(100%)' : 'translateY(0)', transition: 'transform 300ms ease',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          height: 'calc(4rem + env(safe-area-inset-bottom, 0px))',
-        }}
-      >
-        {mobileNavItems.map(({ href, label, shortLabel, icon, color }) => {
+        }}>
+        {mobileNavItems.map(({ href, label, icon }) => {
           const active = isActiveMobile(href);
-          if (label === 'Resumen') {
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setPendingHref(href)}
-                className="flex-1 flex flex-col items-center justify-center active:opacity-70"
-              >
-                <span
-                  className="flex items-center justify-center w-14 h-14 rounded-full -mt-7 shrink-0"
-                  style={{
-                    background: active ? color : 'var(--btn-hover)',
-                    boxShadow: active ? `0 4px 14px ${color}66` : 'none',
-                    border: '4px solid var(--bg-sidebar)',
-                  }}
-                >
-                  <span style={{ color: active ? '#fff' : 'var(--text-muted)' }}>{icon}</span>
-                </span>
-              </Link>
-            );
-          }
           return (
-            <Link
-              key={href}
-              href={href}
-              onClick={() => setPendingHref(href)}
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 active:opacity-70"
-            >
-              <span
-                className="flex items-center justify-center w-9 h-9 rounded-full"
-                style={{ background: active ? `${color}1f` : 'transparent' }}
-              >
-                <span style={{ color: active ? color : 'var(--text-muted)' }}>{icon}</span>
-              </span>
-              <span
-                className="text-[10px] font-semibold leading-tight"
-                style={{ color: active ? color : 'var(--text-muted)' }}
-              >
-                {shortLabel ?? label}
-              </span>
+            <Link key={href} href={href} onClick={() => setPendingHref(href)} className="fm-bottom-item" aria-current={active ? 'page' : undefined}
+              aria-label={label === 'Resumen' ? 'Resumen' : undefined}>
+              {label === 'Resumen' ? <span className="fm-bottom-fab">{icon}</span> : <>{icon}<span>{label}</span></>}
             </Link>
           );
         })}
       </nav>
 
-      {/* ── MOBILE DRAWER ───────────────────────────────────── */}
+      {/* ── Menú de usuario móvil ──────────────────────────── */}
       {mobileOpen && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
-            onClick={() => setMobileOpen(false)}
-          />
-          {/* Sheet */}
-          <div
-            className="lg:hidden fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl pt-3 pb-8 px-5 space-y-3 max-h-[90vh] overflow-y-auto"
-            style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--border-card)' }}
-          >
-            {/* Handle */}
-            <div className="w-10 h-1 rounded-full mx-auto mb-1" style={{ background: 'var(--text-muted)', opacity: 0.35 }} />
-
-            {/* User info */}
-            <div className="flex items-center gap-3 p-3 rounded-2xl" style={{ background: 'var(--bg-page)' }}>
-              {session?.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={session.avatarUrl} alt={session.nombre} width={44} height={44} className="w-11 h-11 rounded-full object-cover shrink-0" />
-              ) : (
-                <div className="w-11 h-11 rounded-full bg-accent-primary flex items-center justify-center text-white font-bold text-sm shrink-0">
-                  {initials}
-                </div>
-              )}
-              <div className="min-w-0">
-                <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{session?.nombre}</p>
-                <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{session ? `@${session.username}` : ''}</p>
-              </div>
-            </div>
-
-            {/* Mode switcher */}
-            <div>
-              <div className="flex gap-1 p-1 rounded-2xl" style={{ background: 'var(--bg-page)' }}>
-                <button
-                  onClick={() => { toggleMode('personal'); setMobileOpen(false); }}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
-                  style={mode === 'personal'
-                    ? { background: 'var(--accent-personal)', color: '#fff', boxShadow: '0 2px 8px rgba(var(--accent-personal-rgb), 0.35)' }
-                    : { background: 'transparent', color: 'var(--text-muted)' }
-                  }
-                >
-                  Personal
-                </button>
-                <button
-                  onClick={() => { toggleMode('hogar'); setMobileOpen(false); }}
-                  disabled={!hogarActivated && session?.role !== 'admin'}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
-                  style={mode === 'hogar'
-                    ? { background: 'var(--accent-hogar)', color: '#fff', boxShadow: '0 2px 8px rgba(var(--accent-hogar-rgb), 0.35)' }
-                    : { background: 'transparent', color: 'var(--text-muted)', opacity: !hogarActivated && session?.role !== 'admin' ? 0.4 : 1, cursor: !hogarActivated && session?.role !== 'admin' ? 'not-allowed' : 'pointer' }
-                  }
-                  title={!hogarActivated && session?.role !== 'admin' ? 'Pendiente de activación por un administrador' : undefined}
-                >
-                  Hogar
-                </button>
-              </div>
-              {!hogarActivated && session?.role !== 'admin' && (
-                <p className="text-xs mt-1.5 text-center" style={{ color: 'var(--text-muted)' }}>
-                  Pendiente de activación por un administrador
-                </p>
-              )}
-            </div>
-
-            {/* Links */}
-            <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-page)', border: '1px solid var(--border-card)' }}>
-              <Link
-                href="/perfil"
-                onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-3 px-4 py-3.5 text-sm font-medium border-b"
-                style={{ color: 'var(--text-primary)', borderColor: 'var(--border-card)' }}
-              >
-                <UserIcon />
-                Mi Perfil
-              </Link>
-              {session?.role === 'admin' && (
-                <Link
-                  href="/ajustes"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3.5 text-sm font-medium border-b"
-                  style={{ color: 'var(--text-primary)', borderColor: 'var(--border-card)' }}
-                >
-                  <SettingsIcon />
-                  Configuración
-                </Link>
-              )}
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-3 px-4 py-3.5 text-sm font-medium w-full text-left"
-                style={{ color: '#ef4444' }}
-              >
-                <LogoutIcon />
-                Cerrar sesión
-              </button>
-            </div>
-
-            <Link href="/changelog" onClick={() => setMobileOpen(false)} className="flex items-center justify-center gap-1.5 pt-1 text-xs hover:underline">
-              {hasNewVersion ? (
-                <>
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white bg-error">new</span>
-                  <span className="px-2 py-0.5 rounded-full font-bold text-white bg-error">{APP_VERSION}</span>
-                </>
-              ) : (
-                <span style={{ color: 'var(--text-muted)' }}>{APP_VERSION}</span>
-              )}
-            </Link>
+        <Modal title="Tu cuenta" onClose={() => setMobileOpen(false)}>
+          <Link href="/perfil" onClick={() => setMobileOpen(false)} aria-label="Ir a Mi perfil"
+            className="flex items-center gap-3 p-3 mb-4 rounded-[var(--radius-control)] transition-colors active:bg-[var(--btn-hover)]" style={{ background: 'var(--row-hover)' }}>
+            {avatar(44)}
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{session?.nombre}</span>
+              <span className="block text-xs truncate" style={{ color: 'var(--text-muted)' }}>{session ? `@${session.username} · Ver mi perfil` : ''}</span>
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: 'var(--text-muted)' }}><polyline points="9 18 15 12 9 6" /></svg>
+          </Link>
+          <div className="mb-4">
+            <div className="[&_.fm-tab]:min-h-11">{tabs()}</div>
+            {hogarBloqueado && (
+              <p className="text-xs mt-1.5 text-center" style={{ color: 'var(--text-muted)' }}>Hogar pendiente de activación por un administrador</p>
+            )}
           </div>
-        </>
+          <div className="fm-card overflow-hidden mb-4">
+            {session?.role === 'admin' && (
+              <Link href="/ajustes" onClick={() => setMobileOpen(false)} className={menuLinkCls} style={{ color: 'var(--text-primary)', minHeight: 48, borderBottom: '1px solid var(--divider)' }}><SettingsIcon />Configuración</Link>
+            )}
+            <button onClick={handleLogout} className={menuLinkCls} style={{ color: 'var(--money-out)', minHeight: 48 }}><LogoutIcon />Cerrar sesión</button>
+          </div>
+          {version}
+          {avisoActualizacion}
+        </Modal>
       )}
 
-      {/* Hogar first-time activation modal */}
+      {/* ── Activación de Hogar ────────────────────────────── */}
       {showHogarModal && (
-        <div
-          className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-        >
-          <div className="glass-card rounded-3xl p-6 w-full max-w-sm shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl" style={{ background: 'rgba(var(--accent-hogar-rgb), 0.15)' }}>
-                🏠
-              </div>
-              <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Activar modo Hogar</h2>
-            </div>
-
-            <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>
-              El modo Hogar es <strong>compartido entre todos los usuarios</strong> de la aplicación. Los gastos, préstamos, agua y luz serán visibles y editables por todos.
-            </p>
-            <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)' }}>
-              Te recomendamos revisar los usuarios y sus permisos en <strong>Configuración → Usuarios</strong> antes de empezar a usarlo.
-            </p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowHogarModal(false)}
-                className="flex-1 py-2.5 rounded-2xl text-sm font-semibold transition-all"
-                style={{ background: 'var(--btn-hover)', color: 'var(--text-secondary)' }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmHogar}
-                className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all"
-                style={{ background: 'linear-gradient(135deg, var(--accent-hogar), color-mix(in srgb, var(--accent-hogar) 75%, black))', boxShadow: '0 2px 12px rgba(var(--accent-hogar-rgb), 0.35)' }}
-              >
-                Activar Hogar
-              </button>
-            </div>
-          </div>
-        </div>
+        <Modal title="Activar Hogar" onClose={() => setShowHogarModal(false)}
+          footer={<>
+            <Button onClick={() => setShowHogarModal(false)}>Cancelar</Button>
+            <Button variant="primary" onClick={confirmHogar}>Activar Hogar</Button>
+          </>}>
+          <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>
+            Hogar es un espacio <strong>compartido por todos los usuarios</strong> de la aplicación: los gastos, ingresos y registros de luz y agua serán visibles y editables por todos.
+          </p>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            Antes de empezar, revisa los usuarios y sus permisos en <strong>Configuración → Usuarios</strong>.
+          </p>
+        </Modal>
       )}
     </>
   );

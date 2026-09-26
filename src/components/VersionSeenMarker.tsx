@@ -4,6 +4,6 @@ import { useVersionNotification } from './VersionProvider';
 
 export default function VersionSeenMarker() {
   const { dismiss } = useVersionNotification();
-  useEffect(() => { dismiss(); }, []);
+  useEffect(() => { dismiss(); }, [dismiss]);
   return null;
 }

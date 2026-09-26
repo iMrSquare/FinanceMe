@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sugerirIcono } from '@/lib/categoryIcons';
 import { getDb } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 
@@ -36,9 +37,9 @@ function runImport(
       const existing = db.prepare('SELECT id FROM personal_categorias WHERE user_id = ? AND nombre = ?').get(userId, c.nombre) as { id: number } | undefined;
       if (existing) {
         bump('categorias');
-        if (opts.overwrite) { db.prepare('UPDATE personal_categorias SET color = ? WHERE id = ?').run(c.color, existing.id); importado++; }
+        if (opts.overwrite) { db.prepare('UPDATE personal_categorias SET color = ?, icono = COALESCE(?, icono) WHERE id = ?').run(c.color, c.icono ?? null, existing.id); importado++; }
       } else {
-        db.prepare('INSERT INTO personal_categorias (user_id, nombre, color) VALUES (?, ?, ?)').run(userId, c.nombre, c.color);
+        db.prepare('INSERT INTO personal_categorias (user_id, nombre, color, icono) VALUES (?, ?, ?, ?)').run(userId, c.nombre, c.color, c.icono ?? sugerirIcono(String(c.nombre)));
         importado++;
       }
     }
@@ -90,13 +91,13 @@ function runImport(
       if (existing) {
         bump('suscripciones');
         if (opts.overwrite) {
-          db.prepare('UPDATE personal_suscripciones SET importe = ?, cobro = ?, periodicidad = ?, comentario = ? WHERE id = ?')
-            .run(s.importe, s.cobro ?? null, s.periodicidad, s.comentario ?? null, existing.id);
+          db.prepare('UPDATE personal_suscripciones SET importe = ?, cobro = ?, periodicidad = ?, comentario = ?, categoria = ?, banco = ? WHERE id = ?')
+            .run(s.importe, s.cobro ?? null, s.periodicidad, s.comentario ?? null, s.categoria ?? null, s.banco ?? null, existing.id);
           importado++;
         }
       } else {
-        db.prepare('INSERT INTO personal_suscripciones (user_id, nombre, importe, cobro, periodicidad, comentario) VALUES (?, ?, ?, ?, ?, ?)')
-          .run(userId, s.nombre, s.importe, s.cobro ?? null, s.periodicidad, s.comentario ?? null);
+        db.prepare('INSERT INTO personal_suscripciones (user_id, nombre, importe, cobro, periodicidad, comentario, categoria, banco) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+          .run(userId, s.nombre, s.importe, s.cobro ?? null, s.periodicidad, s.comentario ?? null, s.categoria ?? null, s.banco ?? null);
         importado++;
       }
     }

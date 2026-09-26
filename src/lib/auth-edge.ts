@@ -20,6 +20,8 @@ export interface SessionUser {
   colorMode: ColorMode;
   accentPersonal: string | null;
   accentHogar: string | null;
+  /** Modo con el que se abre la app al iniciar sesión (se lee en fresco de la BBDD) */
+  modoInicio?: 'personal' | 'hogar';
 }
 
 export async function createToken(user: SessionUser): Promise<string> {
@@ -53,7 +55,7 @@ export async function verifyToken(token: string): Promise<SessionUser | null> {
       avatarUrl: (payload.avatarUrl as string | null) ?? null,
       mustChangePassword: (payload.mustChangePassword as boolean) ?? false,
       tutorialSeen: (payload.tutorialSeen as boolean) ?? false,
-      theme: (payload.theme as string) ?? 'indigo',
+      theme: (payload.theme as string) ?? 'institucional',
       colorMode: (payload.colorMode as ColorMode) ?? 'system',
       accentPersonal: (payload.accentPersonal as string | null) ?? null,
       accentHogar: (payload.accentHogar as string | null) ?? null,

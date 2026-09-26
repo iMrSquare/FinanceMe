@@ -6,6 +6,15 @@ import { validateUsername, validatePassword } from '@/lib/validation';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ImportOverwriteDialog } from '@/components/ImportOverwriteDialog';
 import Image from 'next/image';
+import { PasswordChecklist, borde } from '@/components/PasswordForm';
+import PageHeader from '@/components/ui/PageHeader';
+import Button, { IconButton, buttonClasses } from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
+import SettingsCard, { FormError } from '@/components/ui/SettingsCard';
+import { useToast } from '@/components/ui/Feedback';
+import { TrashIcon } from '@/components/icons';
+import UpdatesCard from '@/components/UpdatesCard';
+import type { UpdateInfo } from '@/lib/updates';
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
@@ -13,24 +22,49 @@ const ROLE_LABELS: Record<string, string> = {
   visor: 'Visor',
 };
 
-const ROLE_COLORS: Record<string, string> = {
-  admin: 'var(--accent-primary)',
-  editor: '#0ea5e9',
-  visor: 'var(--text-secondary)',
+const Ico = ({ d }: { d: React.ReactNode }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>
+);
+
+const ROLE_DESC: Record<string, { resumen: string; puede: string[]; icono: React.ReactNode }> = {
+  admin: {
+    resumen: 'Control total de la aplicación.',
+    puede: ['Todo lo que hace un editor', 'Crear y eliminar usuarios, cambiar roles y contraseñas', 'Activar Hogar y hacer o restaurar sus copias de seguridad'],
+    icono: <Ico d={<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>} />,
+  },
+  editor: {
+    resumen: 'Lleva las cuentas de Hogar.',
+    puede: ['Ver y modificar todo Hogar: meses, presupuesto, módulos y categorías', 'No entra en Configuración'],
+    icono: <Ico d={<><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></>} />,
+  },
+  visor: {
+    resumen: 'Consulta Hogar sin cambiar nada.',
+    puede: ['Ver meses, presupuesto, módulos y estadísticas de Hogar', 'No puede crear, editar ni borrar datos de Hogar'],
+    icono: <Ico d={<><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></>} />,
+  },
 };
+
+const UsersIcon = () => <Ico d={<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>} />;
+const KeyIcon = () => <Ico d={<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>} />;
+const DatabaseIcon = () => <Ico d={<><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></>} />;
+const DownloadIcon = () => <Ico d={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>} />;
+const UploadIcon = () => <Ico d={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></>} />;
+const PlusIcon = () => <Ico d={<><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>} />;
 
 interface Props {
   users: PublicUser[];
   currentUserId: number;
+  updates: UpdateInfo;
 }
 
-export default function AjustesClient({ users: initialUsers, currentUserId }: Props) {
+export default function AjustesClient({ users: initialUsers, currentUserId, updates }: Props) {
   const router = useRouter();
+  const toast = useToast();
   const [users, setUsers] = useState(initialUsers);
   const [showForm, setShowForm] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [error, setError] = useState('');
-  const [confirmState, setConfirmState] = useState<{ msg: string; fn: () => Promise<void> } | null>(null);
+  const [confirmState, setConfirmState] = useState<{ msg: string; detail?: string; label?: string; fn: () => Promise<void> } | null>(null);
   const [changingRole, setChangingRole] = useState<number | null>(null);
   const [resetTarget, setResetTarget] = useState<PublicUser | null>(null);
   const [resetPassword, setResetPassword] = useState('');
@@ -40,13 +74,13 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
   // Import / Export (Hogar only — Personal lives in Perfil)
   const [ioSeccion] = useState<'hogar'>('hogar');
   const [importing, setImporting] = useState(false);
-  const [ioMsg, setIoMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [ioErr, setIoErr] = useState('');
   const [pendingImport, setPendingImport] = useState<Record<string, unknown> | null>(null);
   const [dupInfo, setDupInfo] = useState<{ count: number; breakdown: Record<string, number> } | null>(null);
 
   async function handleExport() {
     const res = await fetch(`/api/export/${ioSeccion}`);
-    if (!res.ok) { setIoMsg({ type: 'err', text: 'Error al exportar' }); return; }
+    if (!res.ok) { setIoErr('No se pudieron exportar los datos'); return; }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -54,30 +88,30 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
     a.download = `${ioSeccion}-backup-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    setIoMsg({ type: 'ok', text: 'Exportación completada' });
+    toast('Datos de Hogar exportados');
   }
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
-    setIoMsg(null);
+    setIoErr('');
     try {
       const text = await file.text();
       const json = JSON.parse(text);
       if (json.type !== ioSeccion) {
-        setIoMsg({ type: 'err', text: `El fichero es de tipo "${json.type}", no de "${ioSeccion}"` });
+        setIoErr(`El fichero es de tipo «${json.type}», no de «${ioSeccion}»`);
         return;
       }
       setPendingImport(json);
     } catch {
-      setIoMsg({ type: 'err', text: 'Error al leer el fichero' });
+      setIoErr('No se pudo leer el fichero. Comprueba que es una copia JSON de FinanceMe.');
     }
   }
 
   async function checkThenImport(json: Record<string, unknown>) {
     setImporting(true);
-    setIoMsg(null);
+    setIoErr('');
     try {
       const res = await fetch(`/api/import/${ioSeccion}`, {
         method: 'POST',
@@ -85,7 +119,7 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
         body: JSON.stringify({ ...json, mode: 'check' }),
       });
       const data = await res.json();
-      if (!res.ok) { setIoMsg({ type: 'err', text: data.error ?? 'Error al importar' }); setImporting(false); return; }
+      if (!res.ok) { setIoErr(data.error ?? 'No se pudieron importar los datos'); setImporting(false); return; }
       if (data.duplicates > 0) {
         setDupInfo({ count: data.duplicates, breakdown: data.breakdown });
         setImporting(false);
@@ -93,14 +127,14 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
         await doImport(json, true);
       }
     } catch {
-      setIoMsg({ type: 'err', text: 'Error al importar los datos' });
+      setIoErr('No se pudieron importar los datos');
       setImporting(false);
     }
   }
 
   async function doImport(json: Record<string, unknown>, overwrite: boolean) {
     setImporting(true);
-    setIoMsg(null);
+    setIoErr('');
     try {
       const res = await fetch(`/api/import/${ioSeccion}`, {
         method: 'POST',
@@ -108,10 +142,10 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
         body: JSON.stringify({ ...json, mode: 'apply', overwrite }),
       });
       const data = await res.json();
-      if (!res.ok) { setIoMsg({ type: 'err', text: data.error ?? 'Error al importar' }); return; }
-      setIoMsg({ type: 'ok', text: `Importación completada — ${data.importado} registros procesados` });
+      if (!res.ok) { setIoErr(data.error ?? 'No se pudieron importar los datos'); return; }
+      toast(`Importación completada: ${data.importado} registros`);
     } catch {
-      setIoMsg({ type: 'err', text: 'Error al importar los datos' });
+      setIoErr('No se pudieron importar los datos');
     } finally {
       setImporting(false);
     }
@@ -127,14 +161,6 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
   const usernameErr = username ? validateUsername(username) : null;
   const passwordErr = password ? validatePassword(password) : null;
 
-  const pwdChecksFor = (pwd: string) => [
-    { ok: pwd.length >= 8, label: '8 caracteres mínimo' },
-    { ok: /[a-z]/.test(pwd), label: 'Una minúscula' },
-    { ok: /[A-Z]/.test(pwd), label: 'Una mayúscula' },
-    { ok: /[0-9]/.test(pwd), label: 'Un número' },
-    { ok: /[^a-zA-Z0-9]/.test(pwd), label: 'Un carácter especial' },
-  ];
-  const pwdChecks = pwdChecksFor(password);
   const resetPasswordErr = resetPassword ? validatePassword(resetPassword) : null;
 
   async function handleCreate(e: React.FormEvent) {
@@ -150,6 +176,7 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
       });
       const data = await res.json();
       if (!res.ok) { setCreateErr(data.error); return; }
+      toast(`Usuario ${username} creado`);
       setShowForm(false);
       setNombre(''); setUsername(''); setPassword(''); setRole('visor');
       router.refresh();
@@ -172,6 +199,7 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
       const data = await res.json();
       if (!res.ok) { setError(data.error); return; }
       setUsers(u => u.filter(u => u.id !== id));
+      toast('Usuario eliminado');
     } finally {
       setDeleting(null);
     }
@@ -189,6 +217,7 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
       const data = await res.json();
       if (!res.ok) { setError(data.error); return; }
       setUsers(u => u.map(x => x.id === id ? { ...x, role } : x));
+      toast(`Rol cambiado a ${ROLE_LABELS[role]}`);
     } finally {
       setChangingRole(null);
     }
@@ -209,6 +238,7 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
       });
       const data = await res.json();
       if (!res.ok) { setResetErr(data.error); return; }
+      toast(`Contraseña de ${resetTarget.nombre} restablecida`);
       setResetTarget(null);
       setResetPassword('');
     } finally {
@@ -216,347 +246,178 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
     }
   }
 
-  const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/50 border transition-colors';
-  const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
-
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(100,116,139,0.12)' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-        </div>
-        <div>
-          <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Configuración</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Gestión de la aplicación</p>
-        </div>
-      </div>
+    <div className="max-w-3xl mx-auto space-y-5">
+      <PageHeader title="Configuración" subtitle="Usuarios y copias de seguridad de Hogar" />
 
-      {/* Users management (roles + list) */}
-      <div className="glass-card rounded-3xl p-6">
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2.5">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-            <h2 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>Gestión de usuarios</h2>
-          </div>
-          <button
-            onClick={() => { setShowForm(true); setCreateErr(''); }}
-            className="flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-accent-primary/30"
-            style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Nuevo usuario
-          </button>
-        </div>
-
-        {/* Role descriptions */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-          {[
-            { role: 'admin', desc: 'Acceso completo. Puede gestionar usuarios y ajustes.' },
-            { role: 'editor', desc: 'Puede ver y editar todas las tablas. Sin acceso a Configuración.' },
-            { role: 'visor', desc: 'Solo lectura. No puede editar ni crear datos.' },
-          ].map(({ role: r, desc }) => (
-            <div key={r} className="rounded-2xl p-4" style={{ background: 'var(--bg-page)', border: '1px solid var(--border-card)' }}>
-              <span
-                className="inline-block px-3 py-0.5 rounded-full text-xs font-bold text-white mb-2"
-                style={{ background: ROLE_COLORS[r] }}
-              >
-                {ROLE_LABELS[r]}
-              </span>
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{desc}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="border-t mb-5" style={{ borderColor: 'var(--border-card)' }} />
-
-        {/* User list */}
-        <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--text-muted)' }}>
-          Usuarios ({users.length})
-        </p>
-        {error && <p className="text-sm text-error font-medium mb-4">{error}</p>}
-        <div className="space-y-3">
+      <SettingsCard title="Usuarios" icon={<UsersIcon />} description={`${users.length} ${users.length === 1 ? 'usuario' : 'usuarios'} con acceso a la aplicación.`}
+        actions={<Button variant="primary" size="sm" icon={<PlusIcon />} compactOnMobile onClick={() => { setShowForm(true); setCreateErr(''); }}>Nuevo usuario</Button>}>
+        {error && <div className="mb-3"><FormError>{error}</FormError></div>}
+        <ul className="fm-card overflow-hidden">
           {users.map(u => (
-            <div
-              key={u.id}
-              className="flex items-center gap-4 p-4 rounded-2xl"
-              style={{ background: 'var(--bg-page)', border: '1px solid var(--border-card)' }}
-            >
+            <li key={u.id} className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2.5 px-3 sm:px-4 py-3 border-b last:border-b-0" style={{ borderColor: 'var(--divider)' }}>
               {u.avatar_url ? (
-                <Image src={u.avatar_url} alt={u.nombre} width={40} height={40} className="w-10 h-10 rounded-xl object-cover shrink-0" />
+                <Image src={u.avatar_url} alt="" width={40} height={40} className="w-10 h-10 rounded-full object-cover shrink-0" />
               ) : (
-                <div className="w-10 h-10 rounded-xl bg-accent-primary flex items-center justify-center text-white font-bold text-sm shrink-0">
+                <div className="w-10 h-10 rounded-full bg-accent-mode text-on-accent grid place-items-center font-semibold text-sm shrink-0" aria-hidden="true">
                   {u.nombre.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{u.nombre}</p>
-                <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>@{u.username}</p>
+                <p className="font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                  {u.nombre}{u.id === currentUserId && <span className="font-normal" style={{ color: 'var(--text-muted)' }}> (tú)</span>}
+                </p>
+                <p className="text-[13px] truncate" style={{ color: 'var(--text-muted)' }}>@{u.username}</p>
               </div>
-              <select
-                value={u.role}
-                onChange={e => {
-                  const newRole = e.target.value as 'admin' | 'editor' | 'visor';
-                  if (u.id === currentUserId && newRole !== 'admin') {
-                    setConfirmState({ msg: `¿Quitarte el rol de administrador a ti mismo (${u.nombre})?`, fn: async () => handleRoleChange(u.id, newRole) });
-                  } else {
-                    handleRoleChange(u.id, newRole);
-                  }
-                }}
-                disabled={changingRole === u.id}
-                className="px-2.5 py-1 rounded-full text-xs font-bold text-white shrink-0 border-0 cursor-pointer disabled:opacity-50"
-                style={{ background: ROLE_COLORS[u.role] }}
-              >
-                <option value="admin" style={{ color: '#000' }}>{ROLE_LABELS.admin}</option>
-                <option value="editor" style={{ color: '#000' }}>{ROLE_LABELS.editor}</option>
-                <option value="visor" style={{ color: '#000' }}>{ROLE_LABELS.visor}</option>
-              </select>
-              <button
-                onClick={() => { setResetTarget(u); setResetPassword(''); setResetErr(''); }}
-                className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors shrink-0"
-                style={{ color: 'var(--accent-primary)', background: 'rgba(var(--accent-primary-rgb),0.08)' }}
-                title="Restablecer contraseña"
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-primary-rgb),0.15)'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-primary-rgb),0.08)'}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-                </svg>
-              </button>
-              {u.id !== currentUserId && (
-                <button
-                  onClick={() => setConfirmState({ msg: `¿Eliminar a ${u.nombre}?`, fn: async () => handleDelete(u.id) })}
-                  disabled={deleting === u.id}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors shrink-0 disabled:opacity-50"
-                  style={{ color: 'var(--color-error)', background: 'rgba(var(--color-error-rgb),0.08)' }}
-                  title="Eliminar usuario"
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(var(--color-error-rgb),0.15)'}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(var(--color-error-rgb),0.08)'}
-                >
-                  {deleting === u.id ? (
-                    <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-                    </svg>
-                  ) : (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                    </svg>
-                  )}
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Create user modal */}
-      {showForm && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={e => { if (e.target === e.currentTarget) setShowForm(false); }}
-        >
-          <div className="glass-card rounded-3xl p-8 w-full max-w-md">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-bold text-xl" style={{ color: 'var(--text-primary)' }}>Nuevo usuario</h2>
-              <button onClick={() => setShowForm(false)} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ color: 'var(--text-muted)', background: 'var(--btn-hover)' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Nombre completo</label>
-                <input value={nombre} onChange={e => setNombre(e.target.value)} required className={inputCls} style={inputStyle} placeholder="Nombre del usuario" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                  Usuario <span className="font-normal text-xs" style={{ color: 'var(--text-muted)' }}>(solo minúsculas, números y _)</span>
-                </label>
-                <input
-                  value={username}
-                  onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                  required
-                  className={inputCls}
-                  style={{ ...inputStyle, borderColor: usernameErr ? 'var(--color-error)' : (username && !usernameErr ? 'var(--color-success)' : 'var(--btn-border)') }}
-                  placeholder="nombre_usuario"
-                />
-                {usernameErr && <p className="text-xs text-error mt-1">{usernameErr}</p>}
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Contraseña</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  className={inputCls}
-                  style={{ ...inputStyle, borderColor: passwordErr ? 'var(--color-error)' : (password && !passwordErr ? 'var(--color-success)' : 'var(--btn-border)') }}
-                  placeholder="Mínimo 8 caracteres"
-                />
-                {password && (
-                  <div className="mt-2 grid grid-cols-2 gap-1">
-                    {pwdChecks.map(c => (
-                      <div key={c.label} className="flex items-center gap-1.5">
-                        <span style={{ color: c.ok ? 'var(--color-success)' : 'var(--text-muted)' }}>
-                          {c.ok
-                            ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                            : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/></svg>
-                          }
-                        </span>
-                        <span className="text-xs" style={{ color: c.ok ? 'var(--color-success)' : 'var(--text-muted)' }}>{c.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Rol</label>
+              {/* En móvil el rol baja a su propia línea, a todo el ancho */}
+              <div className="order-last sm:order-none basis-full sm:basis-auto flex items-center gap-2 sm:block pl-[52px] sm:pl-0">
+                <span className="text-[13px] sm:hidden" style={{ color: 'var(--text-muted)' }} aria-hidden="true">Rol</span>
                 <select
-                  value={role}
-                  onChange={e => setRole(e.target.value as 'admin' | 'editor' | 'visor')}
-                  className={inputCls}
-                  style={inputStyle}
+                  aria-label={`Rol de ${u.nombre}`}
+                  value={u.role}
+                  onChange={e => {
+                    const newRole = e.target.value as 'admin' | 'editor' | 'visor';
+                    if (u.id === currentUserId && newRole !== 'admin') {
+                      setConfirmState({ msg: '¿Quitarte el rol de administrador?', detail: 'Perderás el acceso a Configuración hasta que otro administrador te lo devuelva.', label: 'Quitar rol', fn: async () => handleRoleChange(u.id, newRole) });
+                    } else {
+                      handleRoleChange(u.id, newRole);
+                    }
+                  }}
+                  disabled={changingRole === u.id}
+                  className="fm-input flex-1 sm:!w-auto !min-h-10 !py-1 !text-sm cursor-pointer disabled:opacity-50"
                 >
-                  <option value="admin">Administrador</option>
-                  <option value="editor">Editor</option>
-                  <option value="visor">Visor</option>
+                  <option value="admin">{ROLE_LABELS.admin}</option>
+                  <option value="editor">{ROLE_LABELS.editor}</option>
+                  <option value="visor">{ROLE_LABELS.visor}</option>
                 </select>
               </div>
-              {createErr && <p className="text-sm text-error font-medium">{createErr}</p>}
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating || !!usernameErr || !!passwordErr || !nombre || !username || !password}
-                  className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-accent-primary/30 disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}
-                >
-                  {creating ? 'Creando…' : 'Crear usuario'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-      {/* Reset password modal */}
-      {resetTarget && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={e => { if (e.target === e.currentTarget) setResetTarget(null); }}
-        >
-          <div className="glass-card rounded-3xl p-8 w-full max-w-md">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-bold text-xl" style={{ color: 'var(--text-primary)' }}>Restablecer contraseña</h2>
-              <button onClick={() => setResetTarget(null)} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ color: 'var(--text-muted)', background: 'var(--btn-hover)' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-              Nueva contraseña para <strong>{resetTarget.nombre}</strong>. Se le pedirá cambiarla al iniciar sesión.
-            </p>
-            <form onSubmit={handleResetPassword} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Nueva contraseña</label>
-                <input
-                  type="password"
-                  value={resetPassword}
-                  onChange={e => setResetPassword(e.target.value)}
-                  required
-                  autoFocus
-                  className={inputCls}
-                  style={{ ...inputStyle, borderColor: resetPasswordErr ? 'var(--color-error)' : (resetPassword && !resetPasswordErr ? 'var(--color-success)' : 'var(--btn-border)') }}
-                  placeholder="Mínimo 8 caracteres"
-                />
-                {resetPassword && (
-                  <div className="mt-2 grid grid-cols-2 gap-1">
-                    {pwdChecksFor(resetPassword).map(c => (
-                      <div key={c.label} className="flex items-center gap-1.5">
-                        <span style={{ color: c.ok ? 'var(--color-success)' : 'var(--text-muted)' }}>
-                          {c.ok
-                            ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                            : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/></svg>
-                          }
-                        </span>
-                        <span className="text-xs" style={{ color: c.ok ? 'var(--color-success)' : 'var(--text-muted)' }}>{c.label}</span>
-                      </div>
-                    ))}
-                  </div>
+              <div className="flex shrink-0">
+                <IconButton label={`Restablecer contraseña de ${u.nombre}`} onClick={() => { setResetTarget(u); setResetPassword(''); setResetErr(''); }}>
+                  <KeyIcon />
+                </IconButton>
+                {u.id !== currentUserId && (
+                  <IconButton label={`Eliminar a ${u.nombre}`} disabled={deleting === u.id} className="hover:!text-money-out"
+                    onClick={() => setConfirmState({ msg: `¿Eliminar a ${u.nombre}?`, fn: async () => handleDelete(u.id) })}>
+                    <TrashIcon />
+                  </IconButton>
                 )}
               </div>
-              {resetErr && <p className="text-sm text-error font-medium">{resetErr}</p>}
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setResetTarget(null)} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={resetting || !!resetPasswordErr || !resetPassword}
-                  className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-accent-primary/30 disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}
-                >
-                  {resetting ? 'Guardando…' : 'Restablecer'}
-                </button>
+            </li>
+          ))}
+        </ul>
+
+        <h3 className="text-[15px] font-semibold mt-6 mb-1" style={{ color: 'var(--text-primary)' }}>Qué puede hacer cada rol</h3>
+        <p className="text-[13px] mb-3" style={{ color: 'var(--text-muted)' }}>
+          Los roles solo afectan a Hogar. Cada usuario tiene su propio espacio Personal, privado y editable, sea cual sea su rol.
+        </p>
+        <ul className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+          {(['admin', 'editor', 'visor'] as const).map(r => (
+            <li key={r} className="rounded-[var(--radius-control)] border p-3.5" style={{ borderColor: 'var(--btn-border)' }}>
+              <div className="flex items-center gap-2.5 mb-2">
+                <span className="fm-caticon" style={{ ['--fm-c' as string]: 'var(--accent-mode)' }} aria-hidden="true">{ROLE_DESC[r].icono}</span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{ROLE_LABELS[r]}</span>
+                  <span className="block text-[13px]" style={{ color: 'var(--text-secondary)' }}>{ROLE_DESC[r].resumen}</span>
+                </span>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
-      {/* Import / Export */}
-      <div className="glass-card rounded-3xl p-6">
-        <div className="flex items-center gap-2.5 mb-1">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-info)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M12 12v5m-2-2 2 2 2-2"/>
-          </svg>
-          <h2 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>Importación y Exportación</h2>
-        </div>
-        <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>Exporta o importa los datos de Hogar en formato JSON. Al importar, si se detectan registros que ya existen se te preguntará si quieres sobrescribirlos o mantener los actuales. Los datos personales se gestionan desde cada perfil de usuario.</p>
+              <ul className="space-y-1 text-[13px]" style={{ color: 'var(--text-muted)' }}>
+                {ROLE_DESC[r].puede.map(t => (
+                  <li key={t} className="flex gap-2"><span aria-hidden="true" className="mt-[7px] w-1 h-1 rounded-full shrink-0" style={{ background: 'currentColor' }} />{t}</li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      </SettingsCard>
 
-        <div className="flex flex-col sm:flex-row gap-3">
-          {/* Export */}
-          <button onClick={handleExport}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold border-2 transition-colors"
-            style={{ borderColor: 'var(--btn-border)', color: 'var(--text-secondary)', background: 'var(--bg-page)' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            Exportar Hogar
-          </button>
-
-          {/* Import */}
-          <label className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold text-white cursor-pointer transition-all shadow-lg shadow-accent-primary/30 ${importing ? 'opacity-60 pointer-events-none' : ''}`}
-            style={{ background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark))' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
+      <SettingsCard title="Copia de seguridad de Hogar" icon={<DatabaseIcon />}
+        description="Exporta o importa los datos de Hogar en JSON. Si al importar hay registros que ya existen, podrás elegir si sobrescribirlos. Los datos personales se gestionan desde Mi perfil.">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button icon={<DownloadIcon />} onClick={handleExport}>Exportar Hogar</Button>
+          <label className={buttonClasses('secondary', 'md', importing ? 'opacity-50 pointer-events-none' : '')}>
+            <UploadIcon />
             {importing ? 'Importando…' : 'Importar Hogar'}
-            <input type="file" accept=".json" className="hidden" onChange={handleImport} disabled={importing} />
+            <input type="file" accept=".json" className="sr-only" onChange={handleImport} disabled={importing} />
           </label>
         </div>
+        {ioErr && <div className="mt-3"><FormError>{ioErr}</FormError></div>}
+      </SettingsCard>
 
-        {ioMsg && (
-          <p className={`mt-4 text-sm font-medium rounded-xl px-4 py-2.5 w-fit ${ioMsg.type === 'ok' ? 'text-success' : 'text-error'}`}
-            style={{ background: ioMsg.type === 'ok' ? 'rgba(16,185,129,0.1)' : 'rgba(var(--color-error-rgb),0.1)' }}>
-            {ioMsg.type === 'ok' ? '✓ ' : '✗ '}{ioMsg.text}
+      <UpdatesCard initial={updates} />
+
+      {showForm && (
+        <Modal title="Nuevo usuario" onClose={() => setShowForm(false)}>
+          <form onSubmit={handleCreate} className="space-y-4">
+            <div>
+              <label htmlFor="nu-nombre" className="fm-label">Nombre completo</label>
+              <input id="nu-nombre" value={nombre} onChange={e => setNombre(e.target.value)} required className="fm-input" />
+            </div>
+            <div>
+              <label htmlFor="nu-usuario" className="fm-label">Usuario</label>
+              <input id="nu-usuario" value={username} autoCapitalize="none" autoComplete="off" aria-describedby="nu-usuario-help"
+                onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                required className="fm-input" style={borde(username ? (usernameErr ? 'error' : 'ok') : null)} />
+              <p id="nu-usuario-help" className="text-[13px] mt-1" style={{ color: usernameErr ? 'var(--money-out)' : 'var(--text-muted)' }}>
+                {usernameErr ?? 'Solo minúsculas, números y guion bajo.'}
+              </p>
+            </div>
+            <div>
+              <label htmlFor="nu-pwd" className="fm-label">Contraseña</label>
+              <input id="nu-pwd" type="password" autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} required
+                aria-describedby="nu-pwd-reqs" className="fm-input" style={borde(password ? (passwordErr ? 'error' : 'ok') : null)} />
+              <PasswordChecklist id="nu-pwd-reqs" value={password} />
+            </div>
+            <div>
+              <label htmlFor="nu-rol" className="fm-label">Rol</label>
+              <select id="nu-rol" value={role} onChange={e => setRole(e.target.value as 'admin' | 'editor' | 'visor')} className="fm-input">
+                <option value="admin">Administrador</option>
+                <option value="editor">Editor</option>
+                <option value="visor">Visor</option>
+              </select>
+              <p className="text-[13px] mt-1" style={{ color: 'var(--text-muted)' }}>{ROLE_DESC[role].resumen} {ROLE_DESC[role].puede.join('. ')}.</p>
+            </div>
+            <FormError>{createErr}</FormError>
+            <div className="flex gap-2 pt-1 [&>*]:flex-1 sm:justify-end sm:[&>*]:flex-none">
+              <Button onClick={() => setShowForm(false)}>Cancelar</Button>
+              <Button type="submit" variant="primary" disabled={creating || !!usernameErr || !!passwordErr || !nombre || !username || !password}>
+                {creating ? 'Creando…' : 'Crear usuario'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {resetTarget && (
+        <Modal title="Restablecer contraseña" onClose={() => setResetTarget(null)}>
+          <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+            Nueva contraseña para <strong className="font-semibold">{resetTarget.nombre}</strong>. Se le pedirá cambiarla al iniciar sesión.
           </p>
-        )}
-      </div>
+          <form onSubmit={handleResetPassword} className="space-y-4">
+            <div>
+              <label htmlFor="rs-pwd" className="fm-label">Nueva contraseña</label>
+              <input id="rs-pwd" type="password" autoComplete="new-password" value={resetPassword} onChange={e => setResetPassword(e.target.value)} required
+                aria-describedby="rs-pwd-reqs" className="fm-input" style={borde(resetPassword ? (resetPasswordErr ? 'error' : 'ok') : null)} />
+              <PasswordChecklist id="rs-pwd-reqs" value={resetPassword} />
+            </div>
+            <FormError>{resetErr}</FormError>
+            <div className="flex gap-2 pt-1 [&>*]:flex-1 sm:justify-end sm:[&>*]:flex-none">
+              <Button onClick={() => setResetTarget(null)}>Cancelar</Button>
+              <Button type="submit" variant="primary" disabled={resetting || !!resetPasswordErr || !resetPassword}>
+                {resetting ? 'Guardando…' : 'Restablecer'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
-      <footer className="mt-10 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-        FinanceMe &copy; {new Date().getFullYear()} — <a href="https://imrsquare.com" target="_blank" rel="noopener noreferrer" className="hover:underline">imrsquare.com</a>
+      <footer className="pt-5 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+        FinanceMe &copy; {new Date().getFullYear()} · <a href="https://imrsquare.com" target="_blank" rel="noopener noreferrer" className="hover:underline">imrsquare.com</a>
       </footer>
       {confirmState && (
         <ConfirmDialog
           message={confirmState.msg}
+          detail={confirmState.detail}
+          confirmLabel={confirmState.label}
           onConfirm={async () => { await confirmState.fn(); setConfirmState(null); }}
           onCancel={() => setConfirmState(null)}
         />
@@ -566,6 +427,7 @@ export default function AjustesClient({ users: initialUsers, currentUserId }: Pr
           message="¿Importar datos de Hogar?"
           detail="Se añadirán los datos del archivo a los que ya hay. Si se detectan registros duplicados, se te preguntará si quieres sobrescribirlos."
           confirmLabel="Importar"
+          danger={false}
           onConfirm={() => checkThenImport(pendingImport)}
           onCancel={() => setPendingImport(null)}
         />

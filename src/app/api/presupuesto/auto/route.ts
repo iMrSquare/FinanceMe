@@ -15,7 +15,9 @@ export async function PUT(request: Request) {
   if (!['objetivos', 'ahorro', 'recurrentes'].includes(tipo)) {
     return NextResponse.json({ error: 'Tipo inválido' }, { status: 400 });
   }
-  upsertPresupuestoAutoHogar(tipo, banco || null, categoria || null, {
+  // Solo el modo (desde Recurrentes): se conservan la categoría y el banco ya configurados
+  const actual = banco === undefined && categoria === undefined ? getPresupuestoAutoConfigsHogar().find(c => c.tipo === tipo) : undefined;
+  upsertPresupuestoAutoHogar(tipo, actual ? actual.banco : banco || null, actual ? actual.categoria : categoria || null, {
     redondeo: typeof redondeo === 'boolean' ? redondeo : undefined,
     desglose: typeof desglose === 'boolean' ? desglose : undefined,
   });

@@ -11,10 +11,10 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
-  const { nombre, color } = await request.json();
+  const { nombre, color, icono } = await request.json();
   if (!nombre?.trim()) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 });
   try {
-    const id = createPersonalCategoria(session.id, nombre.trim(), color || '#6366f1');
+    const id = createPersonalCategoria(session.id, nombre.trim(), color || '#6366f1', typeof icono === 'string' ? icono : null);
     return NextResponse.json({ ok: true, id });
   } catch {
     return NextResponse.json({ error: 'Ya existe una categoría con ese nombre' }, { status: 409 });

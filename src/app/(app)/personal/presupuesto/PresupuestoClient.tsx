@@ -1,184 +1,43 @@
 'use client';
-import AutoConfigModal from '@/components/AutoConfigModal';
-import { importeVirtualRecurrentes, totalMensualRecurrentes, PERIODICIDAD_LABEL } from '@/lib/recurrentes';
-import { SortableTh, useTableSort, type SortAccessor } from '@/components/SortableTable';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { PersonalGastoFijo, PersonalIngresoFijo, PersonalCategoria, PersonalBanco, PersonalAhorro, PersonalAhorroObjetivo, PersonalSuscripcion, PresupuestoAutoConfig } from '@/lib/db';
+import AutoConfigModal from '@/components/AutoConfigModal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import InfoExpand from '@/components/InfoExpand';
-import { monthlyEquivalent } from '@/lib/billing';
+import { useToast } from '@/components/ui/Feedback';
+import PresupuestoView, { FijoFormModal, fijoVacio, fijoAForm, type AutoRow, type FijoForm, type FijoRow, type IngresoFijoRow } from '@/components/presupuesto/PresupuestoView';
+import { IngresoFormModal, ingresoVacio, type IngresoForm } from '@/components/mes/MesView';
+import { filasRecurrentes, RecurrenteAjustesModal } from '@/components/recurrentes/RecurrentesPresupuesto';
 import { mensualNecesario } from '@/lib/ahorroObjetivos';
 import { objetivoMensualAhorro } from '@/lib/ahorro';
-import { useIsMobile } from '@/lib/useIsMobile';
-import { autoText } from '@/components/ColorDots';
-import GestionClient from '../gestion/GestionClient';
+import { formatEUR } from '@/lib/format';
 
+type AutoTipo = 'suscripciones' | 'ahorro' | 'objetivos';
+const AUTO_TITULOS: Record<AutoTipo, string> = { suscripciones: 'Recurrentes', ahorro: 'Ahorro mensual', objetivos: 'Objetivos' };
+const INFO = 'El Presupuesto son tus gastos e ingresos fijos de cada mes. Crea antes tus categorías y bancos: los filtros y las estadísticas se basan en ellos. Al crear un Mes, estos datos se importan automáticamente. Un gasto con fecha de vencimiento deja de importarse cuando esa fecha queda atrás.';
 
-const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
-const fmtDate = (d: string | null) => {
-  const m = d?.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : '—';
-};
-
-function fmtCobro(c: string | null): string {
-  if (!c) return '—';
-  const n = parseInt(c);
-  if (!isNaN(n) && n >= 1 && n <= 31) return `Día ${n}`;
-  const d = new Date(c);
-  return isNaN(d.getTime()) ? c : `Día ${d.getDate()}`;
-}
-
-function extractDay(c: string | null): string {
-  if (!c) return '';
-  const n = parseInt(c);
-  if (!isNaN(n) && n >= 1 && n <= 31) return String(n);
-  const d = new Date(c);
-  return isNaN(d.getTime()) ? '' : String(d.getDate());
-}
-
-const inputCls = 'w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-error/50 border transition-colors appearance-none';
-const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
-
-
-type SortKey = 'gasto' | 'importe' | 'categoria' | 'banco' | 'cobro' | 'vencimiento';
-const AUTO_TITULOS = { suscripciones: 'Recurrentes', ahorro: 'Ahorro mensual', objetivos: 'Objetivos de ahorro' } as const;
-const COL_LABELS: Record<SortKey, string> = { gasto: 'Gasto', importe: 'Importe', categoria: 'Categoría', banco: 'Banco', cobro: 'Cobro', vencimiento: 'Vencimiento' };
-const SORT_FIJOS: Record<SortKey, SortAccessor<PersonalGastoFijo>> = {
-  gasto:       { get: g => g.gasto, type: 'text' },
-  importe:     { get: g => g.importe, type: 'number' },
-  categoria:   { get: g => g.categoria, type: 'text' },
-  banco:       { get: g => g.banco, type: 'text' },
-  cobro:       { get: g => (g.cobro ? parseInt(g.cobro) || null : null), type: 'number' },
-  vencimiento: { get: g => g.vencimiento, type: 'date' },
-};
-
-interface GastoForm { id?: number; gasto: string; importe: string; categoria: string; banco: string; cobro: string; vencimiento: string; comentario: string; }
-const emptyForm = (): GastoForm => ({ gasto: '', importe: '', categoria: '', banco: '', cobro: '', vencimiento: '', comentario: '' });
-
-interface IngresoForm { id?: number; concepto: string; importe: string; comentario: string; }
-const emptyIngresoForm = (): IngresoForm => ({ concepto: '', importe: '', comentario: '' });
-
-function TrashIcon() {
-  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
-}
-
-function PencilIcon() {
-  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>;
-}
-
-// ── GastoModal ────────────────────────────────────────────────────────────
-function GastoModal({ form, setForm, categorias, bancos, onClose, onSave, saving }: {
-  form: GastoForm; setForm: (f: GastoForm) => void;
-  categorias: PersonalCategoria[]; bancos: PersonalBanco[];
-  onClose: () => void; onSave: () => void; saving: boolean;
-}) {
-  const set = (k: keyof GastoForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm({ ...form, [k]: e.target.value });
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="glass-card rounded-3xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="font-bold text-xl" style={{ color: 'var(--text-primary)' }}>{form.id ? 'Editar gasto' : 'Nuevo gasto'}</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ color: 'var(--text-muted)', background: 'var(--btn-hover)' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        <div className="space-y-4">
-          <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Concepto *</label>
-            <input value={form.gasto} onChange={set('gasto')} className={inputCls} style={inputStyle} placeholder="Ej: Hipoteca" /></div>
-          <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Importe (€) *</label>
-            <input type="number" step="0.01" min="0" value={form.importe} onChange={set('importe')} className={inputCls} style={inputStyle} placeholder="0.00" /></div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Categoría</label>
-              <select value={form.categoria} onChange={set('categoria')} className={inputCls} style={inputStyle}>
-                <option value="">Sin categoría</option>
-                {categorias.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
-              </select></div>
-            <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Banco</label>
-              <select value={form.banco} onChange={set('banco')} className={inputCls} style={inputStyle}>
-                <option value="">Sin banco</option>
-                {bancos.map(b => <option key={b.id} value={b.nombre}>{b.nombre}</option>)}
-              </select></div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Día de cobro</label>
-              <input type="number" min="1" max="31" placeholder="Ej: 15" value={form.cobro} onChange={set('cobro')} className={inputCls} style={inputStyle} /></div>
-            <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Vencimiento</label>
-              <input type="date" value={form.vencimiento} onChange={set('vencimiento')} className={inputCls} style={inputStyle} /></div>
-          </div>
-          <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Comentario</label>
-            <textarea value={form.comentario} onChange={set('comentario')} rows={2} className={inputCls} style={inputStyle} placeholder="Opcional…" /></div>
-        </div>
-        <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>Cancelar</button>
-          <button onClick={onSave} disabled={saving || !form.gasto.trim() || !form.importe} className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-50 shadow-lg shadow-error/30" style={{ background: 'linear-gradient(135deg, var(--color-error), color-mix(in srgb, var(--color-error) 75%, black))' }}>
-            {saving ? 'Guardando…' : form.id ? 'Guardar' : 'Crear gasto'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── IngresoModal ────────────────────────────────────────────────────────────
-function IngresoModal({ form, setForm, onClose, onSave, saving }: {
-  form: IngresoForm; setForm: (f: IngresoForm) => void;
-  onClose: () => void; onSave: () => void; saving: boolean;
-}) {
-  const set = (k: keyof IngresoForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm({ ...form, [k]: e.target.value });
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="glass-card rounded-3xl p-8 w-full max-w-md">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="font-bold text-xl" style={{ color: 'var(--text-primary)' }}>{form.id ? 'Editar ingreso' : 'Nuevo ingreso'}</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ color: 'var(--text-muted)', background: 'var(--btn-hover)' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        <div className="space-y-4">
-          <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Concepto *</label>
-            <input value={form.concepto} onChange={set('concepto')} className={inputCls} style={inputStyle} placeholder="Ej: Nómina" /></div>
-          <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Importe (€) *</label>
-            <input type="number" step="0.01" min="0" value={form.importe} onChange={set('importe')} className={inputCls} style={inputStyle} placeholder="0.00" /></div>
-          <div><label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Comentario</label>
-            <textarea value={form.comentario} onChange={set('comentario')} rows={2} className={inputCls} style={inputStyle} placeholder="Opcional…" /></div>
-        </div>
-        <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>Cancelar</button>
-          <button onClick={onSave} disabled={saving || !form.concepto.trim() || !form.importe} className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-50 shadow-lg shadow-success/30" style={{ background: 'linear-gradient(135deg, var(--color-success), color-mix(in srgb, var(--color-success) 75%, black))' }}>
-            {saving ? 'Guardando…' : form.id ? 'Guardar' : 'Crear ingreso'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Main component ────────────────────────────────────────────────────────
 export default function PresupuestoClient() {
-  const isMobile = useIsMobile();
+  const router = useRouter();
+  const toast = useToast();
   const [gastos, setGastos] = useState<PersonalGastoFijo[]>([]);
-  const [ingresosFijos, setIngresosFijos] = useState<PersonalIngresoFijo[]>([]);
+  const [ingresos, setIngresos] = useState<PersonalIngresoFijo[]>([]);
   const [categorias, setCategorias] = useState<PersonalCategoria[]>([]);
   const [bancos, setBancos] = useState<PersonalBanco[]>([]);
-  const [suscs, setSuscs] = useState<PersonalSuscripcion[]>([]);
+  const [recurrentes, setRecurrentes] = useState<PersonalSuscripcion[]>([]);
   const [ahorro, setAhorro] = useState<PersonalAhorro | null>(null);
   const [objetivos, setObjetivos] = useState<PersonalAhorroObjetivo[]>([]);
   const [autoConfigs, setAutoConfigs] = useState<PresupuestoAutoConfig[]>([]);
-  const [editingAuto, setEditingAuto] = useState<'suscripciones' | 'ahorro' | 'objetivos' | null>(null);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState<GastoForm | null>(null);
+  const [filtros, setFiltros] = useState({ categoria: '', banco: '' });
+  const [fijoForm, setFijoForm] = useState<FijoForm | null>(null);
+  const [ingresoForm, setIngresoForm] = useState<IngresoForm | null>(null);
+  const [editingAuto, setEditingAuto] = useState<AutoTipo | null>(null);
+  const [recEdit, setRecEdit] = useState<PersonalSuscripcion | null>(null);
   const [saving, setSaving] = useState(false);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [modalIngreso, setModalIngreso] = useState<IngresoForm | null>(null);
-  const [savingIngreso, setSavingIngreso] = useState(false);
-  const [deleteIngresoId, setDeleteIngresoId] = useState<number | null>(null);
-  const [filtroCategoria, setFiltroCategoria] = useState('');
-  const [filtroBanco, setFiltroBanco] = useState('');
-  const [view, setView] = useState<'main' | 'gestion'>('main');
+  const [confirm, setConfirm] = useState<{ msg: string; fn: () => Promise<void> } | null>(null);
 
-  async function fetchAll() {
-    const [g, ig, c, b, s, a, ac, ob] = await Promise.all([
+  function fetchAll() {
+    return Promise.all([
       fetch('/api/personal/gastos').then(r => r.json()),
       fetch('/api/personal/ingresos').then(r => r.json()),
       fetch('/api/personal/categorias').then(r => r.json()),
@@ -187,488 +46,132 @@ export default function PresupuestoClient() {
       fetch(`/api/personal/ahorro?year=${new Date().getFullYear()}`).then(r => r.json()),
       fetch('/api/personal/presupuesto/auto').then(r => r.json()),
       fetch('/api/personal/ahorro/objetivos').then(r => r.json()),
-    ]);
-    setGastos(Array.isArray(g) ? g : []);
-    setIngresosFijos(Array.isArray(ig) ? ig : []);
-    setCategorias(Array.isArray(c) ? c : []);
-    setBancos(Array.isArray(b) ? b : []);
-    setSuscs(Array.isArray(s) ? s : []);
-    setAhorro(a && typeof a === 'object' && 'objetivo_anual' in a ? a : null);
-    setAutoConfigs(Array.isArray(ac) ? ac : []);
-    setObjetivos(Array.isArray(ob) ? ob : []);
-    setLoading(false);
+    ]).then(([g, ig, c, b, s, a, ac, ob]) => {
+      const arr = <T,>(x: unknown) => (Array.isArray(x) ? x : []) as T[];
+      setGastos(arr(g)); setIngresos(arr(ig)); setCategorias(arr(c)); setBancos(arr(b)); setRecurrentes(arr(s));
+      setAhorro(a && typeof a === 'object' && 'objetivo_anual' in a ? a : null);
+      setAutoConfigs(arr(ac)); setObjetivos(arr(ob));
+      setLoading(false);
+    });
   }
   useEffect(() => { fetchAll(); }, []);
 
-  async function handleSave() {
-    if (!modal) return;
+  const autoConfig = (tipo: AutoTipo): PresupuestoAutoConfig =>
+    autoConfigs.find(c => c.tipo === tipo) ?? { tipo, banco: null, categoria: null, redondeo: 1, desglose: 0 };
+
+  // ── Filas automáticas ──
+  const autos: AutoRow[] = [];
+  const recCfg = autoConfig('suscripciones');
+  autos.push(...filasRecurrentes(recurrentes, recCfg, 'suscripciones'));
+  const ahorroMensual = ahorro ? objetivoMensualAhorro(ahorro.objetivo_anual, ahorro.meses, new Date().getFullYear()) : 0;
+  if (ahorroMensual > 0 && ahorro) {
+    const cfg = autoConfig('ahorro');
+    autos.push({ key: 'ahorro', tipo: 'ahorro', concepto: 'Ahorro mensual', importe: ahorroMensual, categoria: cfg.categoria, banco: cfg.banco,
+      subtitulo: `Objetivo de ${formatEUR(ahorro.objetivo_anual)} al año, recalculado según lo aportado` });
+  }
+  const objetivosMensual = objetivos.reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
+  if (objetivosMensual > 0) {
+    const cfg = autoConfig('objetivos');
+    autos.push({ key: 'objetivos', tipo: 'objetivos', concepto: 'Objetivos', importe: objetivosMensual, categoria: cfg.categoria, banco: cfg.banco,
+      subtitulo: 'Aportación mensual para tus objetivos en curso' });
+  }
+
+  const fijos: FijoRow[] = gastos.map(g => ({ id: g.id, concepto: g.gasto, comentario: g.comentario, importe: g.importe, categoria: g.categoria, banco: g.banco, cobro: g.cobro, vencimiento: g.vencimiento }));
+  const ingresosRows: IngresoFijoRow[] = ingresos.map(i => ({ id: i.id, concepto: i.concepto, comentario: i.comentario, importe: i.importe }));
+
+  async function guardarFijo() {
+    if (!fijoForm) return;
     setSaving(true);
-    const body = { ...modal, importe: Number(modal.importe), categoria: modal.categoria || null, banco: modal.banco || null, cobro: modal.cobro || null, vencimiento: modal.vencimiento || null, comentario: modal.comentario || null };
-    if (modal.id) {
-      await fetch(`/api/personal/gastos/${modal.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    } else {
-      await fetch('/api/personal/gastos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    }
-    setSaving(false); setModal(null); fetchAll();
+    const body = {
+      gasto: fijoForm.concepto.trim(), importe: Number(fijoForm.importe) || 0, categoria: fijoForm.categoria || null, banco: fijoForm.banco || null,
+      cobro: fijoForm.cobro || null, vencimiento: fijoForm.vencimiento || null, comentario: fijoForm.comentario || null,
+    };
+    const res = await fetch(fijoForm.id ? `/api/personal/gastos/${fijoForm.id}` : '/api/personal/gastos', {
+      method: fijoForm.id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    setSaving(false);
+    if (!res.ok) { toast('No se pudo guardar el gasto fijo', 'error'); return; }
+    setFijoForm(null);
+    toast('Gasto fijo guardado');
+    fetchAll();
   }
 
-  async function handleDelete(id: number) {
-    await fetch(`/api/personal/gastos/${id}`, { method: 'DELETE' });
-    setDeleteId(null); fetchAll();
-  }
-
-  async function handleSaveIngreso() {
-    if (!modalIngreso) return;
-    setSavingIngreso(true);
-    const body = { concepto: modalIngreso.concepto, importe: Number(modalIngreso.importe), comentario: modalIngreso.comentario || null };
-    if (modalIngreso.id) {
-      await fetch(`/api/personal/ingresos/${modalIngreso.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    } else {
-      await fetch('/api/personal/ingresos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    }
-    setSavingIngreso(false); setModalIngreso(null); fetchAll();
-  }
-
-  async function handleDeleteIngreso(id: number) {
-    await fetch(`/api/personal/ingresos/${id}`, { method: 'DELETE' });
-    setDeleteIngresoId(null); fetchAll();
-  }
-
-
-  const catColor = (n: string) => categorias.find(c => c.nombre === n)?.color ?? 'var(--text-secondary)';
-  const bancoColor = (n: string) => bancos.find(b => b.nombre === n)?.color ?? 'var(--text-secondary)';
-  const autoConfig = (tipo: 'suscripciones' | 'ahorro' | 'objetivos'): PresupuestoAutoConfig => autoConfigs.find(c => c.tipo === tipo) ?? { tipo, banco: null, categoria: null, redondeo: 1, desglose: 0 };
-
-  const { sorted: filtered, sortKey, sortAsc, toggleSort } = useTableSort(
-    gastos
-      .filter(g => !filtroCategoria || g.categoria === filtroCategoria)
-      .filter(g => !filtroBanco || g.banco === filtroBanco),
-    SORT_FIJOS,
-    { defaultKey: 'gasto', storageKey: 'sort:personal-presupuesto' },
-  );
-
-  const totalGeneral = gastos.reduce((s, g) => s + g.importe, 0);
-  const totalFiltrado = filtered.reduce((s, g) => s + g.importe, 0);
-  const totalIngresosFijos = ingresosFijos.reduce((s, i) => s + i.importe, 0);
-
-  const suscCfg  = autoConfig('suscripciones');
-  const ahorroCfg = autoConfig('ahorro');
-  const objetivosCfg = autoConfig('objetivos');
-
-  const suscMensualReal = totalMensualRecurrentes(suscs);
-  const suscVirtual = importeVirtualRecurrentes(suscs, suscCfg);
-  const suscDesglose = suscCfg.desglose === 1;
-  const ahorroMensualReal = ahorro ? objetivoMensualAhorro(ahorro.objetivo_anual, ahorro.meses, new Date().getFullYear()) : 0;
-  const ahorroVirtual = ahorroMensualReal > 0 ? ahorroMensualReal : 0;
-  const objetivosMensualReal = objetivos.reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
-  const objetivosVirtual = objetivosMensualReal > 0 ? objetivosMensualReal : 0;
-  const totalConVirtuales = totalGeneral + suscVirtual + ahorroVirtual + objetivosVirtual;
-
-  const suscMatchesFiltro  = (!filtroCategoria || suscCfg.categoria  === filtroCategoria) && (!filtroBanco || suscCfg.banco  === filtroBanco);
-  const ahorroMatchesFiltro = (!filtroCategoria || ahorroCfg.categoria === filtroCategoria) && (!filtroBanco || ahorroCfg.banco === filtroBanco);
-  const objetivosMatchesFiltro = (!filtroCategoria || objetivosCfg.categoria === filtroCategoria) && (!filtroBanco || objetivosCfg.banco === filtroBanco);
-
-  const totalFiltradoConVirtuales = totalFiltrado
-    + (suscVirtual  > 0 && suscMatchesFiltro  ? suscVirtual  : 0)
-    + (ahorroVirtual > 0 && ahorroMatchesFiltro ? ahorroVirtual : 0)
-    + (objetivosVirtual > 0 && objetivosMatchesFiltro ? objetivosVirtual : 0);
-
-  const conceptosTotal = gastos.length
-    + (suscVirtual > 0 ? (suscDesglose ? suscs.filter(r => r.importe > 0).length : 1) : 0)
-    + (ahorroVirtual > 0 ? 1 : 0)
-    + (objetivosVirtual > 0 ? 1 : 0);
-
-  const selectStyle = { ...inputStyle, paddingTop: '8px', paddingBottom: '8px' };
-
-  function renderRecurrenteRow(key: string, titulo: string, subtitulo: string, importe: number) {
-    const cfg = suscCfg;
-    return (
-      <tr key={key} style={{ borderBottom: '1px solid var(--divider)', background: 'rgba(139,92,246,0.04)', cursor: isMobile ? 'pointer' : undefined }}
-        onClick={() => { if (isMobile) setEditingAuto('suscripciones'); }}>
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{titulo}</span>
-            <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }}>Auto</span>
-          </div>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{subtitulo}</p>
-        </td>
-        <td className="px-4 py-3 font-mono font-bold tabular-nums" style={{ color: '#8b5cf6' }}>{fmt(importe)}</td>
-        <td className="px-4 py-3">
-          {cfg.categoria
-            ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: catColor(cfg.categoria), color: autoText(catColor(cfg.categoria)) }}>{cfg.categoria}</span>
-            : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-        </td>
-        <td className="px-4 py-3">
-          {cfg.banco
-            ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: bancoColor(cfg.banco), color: autoText(bancoColor(cfg.banco)) }}>{cfg.banco}</span>
-            : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-        </td>
-        <td className="px-4 py-3" colSpan={2} />
-        <td className="px-4 py-3 text-right whitespace-nowrap">
-          <div className="flex items-center justify-end gap-1">
-            <button onClick={e => { e.stopPropagation(); setEditingAuto('suscripciones'); }} aria-label="Configurar recurrentes" className="p-1.5 rounded-lg transition-colors cursor-pointer" style={{ color: 'var(--text-muted)' }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-          </div>
-        </td>
-      </tr>
-    );
-  }
-
-  if (view === 'gestion') {
-    return (
-      <div className="space-y-6">
-        <button onClick={() => { setView('main'); fetchAll(); }} className="flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-xl border transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'var(--bg-card)' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          Volver a Presupuesto
-        </button>
-        <GestionClient />
-      </div>
-    );
+  async function guardarIngreso() {
+    if (!ingresoForm) return;
+    setSaving(true);
+    const body = { concepto: ingresoForm.concepto.trim(), importe: Number(ingresoForm.importe) || 0, comentario: ingresoForm.comentario || null };
+    const res = await fetch(ingresoForm.id ? `/api/personal/ingresos/${ingresoForm.id}` : '/api/personal/ingresos', {
+      method: ingresoForm.id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    setSaving(false);
+    if (!res.ok) { toast('No se pudo guardar el ingreso', 'error'); return; }
+    setIngresoForm(null);
+    toast('Ingreso fijo guardado');
+    fetchAll();
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(var(--color-error-rgb),0.12)' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-            </svg>
-          </div>
-          <div>
-            <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Presupuesto</h1>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Tus gastos fijos mensuales</p>
-          </div>
-          <InfoExpand title="¿Qué es Presupuesto?">
-            <p>El Presupuesto son tus gastos fijos de cada mes y tus ingresos. Antes de añadirlos, crea tus categorías y bancos en Gestión: los filtros y las estadísticas se nutren de ellos. Al crear un nuevo Mes, estos datos se importan automáticamente. Si un gasto tiene fecha de vencimiento, se eliminará automáticamente del Presupuesto en cuanto esa fecha quede atrás.</p>
-          </InfoExpand>
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <button onClick={() => setView('gestion')} className="flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-sm font-semibold border transition-colors" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'var(--bg-card)' }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            <span className="hidden sm:inline">Gestión</span>
-          </button>
-          <button onClick={() => setModal(emptyForm())} className="flex items-center justify-center gap-2 flex-1 sm:flex-none px-4 py-2.5 rounded-2xl text-sm font-bold text-white transition-all shadow-lg shadow-error/30" style={{ background: 'linear-gradient(135deg, var(--color-error), color-mix(in srgb, var(--color-error) 75%, black))' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Nuevo gasto
-          </button>
-        </div>
-      </div>
+    <>
+      <PresupuestoView
+        scope="personal"
+        canEdit
+        loading={loading}
+        info={INFO}
+        fijos={fijos}
+        autos={autos}
+        ingresos={ingresosRows}
+        categorias={categorias}
+        bancos={bancos}
+        filtroCategoria={filtros.categoria}
+        filtroBanco={filtros.banco}
+        onFiltro={f => setFiltros(prev => ({ ...prev, ...f }))}
+        onAddFijo={() => setFijoForm(fijoVacio())}
+        onEditFijo={f => setFijoForm(fijoAForm(f))}
+        onDeleteFijo={f => setConfirm({ msg: `¿Eliminar «${f.concepto}»?`, fn: async () => {
+          await fetch(`/api/personal/gastos/${f.id}`, { method: 'DELETE' }); toast('Gasto fijo eliminado'); fetchAll();
+        }})}
+        onEditAuto={a => {
+          const r = a.recurrenteId ? recurrentes.find(x => x.id === a.recurrenteId) : undefined;
+          if (r) setRecEdit(r); else setEditingAuto(a.tipo as AutoTipo);
+        }}
+        onAddIngreso={() => setIngresoForm(ingresoVacio())}
+        onEditIngreso={i => setIngresoForm({ id: i.id, concepto: i.concepto, importe: String(i.importe), fecha: '', comentario: i.comentario ?? '' })}
+        onDeleteIngreso={i => setConfirm({ msg: `¿Eliminar «${i.concepto}»?`, fn: async () => {
+          await fetch(`/api/personal/ingresos/${i.id}`, { method: 'DELETE' }); toast('Ingreso fijo eliminado'); fetchAll();
+        }})}
+        onGestion={() => router.push('/personal/gestion')}
+      />
 
-      {/* 3 cards principales */}
-      {(gastos.length > 0 || suscVirtual > 0 || ahorroVirtual > 0 || objetivosVirtual > 0) && (
-        <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          {/* Total mensual */}
-          <div className="rounded-2xl sm:rounded-3xl p-3 sm:p-6 text-white shadow-2xl shadow-error/20" style={{ background: 'linear-gradient(135deg, var(--color-error), color-mix(in srgb, var(--color-error) 75%, black))' }}>
-            <p className="text-[10px] sm:text-xs font-semibold text-white/70 uppercase tracking-wide mb-1 sm:mb-2">Total</p>
-            <p className="text-sm sm:text-3xl font-extrabold leading-tight">{fmt(totalConVirtuales)}</p>
-            {(suscVirtual > 0 || ahorroVirtual > 0 || objetivosVirtual > 0) && (
-              <p className="hidden sm:block text-xs text-white/60 mt-1">{fmt(totalGeneral)} fijos + {fmt(suscVirtual + ahorroVirtual + objetivosVirtual)} auto</p>
-            )}
-          </div>
-          {/* Recurrentes */}
-          <div className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6">
-            <div className="flex items-center justify-between mb-1 sm:mb-2">
-              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide" style={{ color: '#8b5cf6' }}>
-                <span className="sm:hidden">Recurr.</span>
-                <span className="hidden sm:inline">Recurrentes</span>
-              </p>
-              <Link href="/personal/modulos/recurrentes" className="hidden sm:inline text-xs font-semibold" style={{ color: '#8b5cf6' }}>Ver →</Link>
-            </div>
-            <p className="text-sm sm:text-3xl font-extrabold leading-tight" style={{ color: suscVirtual > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-              {suscVirtual > 0 ? fmt(suscVirtual) : '—'}
-            </p>
-            {suscVirtual > 0 && suscDesglose ? (
-              <p className="hidden sm:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Desglosado en el Mes</p>
-            ) : suscVirtual > 0 && suscCfg.redondeo ? (
-              <p className="hidden sm:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Real {fmt(suscMensualReal)} → redondeado</p>
-            ) : suscVirtual > 0 ? (
-              <p className="hidden sm:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Sin redondear</p>
-            ) : null}
-          </div>
-          {/* Ahorro mensual */}
-          <div className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6">
-            <div className="flex items-center justify-between mb-1 sm:mb-2">
-              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-warning)' }}>
-                <span className="sm:hidden">Ahorro</span>
-                <span className="hidden sm:inline">Ahorro mensual</span>
-              </p>
-              <Link href="/personal/modulos/ahorro" className="hidden sm:inline text-xs font-semibold" style={{ color: 'var(--color-warning)' }}>Ver →</Link>
-            </div>
-            <p className="text-sm sm:text-3xl font-extrabold leading-tight" style={{ color: ahorroVirtual > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-              {ahorroVirtual > 0 ? fmt(ahorroVirtual) : '—'}
-            </p>
-            {ahorroVirtual > 0 && ahorro && (
-              <p className="hidden sm:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Objetivo {fmt(ahorro.objetivo_anual)}/año, cuota recalculada: {fmt(ahorroVirtual)}</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="flex gap-2 flex-wrap items-center">
-        <select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)} className={inputCls.replace('w-full', 'w-auto')} style={selectStyle}>
-          <option value="">Todas las categorías</option>
-          {categorias.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
-        </select>
-        <select value={filtroBanco} onChange={e => setFiltroBanco(e.target.value)} className={inputCls.replace('w-full', 'w-auto')} style={selectStyle}>
-          <option value="">Todos los bancos</option>
-          {bancos.map(b => <option key={b.id} value={b.nombre}>{b.nombre}</option>)}
-        </select>
-        {(filtroCategoria || filtroBanco) && (
-          <>
-            <button onClick={() => { setFiltroCategoria(''); setFiltroBanco(''); }} className="px-3 py-2 rounded-xl text-sm font-medium border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)' }}>✕ Limpiar</button>
-            <div className="ml-auto flex items-center gap-3 px-4 py-2 rounded-2xl" style={{ background: 'rgba(var(--color-error-rgb),0.1)', border: '1px solid rgba(var(--color-error-rgb),0.2)' }}>
-              <span className="text-sm font-medium" style={{ color: 'var(--color-error)' }}>{filtered.length} de {gastos.length}</span>
-              <span className="text-base font-extrabold" style={{ color: 'var(--color-error)' }}>{fmt(totalFiltradoConVirtuales)}</span>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Table */}
-      <div className="glass-card rounded-3xl overflow-hidden">
-        <div className="px-6 py-4 bg-orange-600">
-          <h2 className="font-bold text-base text-white">
-            Gastos fijos
-            <span className="ml-2 text-sm font-normal text-white/80">{conceptosTotal} concepto{conceptosTotal !== 1 ? 's' : ''}</span>
-          </h2>
-        </div>
-        <div className="overflow-x-auto">
-          {(() => {
-            const hasVisibleRows = filtered.length > 0
-              || (suscVirtual > 0 && suscMatchesFiltro)
-              || (ahorroVirtual > 0 && ahorroMatchesFiltro)
-              || (objetivosVirtual > 0 && objetivosMatchesFiltro);
-            return loading ? (
-              <p className="py-16 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Cargando…</p>
-            ) : !hasVisibleRows ? (
-              <p className="py-16 text-center text-sm" style={{ color: 'var(--text-muted)' }}>{gastos.length === 0 ? 'Sin gastos aún. ¡Añade el primero!' : 'Ningún gasto coincide con los filtros.'}</p>
-            ) : (
-            <table className="w-full min-w-[700px] text-sm">
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--divider)', background: 'var(--bg-page)' }}>
-                  {(Object.keys(COL_LABELS) as SortKey[]).map(col => (
-                    <SortableTh key={col} label={COL_LABELS[col]} sortKey={col} activeKey={sortKey} asc={sortAsc} onSort={toggleSort} className="text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }} />
-                  ))}
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(g => (
-                  <tr key={g.id} style={{ borderBottom: '1px solid var(--divider)', cursor: isMobile ? 'pointer' : undefined }}
-                    onClick={() => { if (isMobile) setModal({ id: g.id, gasto: g.gasto, importe: String(g.importe), categoria: g.categoria ?? '', banco: g.banco ?? '', cobro: extractDay(g.cobro), vencimiento: g.vencimiento ?? '', comentario: g.comentario ?? '' }); }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-page)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
-                    <td className="px-4 py-3">
-                      <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{g.gasto}</span>
-                      {g.comentario && <p className="text-xs truncate max-w-xs" style={{ color: 'var(--text-muted)' }}>{g.comentario}</p>}
-                    </td>
-                    <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-error)' }}>{fmt(g.importe)}</td>
-                    <td className="px-4 py-3">
-                      {g.categoria ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: catColor(g.categoria), color: autoText(catColor(g.categoria)) }}>{g.categoria}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      {g.banco ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: bancoColor(g.banco), color: autoText(bancoColor(g.banco)) }}>{g.banco}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>{fmtCobro(g.cobro)}</td>
-                    <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>{fmtDate(g.vencimiento)}</td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={e => { e.stopPropagation(); setModal({ id: g.id, gasto: g.gasto, importe: String(g.importe), categoria: g.categoria ?? '', banco: g.banco ?? '', cobro: extractDay(g.cobro), vencimiento: g.vencimiento ?? '', comentario: g.comentario ?? '' }); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
-                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
-                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                        <button onClick={e => { e.stopPropagation(); setDeleteId(g.id); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--color-error)' }}
-                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
-                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-
-                {/* Filas virtuales: Recurrentes (una total o una por recurrente) */}
-                {suscVirtual > 0 && suscMatchesFiltro && (suscDesglose
-                  ? suscs.filter(r => r.importe > 0).map(r => renderRecurrenteRow(
-                      `rec-${r.id}`, r.nombre,
-                      r.periodicidad === 'mensual' ? 'Mensual' : `${PERIODICIDAD_LABEL[r.periodicidad] ?? r.periodicidad} · ${fmt(r.importe)} → ${fmt(monthlyEquivalent(r.importe, r.periodicidad))}/mes`,
-                      monthlyEquivalent(r.importe, r.periodicidad)))
-                  : renderRecurrenteRow('rec-total', 'Recurrentes', `${fmt(suscMensualReal)}/mes real${suscCfg.redondeo ? ' → redondeado al alza' : ''}`, suscVirtual))}
-
-                {/* Fila virtual: Ahorro */}
-                {ahorroVirtual > 0 && ahorroMatchesFiltro && (() => {
-                  const cfg = ahorroCfg;
-                  return (
-                    <tr style={{ background: 'rgba(var(--color-warning-rgb),0.04)', cursor: isMobile ? 'pointer' : undefined }}
-                      onClick={() => { if (isMobile) setEditingAuto('ahorro'); }}>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Ahorro mensual</span>
-                          <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(var(--color-warning-rgb),0.15)', color: 'var(--color-warning)' }}>Auto</span>
-                        </div>
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Objetivo {fmt(ahorro!.objetivo_anual)}/año, recalculado según lo aportado</p>
-                      </td>
-                      <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-warning)' }}>{fmt(ahorroVirtual)}</td>
-                      <td className="px-4 py-3">
-                        {cfg.categoria
-                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: catColor(cfg.categoria), color: autoText(catColor(cfg.categoria)) }}>{cfg.categoria}</span>
-                          : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                      </td>
-                      <td className="px-4 py-3">
-                        {cfg.banco
-                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: bancoColor(cfg.banco), color: autoText(bancoColor(cfg.banco)) }}>{cfg.banco}</span>
-                          : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                      </td>
-                      <td className="px-4 py-3" colSpan={2} />
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={e => { e.stopPropagation(); setEditingAuto('ahorro'); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
-                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
-                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })()}
-
-                {/* Fila virtual: Objetivos de ahorro */}
-                {objetivosVirtual > 0 && objetivosMatchesFiltro && (() => {
-                  const cfg = objetivosCfg;
-                  return (
-                    <tr style={{ background: 'rgba(var(--color-warning-rgb),0.04)', cursor: isMobile ? 'pointer' : undefined }}
-                      onClick={() => { if (isMobile) setEditingAuto('objetivos'); }}>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Objetivos de ahorro</span>
-                          <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(var(--color-warning-rgb),0.15)', color: 'var(--color-warning)' }}>Auto</span>
-                        </div>
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Suma de objetivos en progreso</p>
-                      </td>
-                      <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-warning)' }}>{fmt(objetivosVirtual)}</td>
-                      <td className="px-4 py-3">
-                        {cfg.categoria
-                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: catColor(cfg.categoria), color: autoText(catColor(cfg.categoria)) }}>{cfg.categoria}</span>
-                          : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                      </td>
-                      <td className="px-4 py-3">
-                        {cfg.banco
-                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: bancoColor(cfg.banco), color: autoText(bancoColor(cfg.banco)) }}>{cfg.banco}</span>
-                          : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                      </td>
-                      <td className="px-4 py-3" colSpan={2} />
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={e => { e.stopPropagation(); setEditingAuto('objetivos'); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
-                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
-                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })()}
-              </tbody>
-            </table>
-            );
-          })()}
-        </div>
-      </div>
-
-      {/* Tabla de ingresos fijos */}
-      <div className="glass-card rounded-3xl overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 bg-success-dark">
-          <h2 className="font-bold text-base text-white">
-            Ingresos
-            <span className="ml-2 text-sm font-normal text-white/80">{ingresosFijos.length} entrada{ingresosFijos.length !== 1 ? 's' : ''}{totalIngresosFijos > 0 ? ` · ${fmt(totalIngresosFijos)}` : ''}</span>
-          </h2>
-          <button onClick={() => setModalIngreso(emptyIngresoForm())} className="flex items-center gap-1.5 py-1.5 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-2xl transition-colors px-3 text-sm">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Nuevo
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          {ingresosFijos.length === 0 ? (
-            <p className="py-14 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Sin ingresos — pulsa &quot;+ Nuevo&quot; para añadir</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--divider)', background: 'var(--bg-page)' }}>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Concepto</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Importe</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ingresosFijos.map(i => (
-                  <tr key={i.id} style={{ borderBottom: '1px solid var(--divider)', cursor: isMobile ? 'pointer' : undefined }}
-                    onClick={() => { if (isMobile) setModalIngreso({ id: i.id, concepto: i.concepto, importe: String(i.importe), comentario: i.comentario ?? '' }); }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-page)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
-                    <td className="px-4 py-3">
-                      <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{i.concepto}</span>
-                      {i.comentario && <p className="text-xs truncate max-w-xs" style={{ color: 'var(--text-muted)' }}>{i.comentario}</p>}
-                    </td>
-                    <td className="px-4 py-3 font-mono font-bold" style={{ color: 'var(--color-success)' }}>{fmt(i.importe)}</td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={e => { e.stopPropagation(); setModalIngreso({ id: i.id, concepto: i.concepto, importe: String(i.importe), comentario: i.comentario ?? '' }); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
-                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
-                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                        <button onClick={e => { e.stopPropagation(); setDeleteIngresoId(i.id); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--color-error)' }}
-                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.7'}
-                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}><TrashIcon /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-
-      {modal && <GastoModal form={modal} setForm={setModal} categorias={categorias} bancos={bancos} onClose={() => setModal(null)} onSave={handleSave} saving={saving} />}
-      {modalIngreso && <IngresoModal form={modalIngreso} setForm={setModalIngreso} onClose={() => setModalIngreso(null)} onSave={handleSaveIngreso} saving={savingIngreso} />}
+      {fijoForm && <FijoFormModal form={fijoForm} setForm={setFijoForm} categorias={categorias} bancos={bancos} onClose={() => setFijoForm(null)} onSave={guardarFijo} saving={saving} />}
+      {ingresoForm && <IngresoFormModal form={ingresoForm} setForm={setIngresoForm} conFecha={false} onClose={() => setIngresoForm(null)} onSave={guardarIngreso} saving={saving} />}
       {editingAuto && (
         <AutoConfigModal
           titulo={AUTO_TITULOS[editingAuto]}
-          color={editingAuto === 'suscripciones' ? '#8b5cf6' : 'var(--color-warning)'}
+          color={editingAuto === 'suscripciones' ? 'var(--accent-mode)' : 'var(--saving)'}
           current={autoConfig(editingAuto)}
           categorias={categorias}
           bancos={bancos}
           recurrentes={editingAuto === 'suscripciones'}
           onClose={() => setEditingAuto(null)}
-          onSave={async ({ banco, categoria, redondeo, desglose }) => {
-            await fetch('/api/personal/presupuesto/auto', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: editingAuto, banco, categoria, redondeo, desglose }) });
-            const prevCfg = autoConfig(editingAuto);
-            setAutoConfigs(prev => [
-              ...prev.filter(c => c.tipo !== editingAuto),
-              {
-                tipo: editingAuto, banco, categoria,
-                redondeo: redondeo !== undefined ? (redondeo ? 1 : 0) : prevCfg.redondeo,
-                desglose: desglose !== undefined ? (desglose ? 1 : 0) : prevCfg.desglose,
-              },
+          recurrentesHref={`/personal/modulos/recurrentes`}
+          onSave={async ({ banco, categoria, redondeo }) => {
+            await fetch('/api/personal/presupuesto/auto', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: editingAuto, banco, categoria, redondeo }) });
+            const prev = autoConfig(editingAuto);
+            setAutoConfigs(list => [
+              ...list.filter(c => c.tipo !== editingAuto),
+              { tipo: editingAuto, banco, categoria, redondeo: redondeo !== undefined ? (redondeo ? 1 : 0) : prev.redondeo, desglose: prev.desglose },
             ]);
             setEditingAuto(null);
+            toast('Configuración guardada');
           }}
         />
       )}
-
-      {deleteId !== null && (
-        <ConfirmDialog
-          message="¿Eliminar gasto?"
-          onConfirm={() => handleDelete(deleteId)}
-          onCancel={() => setDeleteId(null)}
-        />
+      {recEdit && (
+        <RecurrenteAjustesModal recurrente={recEdit} apiBase="/api/personal/suscripciones" recurrentesHref={`/personal/modulos/recurrentes`}
+          categorias={categorias} bancos={bancos} onClose={() => setRecEdit(null)}
+          onSaved={() => { setRecEdit(null); toast('Recurrente guardado'); fetchAll(); }} />
       )}
-
-      {deleteIngresoId !== null && (
-        <ConfirmDialog
-          message="¿Eliminar ingreso?"
-          onConfirm={() => handleDeleteIngreso(deleteIngresoId)}
-          onCancel={() => setDeleteIngresoId(null)}
-        />
-      )}
-    </div>
+      {confirm && <ConfirmDialog message={confirm.msg} onConfirm={async () => { await confirm.fn(); setConfirm(null); }} onCancel={() => setConfirm(null)} />}
+    </>
   );
 }

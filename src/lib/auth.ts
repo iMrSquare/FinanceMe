@@ -28,7 +28,7 @@ export async function getSession(): Promise<SessionUser | null> {
   const session = await verifyToken(token);
   if (!session) return null;
 
-  // La apariencia (tema/modo color/acentos) se lee siempre en fresco de la BBDD
+  // La apariencia (tema/modo color/acentos) y el tutorial se leen siempre en fresco de la BBDD
   // en vez de confiar en el snapshot del JWT, para que un cambio hecho en un
   // dispositivo se refleje de inmediato en cualquier otro dispositivo/sesión.
   const dbUser = getUserById(session.id);
@@ -36,10 +36,13 @@ export async function getSession(): Promise<SessionUser | null> {
 
   return {
     ...session,
+    // Igual que la apariencia: si el tutorial se reinicia en la BBDD, las sesiones abiertas lo ven
+    tutorialSeen: !!dbUser.tutorial_seen,
     theme: dbUser.theme,
     colorMode: dbUser.color_mode,
     accentPersonal: dbUser.accent_personal,
     accentHogar: dbUser.accent_hogar,
+    modoInicio: dbUser.modo_inicio === 'hogar' ? 'hogar' : 'personal',
   };
 }
 

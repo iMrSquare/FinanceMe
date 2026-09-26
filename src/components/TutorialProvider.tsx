@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import type { SessionUser } from '@/lib/auth-edge';
 import WelcomeTutorialModal from './WelcomeTutorialModal';
 
@@ -11,12 +11,9 @@ export function useTutorial() {
   return ctx;
 }
 
-export default function TutorialProvider({ session, children }: { session: SessionUser | null; children: React.ReactNode }) {
-  const [show, setShow] = useState(false);
-
-  useEffect(() => {
-    if (session && !session.tutorialSeen && !session.mustChangePassword) setShow(true);
-  }, [session]);
+export default function TutorialProvider({ session, hogarDisponible = false, children }: { session: SessionUser | null; hogarDisponible?: boolean; children: React.ReactNode }) {
+  // Solo al montar: si se reevaluara con cada refresco de la sesión, el tutorial volvería a abrirse tras cerrarlo
+  const [show, setShow] = useState(() => !!session && !session.tutorialSeen && !session.mustChangePassword);
 
   async function dismiss() {
     setShow(false);
@@ -26,7 +23,7 @@ export default function TutorialProvider({ session, children }: { session: Sessi
   return (
     <TutorialContext.Provider value={{ open: () => setShow(true) }}>
       {children}
-      {show && <WelcomeTutorialModal onClose={dismiss} />}
+      {show && session && <WelcomeTutorialModal session={session} hogarDisponible={hogarDisponible} onClose={dismiss} />}
     </TutorialContext.Provider>
   );
 }

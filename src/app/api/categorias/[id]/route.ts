@@ -8,9 +8,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: 'Sin permisos' }, { status: 403 });
   }
   const { id } = await params;
-  const { nombre, color, nombreAnterior, tipo } = await req.json();
+  const { nombre, color, nombreAnterior, tipo, icono } = await req.json();
   const db = getDb();
-  db.prepare('UPDATE categorias SET nombre=?, color=? WHERE id=?').run(nombre, color, id);
+  db.prepare('UPDATE categorias SET nombre=?, color=?, icono=COALESCE(?, icono) WHERE id=?').run(nombre, color, typeof icono === 'string' ? icono : null, id);
   // Cascade rename to existing rows referencing the old name
   if (nombreAnterior && nombreAnterior !== nombre && tipo) {
     if (tipo === 'gasto') {

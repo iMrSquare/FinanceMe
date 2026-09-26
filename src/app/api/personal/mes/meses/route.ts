@@ -50,7 +50,7 @@ function applyVirtualRows(userId: number, anioNum: number, mesNum: number) {
   if (objetivosMensual > 0) {
     const cfg = autoConfigs.find(c => c.tipo === 'objetivos');
     createPersonalGastoMes(userId, anioNum, mesNum, {
-      concepto: 'Objetivos de ahorro',
+      concepto: 'Objetivos',
       importe: objetivosMensual,
       categoria: cfg?.categoria ?? null,
       banco: cfg?.banco ?? null,

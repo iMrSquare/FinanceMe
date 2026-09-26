@@ -1,3 +1,7 @@
-import GestionClient from './GestionClient';
-export const metadata = { title: 'Gestión Personal — FinanceMe' };
-export default function GestionPage() { return <GestionClient />; }
+import GestionView from '@/components/gestion/GestionView';
+
+export const metadata = { title: 'Categorías y Bancos — FinanceMe Personal' };
+
+export default function GestionPage() {
+  return <GestionView scope="personal" />;
+}

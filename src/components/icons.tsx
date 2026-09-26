@@ -226,6 +226,16 @@ export function PiggyIcon({ className = base }: P) {
   );
 }
 
+export function TargetIcon({ className = base }: P) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/>
+      <circle cx="12" cy="12" r="5"/>
+      <circle cx="12" cy="12" r="1"/>
+    </svg>
+  );
+}
+
 export function ClipboardIcon({ className = base }: P) {
   return (
     <svg className={className} fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">

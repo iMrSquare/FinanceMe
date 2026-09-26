@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb, getCategorias } from '@/lib/db';
+import { sugerirIcono } from '@/lib/categoryIcons';
 import { getSession, canEdit, requireSession } from '@/lib/auth';
 
 export async function GET(req: Request) {
@@ -16,11 +17,11 @@ export async function POST(req: Request) {
   if (!session || !canEdit(session.role)) {
     return NextResponse.json({ error: 'Sin permisos' }, { status: 403 });
   }
-  const { tipo, nombre, color } = await req.json();
+  const { tipo, nombre, color, icono } = await req.json();
   if (!tipo || !nombre) return NextResponse.json({ error: 'tipo y nombre requeridos' }, { status: 400 });
   const db = getDb();
   const result = db.prepare(
-    'INSERT INTO categorias (tipo, nombre, color) VALUES (?, ?, ?)'
-  ).run(tipo, nombre, color ?? '#e5e7eb');
+    'INSERT INTO categorias (tipo, nombre, color, icono) VALUES (?, ?, ?, ?)'
+  ).run(tipo, nombre, color ?? '#e5e7eb', typeof icono === 'string' && icono ? icono : tipo === 'gasto' ? sugerirIcono(nombre) : null);
   return NextResponse.json({ id: result.lastInsertRowid }, { status: 201 });
 }

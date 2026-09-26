@@ -17,7 +17,9 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Tipo inválido' }, { status: 400 });
   }
 
-  upsertPresupuestoAuto(session.id, tipo, banco || null, categoria || null, {
+  // Solo el modo (desde Recurrentes): se conservan la categoría y el banco ya configurados
+  const actual = banco === undefined && categoria === undefined ? getPresupuestoAutoConfigs(session.id).find(c => c.tipo === tipo) : undefined;
+  upsertPresupuestoAuto(session.id, tipo, actual ? actual.banco : banco || null, actual ? actual.categoria : categoria || null, {
     redondeo: typeof redondeo === 'boolean' ? redondeo : undefined,
     desglose: typeof desglose === 'boolean' ? desglose : undefined,
   });

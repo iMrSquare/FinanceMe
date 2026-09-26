@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ ok: true, avatarUrl: `/api/avatars/${filename}` });
 }
 
-export async function DELETE(_request: NextRequest) {
+export async function DELETE() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
 

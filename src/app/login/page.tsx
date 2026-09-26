@@ -1,6 +1,6 @@
 import LoginClient from './LoginClient';
 
-export const metadata = { title: 'Iniciar sesión — FinanceMe Hogar' };
+export const metadata = { title: 'Iniciar sesión — FinanceMe' };
 
 export default function LoginPage() {
   return <LoginClient />;

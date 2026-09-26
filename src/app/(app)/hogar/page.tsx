@@ -2,6 +2,7 @@ import { seedDatabase } from '@/lib/seed';
 import {
   getMeses, getGastos, getFijos, getAhorro, getAhorroObjetivos,
   getEstadisticasGastos, getRegistroLuz, getRegistroAgua, getBalanceHistory, getMesActual, getHogarRecurrentes,
+  getPresupuestoAutoConfigsHogar, getCategorias,
 } from '@/lib/db';
 import HogarResumenClient from './HogarResumenClient';
 
@@ -37,6 +38,8 @@ export default function HogarPage() {
       registrosAgua={registrosAgua}
       historial={historial}
       recurrentes={recurrentes}
+      autoConfigs={getPresupuestoAutoConfigsHogar()}
+      categorias={getCategorias('gasto')}
     />
   );
 }

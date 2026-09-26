@@ -5,6 +5,12 @@ import Link from 'next/link';
 import type { EstadisticasData } from '@/lib/db';
 import { autoText } from '@/components/ColorDots';
 import { MonthYearInput } from '@/components/MonthYearInput';
+import PageHeader from '@/components/ui/PageHeader';
+import Button from '@/components/ui/Button';
+import { ChevronRightIcon } from '@/components/icons';
+import { CategoryBadge } from '@/components/ui/Chips';
+import CategoryIconGlyph from '@/components/CategoryIconGlyph';
+import { formatEUR } from '@/lib/format';
 import {
   Chart, BarElement, BarController, CategoryScale, LinearScale, Tooltip, Legend,
 } from 'chart.js';
@@ -24,7 +30,9 @@ const PERIODOS: { value: Periodo; label: string }[] = [
   { value: 'custom', label: 'Personalizado' },
 ];
 
-const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+const fmt = (n: number) => formatEUR(n);
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const fmtYM = (ym: string) => ym ? `${MESES_CORTOS[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}` : '…';
 
 function hex2rgba(hex: string, alpha: number) {
   if (!hex.startsWith('#') || hex.length < 7) return hex;
@@ -59,7 +67,6 @@ interface Props {
 }
 
 export default function EstadisticasView({ scope, initial }: Props) {
-  const accent = scope === 'hogar' ? '#8b5cf6' : '#f97316';
   const apiUrl = scope === 'hogar' ? '/api/estadisticas' : '/api/personal/estadisticas';
   const disponibles = initial.disponibles ?? [];
   const categoriasDisponibles = initial.categoriasDisponibles ?? [];
@@ -111,6 +118,8 @@ export default function EstadisticasView({ scope, initial }: Props) {
   const cats = data.categorias;
   const totalPeriodo = cats.reduce((s, c) => s + c.total, 0);
   const hayFiltros = seleccion.length > 0 || periodo !== (disponibles.length > 6 ? '6' : 'todo');
+  const periodoLabel = periodo === 'custom' ? `De ${fmtYM(desde)} a ${fmtYM(hasta)}` : PERIODOS.find(p => p.value === periodo)!.label;
+  const resumenFiltros = `${periodoLabel} · ${seleccion.length === 0 ? 'Todas las categorías' : seleccion.length === 1 ? seleccion[0] : `${seleccion.length} categorías`}`;
 
   useEffect(() => {
     const charts: Chart[] = [];
@@ -173,40 +182,44 @@ export default function EstadisticasView({ scope, initial }: Props) {
 
   const segBtn = (active: boolean) => ({
     className: 'px-3 py-2 rounded-xl text-sm font-semibold transition-colors cursor-pointer min-h-[40px] focus-visible:outline-2 focus-visible:outline-offset-2',
-    style: { background: active ? accent : 'transparent', color: active ? '#ffffff' : 'var(--text-secondary)', outlineColor: accent },
+    style: { background: active ? 'var(--accent-mode)' : 'transparent', color: active ? 'var(--on-accent)' : 'var(--text-secondary)', outlineColor: 'var(--accent-mode)' },
   });
   const selectCls = 'w-full rounded-xl px-3 py-2 text-sm border appearance-none cursor-pointer focus:outline-none focus:ring-2';
   const selectStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)', borderColor: 'var(--btn-border)' };
 
   return (
-    <div className="space-y-8">
-      <Link href={`/${scope}`} className="inline-flex items-center gap-2 text-sm font-semibold whitespace-nowrap min-h-[44px]" style={{ color: 'var(--text-secondary)' }}>
+    <div>
+      <Link href={`/${scope}`} className="inline-flex items-center gap-1.5 mb-3 text-sm font-medium min-h-11 hover:underline" style={{ color: 'var(--text-secondary)' }}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
         Volver a Resumen
       </Link>
-
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: hex2rgba(accent, 0.12) }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-          </svg>
-        </div>
-        <div>
-          <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Estadísticas</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Evolución de gastos por categoría</p>
-        </div>
-      </div>
+      <PageHeader title="Estadísticas" subtitle="Evolución de tus gastos por categoría" />
 
       {disponibles.length === 0 ? (
         <div className="flex items-center justify-center h-64">
           <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Sin datos — añade meses para ver estadísticas</p>
         </div>
       ) : (
-        <>
-          {/* ── Filtros ── */}
-          <section className="glass-card rounded-3xl p-5 space-y-4" aria-label="Filtros">
+        <div className="flex flex-col gap-6 [&_section]:mb-0">
+          {/* ── Filtros (desplegable) ── */}
+          <details className="fm-card group" aria-label="Filtros">
+            <summary className="flex items-center gap-3 px-5 py-3.5 min-h-[56px] cursor-pointer list-none [&::-webkit-details-marker]:hidden rounded-[var(--radius-card)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent-mode)]">
+              <ChevronRightIcon className="w-4 h-4 shrink-0 transition-transform group-open:rotate-90" />
+              <span className="flex-1 min-w-0">
+                <span className="block font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  Filtros{hayFiltros && <span className="sr-only"> (activos)</span>}
+                </span>
+                <span className="block text-[13px] truncate" style={{ color: 'var(--text-muted)' }}>
+                  {resumenFiltros}
+                </span>
+              </span>
+              <span className="text-sm shrink-0 tabular-nums text-right" style={{ color: 'var(--text-secondary)' }} aria-live="polite">
+                {cargando ? 'Actualizando…' : <strong className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmt(totalPeriodo)}</strong>}
+              </span>
+            </summary>
+            <div className="px-5 pb-5 pt-4 space-y-5" style={{ borderTop: '1px solid var(--divider)' }}>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>Periodo</p>
+              <p className="fm-label">Periodo</p>
               <div className="flex flex-wrap gap-1 p-1 rounded-2xl" style={{ background: 'var(--bg-page)' }} role="group" aria-label="Periodo">
                 {PERIODOS.map(p => (
                   <button key={p.value} type="button" aria-pressed={periodo === p.value} onClick={() => cargar({ periodo: p.value })} {...segBtn(periodo === p.value)}>
@@ -231,11 +244,11 @@ export default function EstadisticasView({ scope, initial }: Props) {
             {categoriasDisponibles.length > 0 && (
               <div>
                 <div className="flex items-center justify-between gap-3 mb-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-                    Categorías {seleccion.length > 0 && <span style={{ color: accent }}>· {seleccion.length} seleccionada{seleccion.length !== 1 ? 's' : ''}</span>}
+                  <p className="fm-label !mb-0">
+                    Categorías {seleccion.length > 0 && <span style={{ color: 'var(--accent-mode)' }}>· {seleccion.length} seleccionada{seleccion.length !== 1 ? 's' : ''}</span>}
                   </p>
                   {seleccion.length > 0 && (
-                    <button type="button" onClick={() => cargar({ seleccion: [] })} className="text-xs font-semibold cursor-pointer min-h-[32px] px-2" style={{ color: accent }}>
+                    <button type="button" onClick={() => cargar({ seleccion: [] })} className="text-xs font-semibold cursor-pointer min-h-[32px] px-2" style={{ color: 'var(--accent-mode)' }}>
                       Todas
                     </button>
                   )}
@@ -249,7 +262,7 @@ export default function EstadisticasView({ scope, initial }: Props) {
                         style={activa
                           ? { background: c.color, color: autoText(c.color), borderColor: c.color }
                           : { background: 'transparent', color: 'var(--text-secondary)', borderColor: 'var(--btn-border)' }}>
-                        {!activa && <span className="w-2.5 h-2.5 rounded-full" style={{ background: c.color }} aria-hidden="true" />}
+                        {!activa && <CategoryIconGlyph iconId={c.icono} className="w-3.5 h-3.5" style={{ color: c.color }} />}
                         {c.nombre}
                       </button>
                     );
@@ -259,24 +272,22 @@ export default function EstadisticasView({ scope, initial }: Props) {
               </div>
             )}
 
-            <div className="flex flex-wrap items-center gap-3 pt-1" style={{ borderTop: '1px solid var(--divider)' }}>
-              <p className="text-sm pt-3" style={{ color: 'var(--text-secondary)' }} aria-live="polite">
-                {cargando ? 'Actualizando…' : `${labels.length} mes${labels.length !== 1 ? 'es' : ''} · ${cats.length} categoría${cats.length !== 1 ? 's' : ''} · `}
-                {!cargando && <strong className="tabular-nums" style={{ color: 'var(--text-primary)' }}>{fmt(totalPeriodo)}</strong>}
+            <div className="flex flex-wrap items-center gap-3 pt-4" style={{ borderTop: '1px solid var(--divider)' }}>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                {labels.length} mes{labels.length !== 1 ? 'es' : ''} · {cats.length} categoría{cats.length !== 1 ? 's' : ''}
               </p>
               {hayFiltros && (
-                <button type="button" onClick={() => cargar({ periodo: disponibles.length > 6 ? '6' : 'todo', seleccion: [] })}
-                  className="ml-auto mt-3 px-3 py-2 rounded-xl text-sm font-medium border cursor-pointer"
-                  style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)' }}>
-                  ✕ Limpiar filtros
-                </button>
+                <Button size="sm" variant="ghost" className="ml-auto" onClick={() => cargar({ periodo: disponibles.length > 6 ? '6' : 'todo', seleccion: [] })}>
+                  Limpiar filtros
+                </Button>
               )}
             </div>
-          </section>
+            </div>
+          </details>
 
           <div className={`space-y-8 transition-opacity ${cargando ? 'opacity-60' : ''}`}>
             {cats.length === 0 ? (
-              <div className="glass-card rounded-3xl p-10 text-center">
+              <div className="fm-card p-10 text-center">
                 <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Sin gastos para estos filtros</p>
                 <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Prueba con otro periodo u otras categorías.</p>
               </div>
@@ -284,12 +295,12 @@ export default function EstadisticasView({ scope, initial }: Props) {
               <>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {cats.map(c => (
-                    <div key={c.categoria} className="glass-card rounded-3xl p-5">
+                    <div key={c.categoria} className="fm-card p-5">
                       <div className="flex items-center gap-2 mb-3">
-                        <div className="w-3 h-3 rounded-full shrink-0" style={{ background: c.color }} />
+                        <CategoryBadge color={c.color} icono={c.icono} />
                         <span className="text-sm font-semibold truncate" style={{ color: 'var(--text-secondary)' }}>{c.categoria}</span>
                       </div>
-                      <p className="text-2xl font-extrabold tabular-nums" style={{ color: 'var(--text-primary)' }}>{fmt(c.total)}</p>
+                      <p className="text-2xl font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{fmt(c.total)}</p>
                       <p className="text-xs mt-1 tabular-nums" style={{ color: 'var(--text-muted)' }}>
                         ~{fmt(c.promedio)}/mes · {totalPeriodo > 0 ? Math.round((c.total / totalPeriodo) * 100) : 0}% del total
                       </p>
@@ -297,7 +308,7 @@ export default function EstadisticasView({ scope, initial }: Props) {
                   ))}
                 </div>
 
-                <div className="glass-card rounded-3xl p-6">
+                <div className="fm-card p-6">
                   <div className="mb-5">
                     <h2 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Gastos por categoría</h2>
                     <p className="text-sm mt-0.5 tabular-nums" style={{ color: 'var(--text-secondary)' }}>Total período: {fmt(totalPeriodo)}</p>
@@ -313,11 +324,11 @@ export default function EstadisticasView({ scope, initial }: Props) {
                     {cats.map((c, i) => {
                       const max = Math.max(...c.totalesPorMes, 1);
                       return (
-                        <div key={c.categoria} className="glass-card rounded-3xl p-6">
+                        <div key={c.categoria} className="fm-card p-6">
                           <div className="flex items-center justify-between mb-4">
-                            <span style={{ backgroundColor: c.color, color: autoText(c.color) }} className="px-3 py-1 rounded-full text-xs font-bold">{c.categoria}</span>
+                            <span className="flex items-center gap-2 font-semibold min-w-0"><CategoryBadge color={c.color} icono={c.icono} /><span className="truncate">{c.categoria}</span></span>
                             <div className="text-right">
-                              <p className="font-extrabold text-lg tabular-nums" style={{ color: 'var(--text-primary)' }}>{fmt(c.total)}</p>
+                              <p className="font-semibold text-lg tabular-nums" style={{ color: 'var(--text-primary)' }}>{fmt(c.total)}</p>
                               <p className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>~{fmt(c.promedio)}/mes</p>
                             </div>
                           </div>
@@ -348,7 +359,7 @@ export default function EstadisticasView({ scope, initial }: Props) {
               </>
             )}
           </div>
-        </>
+        </div>
       )}
     </div>
   );

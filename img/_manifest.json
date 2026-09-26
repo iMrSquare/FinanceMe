@@ -3,151 +3,156 @@
     "name": "00-login",
     "url": "/login",
     "auth": false,
-    "ok": true,
-    "finalUrl": "http://localhost:3000/login"
+    "finalUrl": "/login"
   },
   {
     "name": "01-resumen",
-    "url": "/resumen",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/resumen"
+    "url": "/personal",
+    "auth": true,
+    "finalUrl": "/personal"
   },
   {
     "name": "02-estadisticas",
-    "url": "/estadisticas",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/estadisticas"
+    "url": "/hogar/estadisticas",
+    "auth": true,
+    "finalUrl": "/hogar/estadisticas"
   },
   {
     "name": "04-ajustes",
     "url": "/ajustes",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/ajustes"
+    "auth": true,
+    "finalUrl": "/ajustes"
   },
   {
     "name": "05-perfil",
     "url": "/perfil",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/perfil"
+    "auth": true,
+    "finalUrl": "/perfil"
   },
   {
     "name": "06-cambiar-password",
     "url": "/cambiar-password",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/cambiar-password"
+    "auth": true,
+    "finalUrl": "/cambiar-password"
   },
   {
     "name": "07-changelog",
     "url": "/changelog",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/changelog"
-  },
-  {
-    "name": "08-registros-luz",
-    "url": "/registros/luz",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/registros/luz"
-  },
-  {
-    "name": "09-registros-agua",
-    "url": "/registros/agua",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/registros/agua"
+    "auth": true,
+    "finalUrl": "/changelog"
   },
   {
     "name": "10-hogar-inicio",
     "url": "/hogar",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/hogar"
+    "auth": true,
+    "finalUrl": "/hogar"
   },
   {
     "name": "11-hogar-mes",
     "url": "/hogar/mes",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/hogar/mes/2026/7"
+    "auth": true,
+    "finalUrl": "/hogar/mes/2026/9"
   },
   {
     "name": "12-hogar-presupuesto",
     "url": "/hogar/presupuesto",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/hogar/presupuesto"
+    "auth": true,
+    "finalUrl": "/hogar/presupuesto"
   },
   {
     "name": "13-hogar-gestion",
     "url": "/hogar/gestion",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/hogar/gestion"
+    "auth": true,
+    "finalUrl": "/hogar/gestion"
   },
   {
     "name": "14-hogar-ahorro",
-    "url": "/hogar/ahorro",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/hogar/ahorro"
+    "url": "/hogar/modulos/ahorro",
+    "auth": true,
+    "finalUrl": "/hogar/modulos/ahorro"
   },
   {
-    "name": "15-hogar-luz",
-    "url": "/hogar/luz",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/hogar/luz"
+    "name": "15-hogar-objetivos",
+    "url": "/hogar/modulos/objetivos",
+    "auth": true,
+    "finalUrl": "/hogar/modulos/objetivos"
   },
   {
-    "name": "16-hogar-agua",
-    "url": "/hogar/agua",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/hogar/agua"
+    "name": "16-hogar-recurrentes",
+    "url": "/hogar/modulos/recurrentes",
+    "auth": true,
+    "finalUrl": "/hogar/modulos/recurrentes"
   },
   {
     "name": "17-hogar-registros",
-    "url": "/hogar/registros",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/hogar/registros"
+    "url": "/hogar/modulos/registros",
+    "auth": true,
+    "finalUrl": "/hogar/modulos/registros"
   },
   {
     "name": "18-hogar-estadisticas",
     "url": "/hogar/estadisticas",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/hogar/estadisticas"
+    "auth": true,
+    "finalUrl": "/hogar/estadisticas"
+  },
+  {
+    "name": "19-hogar-avisos",
+    "url": "/hogar/avisos",
+    "auth": true,
+    "finalUrl": "/hogar/avisos"
   },
   {
     "name": "20-personal-inicio",
     "url": "/personal",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/personal"
+    "auth": true,
+    "finalUrl": "/personal"
   },
   {
     "name": "21-personal-mes",
     "url": "/personal/mes",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/personal/mes/2026/6"
+    "auth": true,
+    "finalUrl": "/personal/mes/2026/9"
   },
   {
     "name": "22-personal-presupuesto",
     "url": "/personal/presupuesto",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/personal/presupuesto"
+    "auth": true,
+    "finalUrl": "/personal/presupuesto"
   },
   {
     "name": "23-personal-gestion",
     "url": "/personal/gestion",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/personal/gestion"
+    "auth": true,
+    "finalUrl": "/personal/gestion"
   },
   {
     "name": "24-personal-ahorro",
-    "url": "/personal/ahorro",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/personal/ahorro"
+    "url": "/personal/modulos/ahorro",
+    "auth": true,
+    "finalUrl": "/personal/modulos/ahorro"
   },
   {
-    "name": "25-personal-suscripciones",
-    "url": "/personal/suscripciones",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/personal/suscripciones"
+    "name": "25-personal-recurrentes",
+    "url": "/personal/modulos/recurrentes",
+    "auth": true,
+    "finalUrl": "/personal/modulos/recurrentes"
   },
   {
     "name": "26-personal-estadisticas",
     "url": "/personal/estadisticas",
-    "ok": true,
-    "finalUrl": "http://localhost:3000/personal/estadisticas"
+    "auth": true,
+    "finalUrl": "/personal/estadisticas"
+  },
+  {
+    "name": "27-personal-modulos",
+    "url": "/personal/modulos",
+    "auth": true,
+    "finalUrl": "/personal/modulos"
+  },
+  {
+    "name": "28-personal-avisos",
+    "url": "/personal/avisos",
+    "auth": true,
+    "finalUrl": "/personal/avisos"
   }
 ]

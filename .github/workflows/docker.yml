@@ -50,3 +50,26 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Al etiquetar una versión (vX.Y.Z), publica la release en GitHub una vez que la imagen ya está
+  # disponible: es lo que consultan las instalaciones para avisar de que hay una versión nueva.
+  release:
+    if: github.ref_type == 'tag'
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "La release $GITHUB_REF_NAME ya existe"
+          else
+            gh release create "$GITHUB_REF_NAME" --title "FinanceMe $GITHUB_REF_NAME" --generate-notes --verify-tag
+          fi

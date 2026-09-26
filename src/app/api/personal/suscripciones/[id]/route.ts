@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { updatePersonalSuscripcion, deletePersonalSuscripcion } from '@/lib/db';
+import { parseRecurrenteBody } from '@/lib/recurrentes';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   const { id } = await params;
-  const { nombre, importe, cobro, periodicidad, comentario } = await request.json();
-  updatePersonalSuscripcion(Number(id), session.id, { nombre: nombre.trim(), importe: Number(importe), cobro: cobro || null, periodicidad: periodicidad || 'mensual', comentario: comentario || null });
+  const data = parseRecurrenteBody(await request.json());
+  if (!data) return NextResponse.json({ error: 'Campos requeridos' }, { status: 400 });
+  updatePersonalSuscripcion(Number(id), session.id, data);
   return NextResponse.json({ ok: true });
 }
 
