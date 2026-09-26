@@ -20,7 +20,7 @@ function runImport(
   const {
     meses = [], ingresos = [], gastos = [], prestamos = [], categorias = [], fijos = [],
     registro_luz = [], registro_agua = [], ahorro = [], ahorro_mes = [],
-    ahorro_objetivos = [], presupuesto_auto = [],
+    ahorro_objetivos = [], presupuesto_auto = [], hogar_recurrentes = [],
   } = data;
 
   const db = getDb();
@@ -189,9 +189,26 @@ function runImport(
       const existing = db.prepare('SELECT id FROM presupuesto_auto WHERE tipo = ?').get(p.tipo) as { id: number } | undefined;
       if (existing) {
         bump('presupuesto_auto');
-        if (opts.overwrite) { db.prepare('UPDATE presupuesto_auto SET banco = ?, categoria = ? WHERE id = ?').run(p.banco ?? null, p.categoria ?? null, existing.id); importado++; }
+        if (opts.overwrite) { db.prepare('UPDATE presupuesto_auto SET banco = ?, categoria = ?, redondeo = ?, desglose = ? WHERE id = ?').run(p.banco ?? null, p.categoria ?? null, p.redondeo ?? 1, p.desglose ?? 0, existing.id); importado++; }
       } else {
-        db.prepare('INSERT INTO presupuesto_auto (tipo, banco, categoria) VALUES (?, ?, ?)').run(p.tipo, p.banco ?? null, p.categoria ?? null);
+        db.prepare('INSERT INTO presupuesto_auto (tipo, banco, categoria, redondeo, desglose) VALUES (?, ?, ?, ?, ?)').run(p.tipo, p.banco ?? null, p.categoria ?? null, p.redondeo ?? 1, p.desglose ?? 0);
+        importado++;
+      }
+    }
+
+    // ── Recurrentes (dedup por nombre) ────────────────────────────────────
+    for (const r of hogar_recurrentes as Array<Record<string, unknown>>) {
+      const existing = db.prepare('SELECT id FROM hogar_recurrentes WHERE nombre = ?').get(r.nombre) as { id: number } | undefined;
+      if (existing) {
+        bump('hogar_recurrentes');
+        if (opts.overwrite) {
+          db.prepare('UPDATE hogar_recurrentes SET importe = ?, cobro = ?, periodicidad = ?, comentario = ? WHERE id = ?')
+            .run(r.importe ?? 0, r.cobro ?? null, r.periodicidad ?? 'mensual', r.comentario ?? null, existing.id);
+          importado++;
+        }
+      } else {
+        db.prepare('INSERT INTO hogar_recurrentes (nombre, importe, cobro, periodicidad, comentario) VALUES (?, ?, ?, ?, ?)')
+          .run(r.nombre, r.importe ?? 0, r.cobro ?? null, r.periodicidad ?? 'mensual', r.comentario ?? null);
         importado++;
       }
     }

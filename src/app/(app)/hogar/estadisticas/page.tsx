@@ -1,10 +1,9 @@
 import { getEstadisticasGastos } from '@/lib/db';
-import EstadisticasClient from '../../estadisticas/EstadisticasClient';
+import EstadisticasView from '@/components/estadisticas/EstadisticasView';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Estadísticas — FinanceMe Hogar' };
 
 export default function HogarEstadisticasPage() {
-  const data = getEstadisticasGastos(12);
-  return <EstadisticasClient data={data} />;
+  return <EstadisticasView scope="hogar" initial={getEstadisticasGastos({ limit: 6 })} />;
 }

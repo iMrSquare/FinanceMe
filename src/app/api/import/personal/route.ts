@@ -206,9 +206,9 @@ function runImport(
       const existing = db.prepare('SELECT id FROM personal_presupuesto_auto WHERE user_id = ? AND tipo = ?').get(userId, p.tipo) as { id: number } | undefined;
       if (existing) {
         bump('presupuesto_auto');
-        if (opts.overwrite) { db.prepare('UPDATE personal_presupuesto_auto SET banco = ?, categoria = ? WHERE id = ?').run(p.banco ?? null, p.categoria ?? null, existing.id); importado++; }
+        if (opts.overwrite) { db.prepare('UPDATE personal_presupuesto_auto SET banco = ?, categoria = ?, redondeo = ?, desglose = ? WHERE id = ?').run(p.banco ?? null, p.categoria ?? null, p.redondeo ?? 1, p.desglose ?? 0, existing.id); importado++; }
       } else {
-        db.prepare('INSERT INTO personal_presupuesto_auto (user_id, tipo, banco, categoria) VALUES (?, ?, ?, ?)').run(userId, p.tipo, p.banco ?? null, p.categoria ?? null);
+        db.prepare('INSERT INTO personal_presupuesto_auto (user_id, tipo, banco, categoria, redondeo, desglose) VALUES (?, ?, ?, ?, ?, ?)').run(userId, p.tipo, p.banco ?? null, p.categoria ?? null, p.redondeo ?? 1, p.desglose ?? 0);
         importado++;
       }
     }

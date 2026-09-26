@@ -12,11 +12,14 @@ export async function PUT(request: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
 
-  const { tipo, banco, categoria, redondeo } = await request.json();
+  const { tipo, banco, categoria, redondeo, desglose } = await request.json();
   if (!['suscripciones', 'ahorro', 'objetivos'].includes(tipo)) {
     return NextResponse.json({ error: 'Tipo inválido' }, { status: 400 });
   }
 
-  upsertPresupuestoAuto(session.id, tipo, banco || null, categoria || null, typeof redondeo === 'boolean' ? redondeo : undefined);
+  upsertPresupuestoAuto(session.id, tipo, banco || null, categoria || null, {
+    redondeo: typeof redondeo === 'boolean' ? redondeo : undefined,
+    desglose: typeof desglose === 'boolean' ? desglose : undefined,
+  });
   return NextResponse.json({ ok: true });
 }

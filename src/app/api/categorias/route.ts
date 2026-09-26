@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getDb, getCategorias } from '@/lib/db';
-import { getSession, canEdit } from '@/lib/auth';
+import { getSession, canEdit, requireSession } from '@/lib/auth';
 
 export async function GET(req: Request) {
+  const auth = await requireSession();
+  if (auth instanceof NextResponse) return auth;
   const { searchParams } = new URL(req.url);
   const tipo = searchParams.get('tipo') as 'gasto' | 'prestamo' | 'luz' | 'agua' | null;
   if (!tipo) return NextResponse.json({ error: 'tipo requerido' }, { status: 400 });

@@ -54,7 +54,7 @@
   --sidebar-border:   #e2e8f0;
   --text-primary:     #1e293b;
   --text-secondary:   #64748b;
-  --text-muted:       #94a3b8;
+  --text-muted:       #5e718d;
   --row-hover:        #f8fafc;
   --sidebar-hover-bg: #eef2ff;
   --sidebar-hover-c:  #4f46e5;
@@ -85,7 +85,7 @@
   --sidebar-border:   #334155;
   --text-primary:     #f1f5f9;
   --text-secondary:   #94a3b8;
-  --text-muted:       #64748b;
+  --text-muted:       #72839a;
   --row-hover:        rgba(255,255,255,0.04);
   --sidebar-hover-bg: #312e81;
   --sidebar-hover-c:  #a5b4fc;
@@ -118,7 +118,7 @@
   --sidebar-border:   #e2e8f0;
   --text-primary:     #1e293b;
   --text-secondary:   #64748b;
-  --text-muted:       #94a3b8;
+  --text-muted:       #5e718d;
   --row-hover:        #f8fafc;
   --sidebar-hover-bg: #eef2ff;
   --sidebar-hover-c:  #4f46e5;
@@ -135,7 +135,7 @@
   --sidebar-border:   #334155;
   --text-primary:     #f1f5f9;
   --text-secondary:   #94a3b8;
-  --text-muted:       #64748b;
+  --text-muted:       #72839a;
   --row-hover:        rgba(255,255,255,0.04);
   --sidebar-hover-bg: #312e81;
   --sidebar-hover-c:  #a5b4fc;
@@ -166,7 +166,7 @@
   --sidebar-border:   #e5e5e0;
   --text-primary:     #14161b;
   --text-secondary:   #5b5f68;
-  --text-muted:       #8b8f99;
+  --text-muted:       #6c707b;
   --row-hover:        #f0f0ed;
   --sidebar-hover-bg: #fdf1d9;
   --sidebar-hover-c:  #b8790c;
@@ -183,7 +183,7 @@
   --sidebar-border:   #1c1f26;
   --text-primary:     #f2f3f5;
   --text-secondary:   #a3a8b4;
-  --text-muted:       #6b7280;
+  --text-muted:       #767e8c;
   --row-hover:        rgba(255,255,255,0.04);
   --sidebar-hover-bg: #1c1f26;
   --sidebar-hover-c:  #ffbc23;
@@ -214,7 +214,7 @@
   --sidebar-border:   #e8e4d5;
   --text-primary:     #272822;
   --text-secondary:   #75715e;
-  --text-muted:       #a39e8c;
+  --text-muted:       #76705e;
   --row-hover:        #f5f2e4;
   --sidebar-hover-bg: #fce4ee;
   --sidebar-hover-c:  #c7215d;
@@ -231,7 +231,7 @@
   --sidebar-border:   #3e3d32;
   --text-primary:     #f8f8f2;
   --text-secondary:   #cfcfc2;
-  --text-muted:       #75715e;
+  --text-muted:       #94907a;
   --row-hover:        rgba(255,255,255,0.04);
   --sidebar-hover-bg: #3e3d32;
   --sidebar-hover-c:  #f92672;
@@ -262,7 +262,7 @@
   --sidebar-border:   #e4e4f0;
   --text-primary:     #282a36;
   --text-secondary:   #6272a4;
-  --text-muted:       #9aa0c4;
+  --text-muted:       #626ca4;
   --row-hover:        #f0f0f8;
   --sidebar-hover-bg: #f0e6fc;
   --sidebar-hover-c:  #7c5cbf;
@@ -279,7 +279,7 @@
   --sidebar-border:   #44475a;
   --text-primary:     #f8f8f2;
   --text-secondary:   #cbccc7;
-  --text-muted:       #6272a4;
+  --text-muted:       #8592b8;
   --row-hover:        rgba(255,255,255,0.04);
   --sidebar-hover-bg: #44475a;
   --sidebar-hover-c:  #bd93f9;
@@ -310,7 +310,7 @@
   --sidebar-border:   #fbcfe8;
   --text-primary:     #4a0e2e;
   --text-secondary:   #9d5b7d;
-  --text-muted:       #c98fac;
+  --text-muted:       #a9517d;
   --row-hover:        #fef1f7;
   --sidebar-hover-bg: #fce7f3;
   --sidebar-hover-c:  #be185d;
@@ -395,6 +395,15 @@ body {
   color: var(--text-primary);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* PWA safe area — bottom nav + home indicator */
@@ -441,4 +450,44 @@ body {
 }
 .theme-table tbody tr:hover {
   background: var(--row-hover);
+}
+.theme-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sortable headers: the button owns the padding so the whole cell is clickable (≥44px) */
+.theme-table thead th.sortable-th,
+th.sortable-th {
+  padding: 0;
+}
+th.sortable-th > button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 16px;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  user-select: none;
+}
+th.sortable-th > button:hover,
+th.sortable-th > button[data-active] {
+  color: var(--text-secondary);
+}
+th.sortable-th > button:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+.sortable-th-indicator {
+  font-size: 10px;
+  opacity: 0.45;
+}
+th.sortable-th > button[data-active] .sortable-th-indicator {
+  opacity: 1;
 }

@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { billingDayInMonth, monthlyEquivalent } from '@/lib/billing';
+import { billingDayInMonth } from '@/lib/billing';
+import { importeVirtualRecurrentes, totalMensualRecurrentes, type RecurrentesConfig } from '@/lib/recurrentes';
 import { objetivoMensualAhorro } from '@/lib/ahorro';
 import InfoExpand from '@/components/InfoExpand';
 import type { PersonalGastoFijo, PersonalGastoMes, PersonalSuscripcion, PersonalAhorro, PersonalMesEvolucion, PresupuestoAutoConfig, EstadisticasData } from '@/lib/db';
@@ -13,14 +14,13 @@ import {
 Chart.register(LineElement, LineController, PointElement, CategoryScale, LinearScale, Filler, Tooltip);
 
 const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
-const roundUp5 = (n: number) => Math.ceil(n / 5) * 5;
 
 const MESES_NOMBRES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DIAS_SEMANA = ['Lu','Ma','Mi','Ju','Vi','Sá','Do'];
 
 interface CalEvent { day: number; nombre: string; importe: number; tipo: 'gasto' | 'suscripcion'; }
 
-// Las suscripciones se muestran antes que los gastos ya registrados del mes.
+// Los recurrentes se muestran antes que los gastos ya registrados del mes.
 const tipoRank = (tipo: CalEvent['tipo']) => tipo === 'suscripcion' ? 0 : 1;
 
 function Calendario({ events }: { events: CalEvent[] }) {
@@ -115,13 +115,14 @@ export default function InicioPersonalClient() {
   }, []);
 
   const totalGastos = gastos.reduce((s, g) => s + g.importe, 0);
-  const totalSuscMensual = suscs.reduce((s, sub) => s + monthlyEquivalent(sub.importe, sub.periodicidad), 0);
+  const totalSuscMensual = totalMensualRecurrentes(suscs);
   const totalAportado = ahorro?.meses.reduce((s, m) => s + m.aportado, 0) ?? 0;
   const objetivoAnual = ahorro?.objetivo_anual ?? 0;
   const porcentaje = objetivoAnual > 0 ? Math.min((totalAportado / objetivoAnual) * 100, 100) : 0;
 
-  const suscRedondeo  = (autoConfigs.find(c => c.tipo === 'suscripciones')?.redondeo ?? 1) === 1;
-  const suscVirtual   = totalSuscMensual > 0 ? (suscRedondeo ? roundUp5(totalSuscMensual) : totalSuscMensual) : 0;
+  const suscCfg: RecurrentesConfig = autoConfigs.find(c => c.tipo === 'suscripciones') ?? { banco: null, categoria: null };
+  const suscVirtual   = importeVirtualRecurrentes(suscs, suscCfg);
+  const suscConceptos = suscVirtual > 0 ? (suscCfg.desglose ? suscs.filter(r => r.importe > 0).length : 1) : 0;
   const ahorroVirtual = ahorro ? objetivoMensualAhorro(ahorro.objetivo_anual, ahorro.meses, new Date().getFullYear()) : 0;
   const presupuestoTotal = totalGastos + suscVirtual + ahorroVirtual;
 
@@ -136,7 +137,8 @@ export default function InicioPersonalClient() {
     })),
     ...suscs.filter(s => s.cobro)
       .map(s => ({ day: billingDayInMonth(s.cobro!, s.periodicidad, currentYear, currentMonth), nombre: s.nombre, importe: s.importe, tipo: 'suscripcion' as const }))
-      .filter((e): e is { day: number; nombre: string; importe: number; tipo: 'suscripcion' } => e.day !== null),
+      .filter((e): e is { day: number; nombre: string; importe: number; tipo: 'suscripcion' } => e.day !== null)
+      .filter(e => !mesGastos.some(g => g.concepto === e.nombre && g.fecha && Number(g.fecha.split('-')[2]) === e.day)),
   ];
 
   const proximos = calEvents
@@ -227,7 +229,7 @@ export default function InicioPersonalClient() {
             <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>de tus finanzas personales</p>
           </div>
           <InfoExpand title="¿Qué es Resumen?">
-            <p>Aquí tienes una vista general de tus finanzas personales: tu presupuesto, suscripciones y objetivo anual de ahorro. El calendario de próximos pagos toma los gastos de tu Mes (con la fecha real en la que los registraste) y las suscripciones según su día de cobro habitual. Debajo tienes tus categorías con más gasto de los últimos 6 meses y acceso a tus Estadísticas.</p>
+            <p>Aquí tienes una vista general de tus finanzas personales: tu presupuesto, recurrentes y objetivo anual de ahorro. El calendario de próximos pagos toma los gastos de tu Mes (con la fecha real en la que los registraste) y los recurrentes según su día de cobro habitual. Debajo tienes tus categorías con más gasto de los últimos 6 meses y acceso a tus Estadísticas.</p>
           </InfoExpand>
         </div>
         <Link
@@ -255,7 +257,7 @@ export default function InicioPersonalClient() {
                 {loading ? '—' : fmt(presupuestoTotal)}
               </p>
               <p className="hidden sm:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                {gastos.length + (suscVirtual > 0 ? 1 : 0) + (ahorroVirtual > 0 ? 1 : 0)} conceptos
+                {gastos.length + suscConceptos + (ahorroVirtual > 0 ? 1 : 0)} conceptos
               </p>
             </div>
             <div className="hidden sm:flex w-11 h-11 rounded-2xl items-center justify-center shrink-0" style={{ background: 'rgba(var(--color-error-rgb),0.12)' }}>
@@ -266,12 +268,12 @@ export default function InicioPersonalClient() {
           </div>
         </Link>
 
-        <Link href="/personal/suscripciones" className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6 block transition-transform hover:-translate-y-0.5">
+        <Link href="/personal/modulos/recurrentes" className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6 block transition-transform hover:-translate-y-0.5">
           <div className="sm:flex sm:items-start sm:justify-between sm:mb-4">
             <div>
               <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide mb-0.5 sm:mb-1" style={{ color: 'var(--text-muted)' }}>
-                <span className="hidden sm:inline">Suscripciones activas</span>
-                <span className="sm:hidden">Suscs.</span>
+                <span className="hidden sm:inline">Recurrentes activos</span>
+                <span className="sm:hidden">Recurr.</span>
               </p>
               <p className="text-sm sm:text-3xl font-extrabold leading-tight sm:mt-2" style={{ color: loading ? 'var(--text-muted)' : '#8b5cf6' }}>
                 {loading ? '—' : suscs.length}
@@ -288,7 +290,7 @@ export default function InicioPersonalClient() {
           </div>
         </Link>
 
-        <Link href="/personal/ahorro" className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6 block transition-transform hover:-translate-y-0.5">
+        <Link href="/personal/modulos/ahorro" className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6 block transition-transform hover:-translate-y-0.5">
           <div className="sm:flex sm:items-start sm:justify-between sm:mb-4">
             <div>
               <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide mb-0.5 sm:mb-1" style={{ color: 'var(--text-muted)' }}>
@@ -332,7 +334,7 @@ export default function InicioPersonalClient() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{e.nombre}</p>
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{e.tipo === 'gasto' ? 'Gasto' : 'Suscripción'}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{e.tipo === 'gasto' ? 'Gasto' : 'Recurrente'}</p>
                   </div>
                   <span className="text-sm font-bold shrink-0" style={{ color: e.tipo === 'gasto' ? 'var(--color-error)' : '#8b5cf6' }}>
                     -{fmt(e.importe)}

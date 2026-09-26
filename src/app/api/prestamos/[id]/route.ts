@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
+import { requireEditor } from '@/lib/auth';
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireEditor();
+  if (auth instanceof NextResponse) return auth;
   const { id } = await params;
   const body = await req.json();
   const { gasto, fecha, categoria, importe, comentario } = body;
@@ -13,6 +16,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireEditor();
+  if (auth instanceof NextResponse) return auth;
   const { id } = await params;
   const db = getDb();
   db.prepare('DELETE FROM prestamos WHERE id=?').run(id);

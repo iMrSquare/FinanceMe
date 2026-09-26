@@ -1,7 +1,7 @@
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getPersonalEstadisticas } from '@/lib/db';
-import EstadisticasPersonalClient from './EstadisticasPersonalClient';
+import EstadisticasView from '@/components/estadisticas/EstadisticasView';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Estadísticas — Personal FinanceMe' };
@@ -9,7 +9,5 @@ export const metadata = { title: 'Estadísticas — Personal FinanceMe' };
 export default async function EstadisticasPersonalPage() {
   const session = await getSession();
   if (!session) redirect('/login');
-
-  const data = getPersonalEstadisticas(session.id, 12);
-  return <EstadisticasPersonalClient data={data} />;
+  return <EstadisticasView scope="personal" initial={getPersonalEstadisticas(session.id, { limit: 6 })} />;
 }

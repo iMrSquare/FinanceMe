@@ -25,9 +25,46 @@ const TIPO_META: Record<Tipo, { color: string; emoji: string }> = {
 
 const RELEASES: Release[] = [
   {
+    version: 'v1.2.0',
+    fecha: '26 de septiembre de 2026',
+    destacado: true,
+    intro: 'Nueva sección Avisos con notificaciones en el dispositivo, Módulos para agrupar Registros, Recurrentes y Ahorro, Recurrentes también en Hogar, tablas ordenables y filtros avanzados en Estadísticas.',
+    grupos: [
+      {
+        tipo: 'Novedades',
+        items: [
+          'Avisos (Personal y Hogar): lista de próximos pagos de este mes y del siguiente — gastos del Presupuesto con día de cobro y Recurrentes —, en color los próximos y en gris los que ya han pasado.',
+          'Avisos: notificaciones en el dispositivo (Android, iOS y escritorio) la víspera y el mismo día de cada pago, activables por dispositivo y con botón de prueba. Requieren HTTPS; en iPhone/iPad, tener la app instalada en la pantalla de inicio (iOS 16.4+).',
+          'Módulos (Personal y Hogar): nuevo apartado que agrupa las herramientas adicionales. En Hogar contiene Registros de luz y agua, Recurrentes y Ahorro; en Personal, Recurrentes y Ahorro.',
+          'Recurrentes en Hogar: seguros, comunidad, IBI y otros pagos mensuales, trimestrales o anuales de la casa, con su fila automática en el Presupuesto.',
+          'Recurrentes (antes Suscripciones): nueva opción para añadirlos al Mes como una línea con el total mensual o desglosados, cada uno con su importe y fecha. Los trimestrales y anuales solo se añaden en el mes en que se cobran.',
+          'Tablas del Mes (Personal y Hogar): ordenables por cualquier columna pulsando su cabecera; el orden elegido se recuerda al volver.',
+          'Estadísticas: filtros por periodo (último mes, 3, 6 o 12 meses, año actual, todo o un rango personalizado, incluidos años anteriores) y por categorías.',
+        ],
+      },
+      {
+        tipo: 'Mejoras',
+        items: [
+          'Suscripciones pasa a llamarse Recurrentes en toda la aplicación. Los enlaces antiguos redirigen automáticamente.',
+          'Presupuesto, Recurrentes y tablas de gastos fijos usan la misma ordenación, ahora numérica en importes y días de cobro.',
+          'Importar y exportar datos incluye los Recurrentes de Hogar y la configuración de redondeo y desglose de las filas automáticas.',
+          'Accesibilidad: más contraste en los textos secundarios de todos los temas, cifras tabulares en las tablas y respeto de la preferencia del sistema de reducir animaciones.',
+          'Nuevos iconos de instalación para Android (192 px y adaptativo) y aplicación renombrada a "FinanceMe".',
+        ],
+      },
+      {
+        tipo: 'Correcciones',
+        items: [
+          'Seguridad: varias rutas de datos de Hogar se podían consultar o modificar sin iniciar sesión; ahora requieren sesión y, para modificar, permisos de edición.',
+          'Próximo cobro de los recurrentes trimestrales: se calcula a partir de su fecha de cobro original en lugar de contar desde el mes actual.',
+          'Consultar los gastos o ingresos de un mes de Hogar inexistente ya no lo crea vacío.',
+        ],
+      },
+    ],
+  },
+  {
     version: 'v1.1.1',
     fecha: '1 de agosto de 2026',
-    destacado: true,
     intro: 'Tanda de correcciones tras el cambio de mes de julio a agosto: suscripciones que desaparecían del calendario, la cuota de Ahorro mensual mal calculada, el Mes de Hogar que se quedaba "atascado", y duplicados al importar datos.',
     grupos: [
       {

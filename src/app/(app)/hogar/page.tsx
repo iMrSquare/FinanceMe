@@ -1,7 +1,7 @@
 import { seedDatabase } from '@/lib/seed';
 import {
   getMeses, getGastos, getFijos, getAhorro, getAhorroObjetivos,
-  getEstadisticasGastos, getRegistroLuz, getRegistroAgua, getBalanceHistory, getMesActual,
+  getEstadisticasGastos, getRegistroLuz, getRegistroAgua, getBalanceHistory, getMesActual, getHogarRecurrentes,
 } from '@/lib/db';
 import HogarResumenClient from './HogarResumenClient';
 
@@ -22,6 +22,7 @@ export default function HogarPage() {
   const registrosLuz = getRegistroLuz();
   const registrosAgua = getRegistroAgua();
   const historial = getBalanceHistory(6);
+  const recurrentes = getHogarRecurrentes();
 
   return (
     <HogarResumenClient
@@ -35,6 +36,7 @@ export default function HogarPage() {
       registrosLuz={registrosLuz}
       registrosAgua={registrosAgua}
       historial={historial}
+      recurrentes={recurrentes}
     />
   );
 }

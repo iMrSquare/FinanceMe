@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, canEdit } from '@/lib/auth';
+import { getSession, canEdit, requireSession } from '@/lib/auth';
 import { getAhorro, updateAhorroObjetivo } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
+  const auth = await requireSession();
+  if (auth instanceof NextResponse) return auth;
   const year = Number(request.nextUrl.searchParams.get('year') ?? new Date().getFullYear());
   return NextResponse.json(getAhorro(year));
 }

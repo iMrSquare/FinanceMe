@@ -4,6 +4,7 @@ export { createToken, verifyToken } from './auth-edge';
 import { createToken } from './auth-edge';
 import type { SessionUser } from './auth-edge';
 import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { getUserById } from './db';
 
@@ -69,4 +70,17 @@ export function canEdit(role: string): boolean {
 
 export function isAdmin(role: string): boolean {
   return role === 'admin';
+}
+
+export async function requireSession(): Promise<SessionUser | NextResponse> {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+  return session;
+}
+
+export async function requireEditor(): Promise<SessionUser | NextResponse> {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+  if (!canEdit(session.role)) return NextResponse.json({ error: 'Sin permisos' }, { status: 403 });
+  return session;
 }

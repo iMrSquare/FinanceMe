@@ -1,7 +1,11 @@
 'use client';
+import { SortableTh, useTableSort, type SortAccessor } from '@/components/SortableTable';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Fijo, Categoria, AhorroObjetivo, Ahorro, PresupuestoAutoConfig } from '@/lib/db';
+import type { Fijo, Categoria, AhorroObjetivo, Ahorro, PresupuestoAutoConfig, HogarRecurrente } from '@/lib/db';
+import AutoConfigModal from '@/components/AutoConfigModal';
+import { importeVirtualRecurrentes, totalMensualRecurrentes, PERIODICIDAD_LABEL } from '@/lib/recurrentes';
+import { monthlyEquivalent } from '@/lib/billing';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import InfoExpand from '@/components/InfoExpand';
 import { PencilIcon, TrashIcon, SettingsIcon } from '@/components/icons';
@@ -22,7 +26,15 @@ const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)',
 const selectStyle = { ...inputStyle, paddingTop: '8px', paddingBottom: '8px' };
 
 type TipoFijo = 'gasto' | 'ingreso';
-type SortKey = 'gasto' | 'importe' | 'cobro' | 'vencimiento';
+type SortKey = 'gasto' | 'importe' | 'categoria' | 'banco' | 'cobro' | 'vencimiento';
+const SORT_FIJOS: Record<SortKey, SortAccessor<Fijo>> = {
+  gasto:       { get: f => f.gasto, type: 'text' },
+  importe:     { get: f => f.importe, type: 'number' },
+  categoria:   { get: f => f.categoria, type: 'text' },
+  banco:       { get: f => f.banco, type: 'text' },
+  cobro:       { get: f => (f.cobro ? Number(f.cobro) : null), type: 'number' },
+  vencimiento: { get: f => f.vencimiento, type: 'date' },
+};
 
 interface FijoForm {
   id?: number;
@@ -133,16 +145,6 @@ function FijoModal({ form, setForm, catGasto, catPrestamo, onClose, onSave, savi
 
 
 // ── Helpers de cabecera de tabla ─────────────────────────────────────────────
-function SortTh({ label, sk, sortKey, sortAsc, onClick }: {
-  label: string; sk: SortKey; sortKey: SortKey; sortAsc: boolean; onClick: () => void;
-}) {
-  return (
-    <th onClick={onClick} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>
-      {label} {sortKey === sk ? (sortAsc ? '↑' : '↓') : ''}
-    </th>
-  );
-}
-
 function PlainTh({ label }: { label: string }) {
   return <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>{label}</th>;
 }
@@ -156,6 +158,7 @@ interface Props {
   objetivosAhorro: AhorroObjetivo[];
   ahorro: Ahorro;
   autoConfigs: PresupuestoAutoConfig[];
+  recurrentes: HogarRecurrente[];
   canEdit: boolean;
 }
 
@@ -167,6 +170,7 @@ export default function PresupuestoHogarClient({
   objetivosAhorro,
   ahorro,
   autoConfigs: initAutoConfigs,
+  recurrentes,
   canEdit,
 }: Props) {
   const router = useRouter();
@@ -176,13 +180,11 @@ export default function PresupuestoHogarClient({
   const [catGasto, setCatGasto] = useState<Categoria[]>(initCatGasto);
   const [catPrestamo, setCatPrestamo] = useState<Categoria[]>(initCatPrestamo);
   const [autoConfigs, setAutoConfigs] = useState<PresupuestoAutoConfig[]>(initAutoConfigs);
-  const [editingAuto, setEditingAuto] = useState<'objetivos' | 'ahorro' | null>(null);
+  const [editingAuto, setEditingAuto] = useState<'objetivos' | 'ahorro' | 'recurrentes' | null>(null);
   const [view, setView] = useState<'main' | 'gestion'>('main');
   const [modal, setModal] = useState<FijoForm | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>('gasto');
-  const [sortAsc, setSortAsc] = useState(true);
   const [filtroCategoria, setFiltroCategoria] = useState('');
   const [filtroBanco, setFiltroBanco] = useState('');
 
@@ -192,35 +194,68 @@ export default function PresupuestoHogarClient({
   useEffect(() => { setIngresos(initIngresos); }, [initIngresos]);
   useEffect(() => { setAutoConfigs(initAutoConfigs); }, [initAutoConfigs]);
 
-  function toggleSort(k: SortKey) { if (sortKey === k) setSortAsc(!sortAsc); else { setSortKey(k); setSortAsc(true); } }
 
-  const gastosFiltered = gastos
-    .filter(f => !filtroCategoria || f.categoria === filtroCategoria)
-    .filter(f => !filtroBanco || f.banco === filtroBanco)
-    .sort((a, b) => {
-      let cmp = 0;
-      if (sortKey === 'importe')          cmp = a.importe - b.importe;
-      else if (sortKey === 'cobro')       cmp = (Number(a.cobro ?? 0)) - (Number(b.cobro ?? 0));
-      else if (sortKey === 'vencimiento') cmp = (a.vencimiento ?? '').localeCompare(b.vencimiento ?? '', 'es');
-      else                                cmp = (a.gasto ?? '').localeCompare(b.gasto ?? '', 'es');
-      return sortAsc ? cmp : -cmp;
-    });
+  const { sorted: gastosFiltered, sortKey, sortAsc, toggleSort } = useTableSort(
+    gastos
+      .filter(f => !filtroCategoria || f.categoria === filtroCategoria)
+      .filter(f => !filtroBanco || f.banco === filtroBanco),
+    SORT_FIJOS,
+    { defaultKey: 'gasto', storageKey: 'sort:hogar-presupuesto' },
+  );
 
   const totalGastos   = gastos.reduce((s, f) => s + f.importe, 0);
   const totalIngresos = ingresos.reduce((s, f) => s + f.importe, 0);
   const totalFiltrado = gastosFiltered.reduce((s, f) => s + f.importe, 0);
 
+  const autoCfg = (tipo: 'objetivos' | 'ahorro' | 'recurrentes'): PresupuestoAutoConfig =>
+    autoConfigs.find(c => c.tipo === tipo) ?? { tipo, banco: null, categoria: null, redondeo: 1, desglose: 0 };
+
+  const recCfg = autoCfg('recurrentes');
+  const recDesglose = recCfg.desglose === 1;
+  const recActivos = recurrentes.filter(r => r.importe > 0);
+  const recMensualReal = totalMensualRecurrentes(recurrentes);
+  const recVirtual = importeVirtualRecurrentes(recurrentes, recCfg);
+  const recMatchesFiltro = (!filtroCategoria || recCfg.categoria === filtroCategoria) && (!filtroBanco || recCfg.banco === filtroBanco);
+
   const objetivosVirtual = objetivosAhorro.reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
-  const objetivosCfg = autoConfigs.find(c => c.tipo === 'objetivos') ?? { tipo: 'objetivos' as const, banco: null, categoria: null };
+  const objetivosCfg = autoCfg('objetivos');
   const objetivosMatchesFiltro = (!filtroCategoria || objetivosCfg.categoria === filtroCategoria) && (!filtroBanco || objetivosCfg.banco === filtroBanco);
 
   const ahorroVirtual = objetivoMensualAhorro(ahorro.objetivo_anual, ahorro.meses, new Date().getFullYear());
-  const ahorroCfg = autoConfigs.find(c => c.tipo === 'ahorro') ?? { tipo: 'ahorro' as const, banco: null, categoria: null };
+  const ahorroCfg = autoCfg('ahorro');
   const ahorroMatchesFiltro = (!filtroCategoria || ahorroCfg.categoria === filtroCategoria) && (!filtroBanco || ahorroCfg.banco === filtroBanco);
 
-  const totalGastosConVirtuales = totalGastos + (objetivosVirtual > 0 ? objetivosVirtual : 0) + (ahorroVirtual > 0 ? ahorroVirtual : 0);
-  const totalFiltradoConVirtuales = totalFiltrado + (objetivosVirtual > 0 && objetivosMatchesFiltro ? objetivosVirtual : 0) + (ahorroVirtual > 0 && ahorroMatchesFiltro ? ahorroVirtual : 0);
-  const conceptosTotal = gastos.length + (objetivosVirtual > 0 ? 1 : 0) + (ahorroVirtual > 0 ? 1 : 0);
+  const totalGastosConVirtuales = totalGastos + recVirtual + (objetivosVirtual > 0 ? objetivosVirtual : 0) + (ahorroVirtual > 0 ? ahorroVirtual : 0);
+  const totalFiltradoConVirtuales = totalFiltrado + (recVirtual > 0 && recMatchesFiltro ? recVirtual : 0) + (objetivosVirtual > 0 && objetivosMatchesFiltro ? objetivosVirtual : 0) + (ahorroVirtual > 0 && ahorroMatchesFiltro ? ahorroVirtual : 0);
+  const conceptosTotal = gastos.length + (recVirtual > 0 ? (recDesglose ? recActivos.length : 1) : 0) + (objetivosVirtual > 0 ? 1 : 0) + (ahorroVirtual > 0 ? 1 : 0);
+
+  function renderRecurrenteRow(key: string, titulo: string, subtitulo: string, importe: number) {
+    return (
+      <tr key={key} style={{ borderBottom: '1px solid var(--divider)', background: 'rgba(139,92,246,0.04)', cursor: isMobile && canEdit ? 'pointer' : undefined }}
+        onClick={() => { if (isMobile && canEdit) setEditingAuto('recurrentes'); }}>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{titulo}</span>
+            <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }}>Auto</span>
+          </div>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{subtitulo}</p>
+        </td>
+        <td className="px-4 py-3 font-mono font-bold tabular-nums" style={{ color: '#8b5cf6' }}>-{fmt(importe)}</td>
+        <td className="px-4 py-3"><CategoryBadge nombre={recCfg.categoria} categorias={catGasto} /></td>
+        <td className="px-4 py-3"><CategoryBadge nombre={recCfg.banco} categorias={catPrestamo} /></td>
+        <td className="px-4 py-3" colSpan={2} />
+        {canEdit && (
+          <td className="px-4 py-3 text-right whitespace-nowrap">
+            <div className="flex items-center justify-end gap-1">
+              <button onClick={e => { e.stopPropagation(); setEditingAuto('recurrentes'); }} aria-label="Configurar recurrentes" className="p-1.5 rounded-lg transition-colors cursor-pointer" style={{ color: 'var(--text-muted)' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
+            </div>
+          </td>
+        )}
+      </tr>
+    );
+  }
 
   async function handleSave() {
     if (!modal) return;
@@ -360,7 +395,7 @@ export default function PresupuestoHogarClient({
           </h2>
         </div>
         <div className="overflow-x-auto">
-          {gastosFiltered.length === 0 && !(objetivosVirtual > 0 && objetivosMatchesFiltro) && !(ahorroVirtual > 0 && ahorroMatchesFiltro) ? (
+          {gastosFiltered.length === 0 && !(recVirtual > 0 && recMatchesFiltro) && !(objetivosVirtual > 0 && objetivosMatchesFiltro) && !(ahorroVirtual > 0 && ahorroMatchesFiltro) ? (
             <p className="py-14 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
               {gastos.length === 0 ? 'Sin gastos fijos — pulsa "+ Nuevo" para añadir' : 'Ningún gasto coincide con el filtro.'}
             </p>
@@ -368,12 +403,12 @@ export default function PresupuestoHogarClient({
             <table className="w-full min-w-[700px] text-sm">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--divider)', background: 'var(--bg-page)' }}>
-                  <SortTh label="Gasto"       sk="gasto"       sortKey={sortKey} sortAsc={sortAsc} onClick={() => toggleSort('gasto')} />
-                  <SortTh label="Importe"     sk="importe"     sortKey={sortKey} sortAsc={sortAsc} onClick={() => toggleSort('importe')} />
-                  <PlainTh label="Categoría" />
-                  <PlainTh label="Banco" />
-                  <SortTh label="Cobro"       sk="cobro"       sortKey={sortKey} sortAsc={sortAsc} onClick={() => toggleSort('cobro')} />
-                  <SortTh label="Vencimiento" sk="vencimiento" sortKey={sortKey} sortAsc={sortAsc} onClick={() => toggleSort('vencimiento')} />
+                  <SortableTh label="Gasto" sortKey="gasto" activeKey={sortKey} asc={sortAsc} onSort={toggleSort} className="text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }} />
+                  <SortableTh label="Importe" sortKey="importe" activeKey={sortKey} asc={sortAsc} onSort={toggleSort} className="text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }} />
+                  <SortableTh label="Categoría" sortKey="categoria" activeKey={sortKey} asc={sortAsc} onSort={toggleSort} className="text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }} />
+                  <SortableTh label="Banco" sortKey="banco" activeKey={sortKey} asc={sortAsc} onSort={toggleSort} className="text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }} />
+                  <SortableTh label="Cobro" sortKey="cobro" activeKey={sortKey} asc={sortAsc} onSort={toggleSort} className="text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }} />
+                  <SortableTh label="Vencimiento" sortKey="vencimiento" activeKey={sortKey} asc={sortAsc} onSort={toggleSort} className="text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }} />
                   {canEdit && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Acciones</th>}
                 </tr>
               </thead>
@@ -410,6 +445,14 @@ export default function PresupuestoHogarClient({
                     )}
                   </tr>
                 ))}
+
+                {/* Filas virtuales: Recurrentes (una total o una por recurrente) */}
+                {recVirtual > 0 && recMatchesFiltro && (recDesglose
+                  ? recActivos.map(r => renderRecurrenteRow(
+                      `rec-${r.id}`, r.nombre,
+                      r.periodicidad === 'mensual' ? 'Mensual' : `${PERIODICIDAD_LABEL[r.periodicidad]} · ${fmt(r.importe)} → ${fmt(monthlyEquivalent(r.importe, r.periodicidad))}/mes`,
+                      monthlyEquivalent(r.importe, r.periodicidad)))
+                  : renderRecurrenteRow('rec-total', 'Recurrentes', `${fmt(recMensualReal)}/mes real${recCfg.redondeo ? ' → redondeado al alza' : ''}`, recVirtual))}
 
                 {/* Fila virtual: Ahorro mensual */}
                 {ahorroVirtual > 0 && ahorroMatchesFiltro && (
@@ -540,84 +583,30 @@ export default function PresupuestoHogarClient({
       )}
 
       {editingAuto && (
-        <AutoConfigModalHogar
-          tipo={editingAuto}
-          current={editingAuto === 'ahorro' ? ahorroCfg : objetivosCfg}
-          catGasto={catGasto}
-          catPrestamo={catPrestamo}
+        <AutoConfigModal
+          titulo={editingAuto === 'recurrentes' ? 'Recurrentes' : editingAuto === 'ahorro' ? 'Ahorro mensual' : 'Objetivos de ahorro'}
+          color={editingAuto === 'recurrentes' ? '#8b5cf6' : 'var(--color-warning)'}
+          current={autoCfg(editingAuto)}
+          categorias={catGasto}
+          bancos={catPrestamo}
+          recurrentes={editingAuto === 'recurrentes'}
           onClose={() => setEditingAuto(null)}
-          onSave={async (banco, categoria) => {
-            await fetch('/api/presupuesto/auto', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: editingAuto, banco, categoria }) });
-            setAutoConfigs(prev => {
-              const next = prev.filter(c => c.tipo !== editingAuto);
-              return [...next, { tipo: editingAuto, banco, categoria, redondeo: 1 }];
-            });
+          onSave={async ({ banco, categoria, redondeo, desglose }) => {
+            await fetch('/api/presupuesto/auto', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: editingAuto, banco, categoria, redondeo, desglose }) });
+            const prevCfg = autoCfg(editingAuto);
+            setAutoConfigs(prev => [
+              ...prev.filter(c => c.tipo !== editingAuto),
+              {
+                tipo: editingAuto, banco, categoria,
+                redondeo: redondeo !== undefined ? (redondeo ? 1 : 0) : prevCfg.redondeo,
+                desglose: desglose !== undefined ? (desglose ? 1 : 0) : prevCfg.desglose,
+              },
+            ]);
             setEditingAuto(null);
           }}
         />
       )}
 
-    </div>
-  );
-}
-
-// ── Modal configuración automática (Ahorro mensual / Objetivos de ahorro) ─────
-
-function AutoConfigModalHogar({ tipo, current, catGasto, catPrestamo, onClose, onSave }: {
-  tipo: 'objetivos' | 'ahorro';
-  current: { banco: string | null; categoria: string | null };
-  catGasto: Categoria[];
-  catPrestamo: Categoria[];
-  onClose: () => void;
-  onSave: (banco: string | null, categoria: string | null) => Promise<void>;
-}) {
-  const [banco, setBanco] = useState(current.banco ?? '');
-  const [categoria, setCategoria] = useState(current.categoria ?? '');
-  const [saving, setSaving] = useState(false);
-
-  const titulo = tipo === 'ahorro' ? 'Ahorro mensual' : 'Objetivos de ahorro';
-
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    await onSave(banco || null, categoria || null);
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="glass-card rounded-3xl p-6 w-full max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: 'rgba(var(--color-warning-rgb),0.15)', color: 'var(--color-warning)' }}>{titulo}</span>
-            <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Configurar</h3>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-xl" style={{ color: 'var(--text-muted)', background: 'var(--btn-hover)' }}>×</button>
-        </div>
-        <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Categoría</label>
-            <select value={categoria} onChange={e => setCategoria(e.target.value)} className={inputCls} style={inputStyle}>
-              <option value="">Sin categoría</option>
-              {catGasto.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Banco</label>
-            <select value={banco} onChange={e => setBanco(e.target.value)} className={inputCls} style={inputStyle}>
-              <option value="">Sin banco</option>
-              {catPrestamo.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
-            </select>
-          </div>
-          <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>
-              Cancelar
-            </button>
-            <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-50 shadow-lg" style={{ background: 'linear-gradient(135deg, var(--color-warning), #f59e0bcc)' }}>
-              {saving ? 'Guardando…' : 'Guardar'}
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }

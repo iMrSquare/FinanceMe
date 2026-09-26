@@ -1,12 +1,17 @@
 import { NextResponse } from 'next/server';
 import { getMeses, getOrCreateMes, getMes, applyFijosToMes, clearMesData, getMesActual } from '@/lib/db';
+import { requireEditor, requireSession } from '@/lib/auth';
 
 export async function GET() {
+  const auth = await requireSession();
+  if (auth instanceof NextResponse) return auth;
   const meses = getMeses();
   return NextResponse.json(meses);
 }
 
 export async function POST(req: Request) {
+  const auth = await requireEditor();
+  if (auth instanceof NextResponse) return auth;
   const { mes, anio, importarFijos = true, sobrescribir = false } = await req.json();
   if (!mes || !anio) return NextResponse.json({ error: 'mes y anio requeridos' }, { status: 400 });
 

@@ -1,4 +1,5 @@
 'use client';
+import { SortableTh, useTableSort, type SortAccessor } from '@/components/SortableTable';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Mes, Gasto, Ingreso, Categoria } from '@/lib/db';
@@ -173,6 +174,19 @@ function Section({ title, icon, badge, headerClass, onAdd, children }: {
   );
 }
 
+const SORT_INGRESOS: Record<'inquilino' | 'aportacion', SortAccessor<Ingreso>> = {
+  inquilino:  { get: i => i.inquilino, type: 'text' },
+  aportacion: { get: i => i.aportacion, type: 'number' },
+};
+const SORT_GASTOS: Record<'gasto' | 'fecha' | 'importe' | 'categoria' | 'banco', SortAccessor<Gasto>> = {
+  gasto:     { get: g => g.gasto, type: 'text' },
+  fecha:     { get: g => g.fecha, type: 'date' },
+  importe:   { get: g => g.importe, type: 'number' },
+  categoria: { get: g => g.categoria, type: 'text' },
+  banco:     { get: g => g.banco, type: 'text' },
+};
+const byId = (a: { id: number }, b: { id: number }) => a.id - b.id;
+
 function Th({ children, align = 'left' }: { children?: React.ReactNode; align?: 'left' | 'right' }) {
   return <th className={align === 'right' ? 'text-right' : ''}>{children}</th>;
 }
@@ -202,6 +216,8 @@ export default function HogarMesPageClient({
   const isMobile = useIsMobile();
   const [gastos, setGastos] = useState<Gasto[]>(initGastos);
   const [ingresos, setIngresos] = useState<Ingreso[]>(initIngresos);
+  const sortIng = useTableSort(ingresos, SORT_INGRESOS, { defaultKey: 'inquilino', storageKey: 'sort:hogar-mes-ingresos', tieBreak: byId });
+  const sortGas = useTableSort(gastos, SORT_GASTOS, { defaultKey: 'fecha', storageKey: 'sort:hogar-mes-gastos', tieBreak: byId });
   const [ingresoModal, setIngresoModal] = useState<IngresoForm | null>(null);
   const [gastoModal, setGastoModal] = useState<GastoForm | null>(null);
   const [nuevoMesOpen, setNuevoMesOpen] = useState(false);
@@ -262,7 +278,7 @@ export default function HogarMesPageClient({
     );
   }
 
-  const gastosSorted = [...gastos].sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? '') || a.id - b.id);
+  const gastosSorted = sortGas.sorted;
   const totalIngresos = ingresos.reduce((s, i) => s + (i.aportacion ?? 0), 0);
   const totalGastos = gastos.reduce((s, g) => s + (g.importe ?? 0), 0);
   const balance = totalIngresos - totalGastos;
@@ -422,13 +438,13 @@ export default function HogarMesPageClient({
             <table className="theme-table">
               <thead>
                 <tr>
-                  <Th>Concepto</Th>
-                  <Th>Importe</Th>
+                  <SortableTh label="Concepto" sortKey="inquilino" activeKey={sortIng.sortKey} asc={sortIng.sortAsc} onSort={sortIng.toggleSort} />
+                  <SortableTh label="Importe" sortKey="aportacion" activeKey={sortIng.sortKey} asc={sortIng.sortAsc} onSort={sortIng.toggleSort} />
                   {puedeEditar && <Th align="right">Acciones</Th>}
                 </tr>
               </thead>
               <tbody>
-                {ingresos.map(i => (
+                {sortIng.sorted.map(i => (
                   <tr key={i.id} style={{ borderBottom: '1px solid var(--divider)', cursor: isMobile && puedeEditar ? 'pointer' : undefined }}
                     onClick={() => { if (isMobile && puedeEditar) editIngreso(i); }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-page)'}
@@ -468,11 +484,11 @@ export default function HogarMesPageClient({
             <table className="theme-table min-w-[620px]">
               <thead>
                 <tr>
-                  <Th>Gasto</Th>
-                  <Th>Fecha</Th>
-                  <Th>Importe</Th>
-                  <Th>Categoría</Th>
-                  <Th>Banco</Th>
+                  <SortableTh label="Gasto" sortKey="gasto" activeKey={sortGas.sortKey} asc={sortGas.sortAsc} onSort={sortGas.toggleSort} />
+                  <SortableTh label="Fecha" sortKey="fecha" activeKey={sortGas.sortKey} asc={sortGas.sortAsc} onSort={sortGas.toggleSort} />
+                  <SortableTh label="Importe" sortKey="importe" activeKey={sortGas.sortKey} asc={sortGas.sortAsc} onSort={sortGas.toggleSort} />
+                  <SortableTh label="Categoría" sortKey="categoria" activeKey={sortGas.sortKey} asc={sortGas.sortAsc} onSort={sortGas.toggleSort} />
+                  <SortableTh label="Banco" sortKey="banco" activeKey={sortGas.sortKey} asc={sortGas.sortAsc} onSort={sortGas.toggleSort} />
                   {puedeEditar && <Th align="right">Acciones</Th>}
                 </tr>
               </thead>

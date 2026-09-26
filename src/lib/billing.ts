@@ -33,36 +33,27 @@ export function billingDayInMonth(cobro: string, periodicidad: string, year: num
   return clampDay(year, month, day);
 }
 
-export function nextBillingDate(cobro: string, periodicidad: string): Date {
-  // Support day-only format ("15") and legacy ISO date format ("2026-06-15")
-  const dayOnly = parseInt(cobro);
-  const isDayOnly = !isNaN(dayOnly) && dayOnly >= 1 && dayOnly <= 31;
-  const original = isDayOnly ? null : new Date(cobro);
-  const day = isDayOnly ? dayOnly : original!.getUTCDate();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  function clampDay(y: number, m: number, d: number): Date {
-    const last = new Date(y, m + 1, 0).getDate();
-    return new Date(y, m, Math.min(d, last));
+/** Fechas de cobro entre `desde` y `hasta` (ambas incluidas, a nivel de día) */
+export function billingDatesBetween(cobro: string, periodicidad: string, desde: Date, hasta: Date): Date[] {
+  const from = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate());
+  const to = new Date(hasta.getFullYear(), hasta.getMonth(), hasta.getDate());
+  const out: Date[] = [];
+  let y = from.getFullYear();
+  let m = from.getMonth();
+  while (y < to.getFullYear() || (y === to.getFullYear() && m <= to.getMonth())) {
+    const day = billingDayInMonth(cobro, periodicidad, y, m);
+    if (day !== null) {
+      const d = new Date(y, m, day);
+      if (d >= from && d <= to) out.push(d);
+    }
+    if (++m > 11) { m = 0; y++; }
   }
+  return out;
+}
 
-  if (periodicidad === 'anual') {
-    const month = original ? original.getUTCMonth() : today.getMonth();
-    let y = today.getFullYear();
-    let candidate = clampDay(y, month, day);
-    if (candidate < today) candidate = clampDay(y + 1, month, day);
-    return candidate;
-  }
-
-  const stepMonths = periodicidad === 'trimestral' ? 3 : 1;
-  let y = today.getFullYear();
-  let m = today.getMonth();
-  let candidate = clampDay(y, m, day);
-  if (candidate < today) {
-    m += stepMonths;
-    while (m > 11) { m -= 12; y += 1; }
-    candidate = clampDay(y, m, day);
-  }
-  return candidate;
+// Supports day-only format ("15") and legacy ISO date format ("2026-06-15")
+export function nextBillingDate(cobro: string, periodicidad: string, from: Date = new Date()): Date {
+  const start = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const end = new Date(start.getFullYear() + 1, start.getMonth() + 1, start.getDate());
+  return billingDatesBetween(cobro, periodicidad, start, end)[0] ?? start;
 }

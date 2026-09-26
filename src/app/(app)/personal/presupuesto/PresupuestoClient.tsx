@@ -1,4 +1,7 @@
 'use client';
+import AutoConfigModal from '@/components/AutoConfigModal';
+import { importeVirtualRecurrentes, totalMensualRecurrentes, PERIODICIDAD_LABEL } from '@/lib/recurrentes';
+import { SortableTh, useTableSort, type SortAccessor } from '@/components/SortableTable';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { PersonalGastoFijo, PersonalIngresoFijo, PersonalCategoria, PersonalBanco, PersonalAhorro, PersonalAhorroObjetivo, PersonalSuscripcion, PresupuestoAutoConfig } from '@/lib/db';
@@ -11,9 +14,6 @@ import { useIsMobile } from '@/lib/useIsMobile';
 import { autoText } from '@/components/ColorDots';
 import GestionClient from '../gestion/GestionClient';
 
-function roundUp5(n: number): number {
-  return Math.ceil(n / 5) * 5;
-}
 
 const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 const fmtDate = (d: string | null) => {
@@ -42,7 +42,16 @@ const inputStyle = { background: 'var(--bg-page)', color: 'var(--text-primary)',
 
 
 type SortKey = 'gasto' | 'importe' | 'categoria' | 'banco' | 'cobro' | 'vencimiento';
+const AUTO_TITULOS = { suscripciones: 'Recurrentes', ahorro: 'Ahorro mensual', objetivos: 'Objetivos de ahorro' } as const;
 const COL_LABELS: Record<SortKey, string> = { gasto: 'Gasto', importe: 'Importe', categoria: 'Categoría', banco: 'Banco', cobro: 'Cobro', vencimiento: 'Vencimiento' };
+const SORT_FIJOS: Record<SortKey, SortAccessor<PersonalGastoFijo>> = {
+  gasto:       { get: g => g.gasto, type: 'text' },
+  importe:     { get: g => g.importe, type: 'number' },
+  categoria:   { get: g => g.categoria, type: 'text' },
+  banco:       { get: g => g.banco, type: 'text' },
+  cobro:       { get: g => (g.cobro ? parseInt(g.cobro) || null : null), type: 'number' },
+  vencimiento: { get: g => g.vencimiento, type: 'date' },
+};
 
 interface GastoForm { id?: number; gasto: string; importe: string; categoria: string; banco: string; cobro: string; vencimiento: string; comentario: string; }
 const emptyForm = (): GastoForm => ({ gasto: '', importe: '', categoria: '', banco: '', cobro: '', vencimiento: '', comentario: '' });
@@ -166,8 +175,6 @@ export default function PresupuestoClient() {
   const [deleteIngresoId, setDeleteIngresoId] = useState<number | null>(null);
   const [filtroCategoria, setFiltroCategoria] = useState('');
   const [filtroBanco, setFiltroBanco] = useState('');
-  const [sortKey, setSortKey] = useState<SortKey>('gasto');
-  const [sortAsc, setSortAsc] = useState(true);
   const [view, setView] = useState<'main' | 'gestion'>('main');
 
   async function fetchAll() {
@@ -227,19 +234,18 @@ export default function PresupuestoClient() {
     setDeleteIngresoId(null); fetchAll();
   }
 
-  function toggleSort(k: SortKey) { if (sortKey === k) setSortAsc(!sortAsc); else { setSortKey(k); setSortAsc(true); } }
 
   const catColor = (n: string) => categorias.find(c => c.nombre === n)?.color ?? 'var(--text-secondary)';
   const bancoColor = (n: string) => bancos.find(b => b.nombre === n)?.color ?? 'var(--text-secondary)';
-  const autoConfig = (tipo: 'suscripciones' | 'ahorro' | 'objetivos') => autoConfigs.find(c => c.tipo === tipo) ?? { tipo, banco: null, categoria: null, redondeo: 1 };
+  const autoConfig = (tipo: 'suscripciones' | 'ahorro' | 'objetivos'): PresupuestoAutoConfig => autoConfigs.find(c => c.tipo === tipo) ?? { tipo, banco: null, categoria: null, redondeo: 1, desglose: 0 };
 
-  const filtered = gastos
-    .filter(g => !filtroCategoria || g.categoria === filtroCategoria)
-    .filter(g => !filtroBanco || g.banco === filtroBanco)
-    .sort((a, b) => {
-      const cmp = String(a[sortKey as keyof PersonalGastoFijo] ?? '').localeCompare(String(b[sortKey as keyof PersonalGastoFijo] ?? ''), 'es');
-      return sortAsc ? cmp : -cmp;
-    });
+  const { sorted: filtered, sortKey, sortAsc, toggleSort } = useTableSort(
+    gastos
+      .filter(g => !filtroCategoria || g.categoria === filtroCategoria)
+      .filter(g => !filtroBanco || g.banco === filtroBanco),
+    SORT_FIJOS,
+    { defaultKey: 'gasto', storageKey: 'sort:personal-presupuesto' },
+  );
 
   const totalGeneral = gastos.reduce((s, g) => s + g.importe, 0);
   const totalFiltrado = filtered.reduce((s, g) => s + g.importe, 0);
@@ -249,8 +255,9 @@ export default function PresupuestoClient() {
   const ahorroCfg = autoConfig('ahorro');
   const objetivosCfg = autoConfig('objetivos');
 
-  const suscMensualReal = suscs.reduce((s, sub) => s + monthlyEquivalent(sub.importe, sub.periodicidad), 0);
-  const suscVirtual = suscMensualReal > 0 ? (suscCfg.redondeo ? roundUp5(suscMensualReal) : suscMensualReal) : 0;
+  const suscMensualReal = totalMensualRecurrentes(suscs);
+  const suscVirtual = importeVirtualRecurrentes(suscs, suscCfg);
+  const suscDesglose = suscCfg.desglose === 1;
   const ahorroMensualReal = ahorro ? objetivoMensualAhorro(ahorro.objetivo_anual, ahorro.meses, new Date().getFullYear()) : 0;
   const ahorroVirtual = ahorroMensualReal > 0 ? ahorroMensualReal : 0;
   const objetivosMensualReal = objetivos.reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
@@ -267,11 +274,46 @@ export default function PresupuestoClient() {
     + (objetivosVirtual > 0 && objetivosMatchesFiltro ? objetivosVirtual : 0);
 
   const conceptosTotal = gastos.length
-    + (suscVirtual > 0 ? 1 : 0)
+    + (suscVirtual > 0 ? (suscDesglose ? suscs.filter(r => r.importe > 0).length : 1) : 0)
     + (ahorroVirtual > 0 ? 1 : 0)
     + (objetivosVirtual > 0 ? 1 : 0);
 
   const selectStyle = { ...inputStyle, paddingTop: '8px', paddingBottom: '8px' };
+
+  function renderRecurrenteRow(key: string, titulo: string, subtitulo: string, importe: number) {
+    const cfg = suscCfg;
+    return (
+      <tr key={key} style={{ borderBottom: '1px solid var(--divider)', background: 'rgba(139,92,246,0.04)', cursor: isMobile ? 'pointer' : undefined }}
+        onClick={() => { if (isMobile) setEditingAuto('suscripciones'); }}>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{titulo}</span>
+            <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }}>Auto</span>
+          </div>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{subtitulo}</p>
+        </td>
+        <td className="px-4 py-3 font-mono font-bold tabular-nums" style={{ color: '#8b5cf6' }}>{fmt(importe)}</td>
+        <td className="px-4 py-3">
+          {cfg.categoria
+            ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: catColor(cfg.categoria), color: autoText(catColor(cfg.categoria)) }}>{cfg.categoria}</span>
+            : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+        </td>
+        <td className="px-4 py-3">
+          {cfg.banco
+            ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: bancoColor(cfg.banco), color: autoText(bancoColor(cfg.banco)) }}>{cfg.banco}</span>
+            : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+        </td>
+        <td className="px-4 py-3" colSpan={2} />
+        <td className="px-4 py-3 text-right whitespace-nowrap">
+          <div className="flex items-center justify-end gap-1">
+            <button onClick={e => { e.stopPropagation(); setEditingAuto('suscripciones'); }} aria-label="Configurar recurrentes" className="p-1.5 rounded-lg transition-colors cursor-pointer" style={{ color: 'var(--text-muted)' }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
+          </div>
+        </td>
+      </tr>
+    );
+  }
 
   if (view === 'gestion') {
     return (
@@ -326,19 +368,21 @@ export default function PresupuestoClient() {
               <p className="hidden sm:block text-xs text-white/60 mt-1">{fmt(totalGeneral)} fijos + {fmt(suscVirtual + ahorroVirtual + objetivosVirtual)} auto</p>
             )}
           </div>
-          {/* Suscripciones */}
+          {/* Recurrentes */}
           <div className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6">
             <div className="flex items-center justify-between mb-1 sm:mb-2">
               <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide" style={{ color: '#8b5cf6' }}>
-                <span className="sm:hidden">Suscs.</span>
-                <span className="hidden sm:inline">Suscripciones</span>
+                <span className="sm:hidden">Recurr.</span>
+                <span className="hidden sm:inline">Recurrentes</span>
               </p>
-              <Link href="/personal/suscripciones" className="hidden sm:inline text-xs font-semibold" style={{ color: '#8b5cf6' }}>Ver →</Link>
+              <Link href="/personal/modulos/recurrentes" className="hidden sm:inline text-xs font-semibold" style={{ color: '#8b5cf6' }}>Ver →</Link>
             </div>
             <p className="text-sm sm:text-3xl font-extrabold leading-tight" style={{ color: suscVirtual > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
               {suscVirtual > 0 ? fmt(suscVirtual) : '—'}
             </p>
-            {suscVirtual > 0 && suscCfg.redondeo ? (
+            {suscVirtual > 0 && suscDesglose ? (
+              <p className="hidden sm:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Desglosado en el Mes</p>
+            ) : suscVirtual > 0 && suscCfg.redondeo ? (
               <p className="hidden sm:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Real {fmt(suscMensualReal)} → redondeado</p>
             ) : suscVirtual > 0 ? (
               <p className="hidden sm:block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Sin redondear</p>
@@ -351,7 +395,7 @@ export default function PresupuestoClient() {
                 <span className="sm:hidden">Ahorro</span>
                 <span className="hidden sm:inline">Ahorro mensual</span>
               </p>
-              <Link href="/personal/ahorro" className="hidden sm:inline text-xs font-semibold" style={{ color: 'var(--color-warning)' }}>Ver →</Link>
+              <Link href="/personal/modulos/ahorro" className="hidden sm:inline text-xs font-semibold" style={{ color: 'var(--color-warning)' }}>Ver →</Link>
             </div>
             <p className="text-sm sm:text-3xl font-extrabold leading-tight" style={{ color: ahorroVirtual > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
               {ahorroVirtual > 0 ? fmt(ahorroVirtual) : '—'}
@@ -407,9 +451,7 @@ export default function PresupuestoClient() {
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--divider)', background: 'var(--bg-page)' }}>
                   {(Object.keys(COL_LABELS) as SortKey[]).map(col => (
-                    <th key={col} onClick={() => toggleSort(col)} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>
-                      {COL_LABELS[col]} {sortKey === col ? (sortAsc ? '↑' : '↓') : ''}
-                    </th>
+                    <SortableTh key={col} label={COL_LABELS[col]} sortKey={col} activeKey={sortKey} asc={sortAsc} onSort={toggleSort} className="text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }} />
                   ))}
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Acciones</th>
                 </tr>
@@ -446,41 +488,13 @@ export default function PresupuestoClient() {
                   </tr>
                 ))}
 
-                {/* Fila virtual: Suscripciones */}
-                {suscVirtual > 0 && suscMatchesFiltro && (() => {
-                  const cfg = suscCfg;
-                  return (
-                    <tr style={{ borderBottom: '1px solid var(--divider)', background: 'rgba(139,92,246,0.04)', cursor: isMobile ? 'pointer' : undefined }}
-                      onClick={() => { if (isMobile) setEditingAuto('suscripciones'); }}>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Suscripciones</span>
-                          <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold" style={{ background: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }}>Auto</span>
-                        </div>
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{fmt(suscMensualReal)}/mes real{cfg.redondeo ? ' → redondeado al alza' : ''}</p>
-                      </td>
-                      <td className="px-4 py-3 font-mono font-bold" style={{ color: '#8b5cf6' }}>{fmt(suscVirtual)}</td>
-                      <td className="px-4 py-3">
-                        {cfg.categoria
-                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: catColor(cfg.categoria), color: autoText(catColor(cfg.categoria)) }}>{cfg.categoria}</span>
-                          : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                      </td>
-                      <td className="px-4 py-3">
-                        {cfg.banco
-                          ? <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: bancoColor(cfg.banco), color: autoText(bancoColor(cfg.banco)) }}>{cfg.banco}</span>
-                          : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                      </td>
-                      <td className="px-4 py-3" colSpan={2} />
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={e => { e.stopPropagation(); setEditingAuto('suscripciones'); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
-                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'}
-                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}><PencilIcon /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })()}
+                {/* Filas virtuales: Recurrentes (una total o una por recurrente) */}
+                {suscVirtual > 0 && suscMatchesFiltro && (suscDesglose
+                  ? suscs.filter(r => r.importe > 0).map(r => renderRecurrenteRow(
+                      `rec-${r.id}`, r.nombre,
+                      r.periodicidad === 'mensual' ? 'Mensual' : `${PERIODICIDAD_LABEL[r.periodicidad] ?? r.periodicidad} · ${fmt(r.importe)} → ${fmt(monthlyEquivalent(r.importe, r.periodicidad))}/mes`,
+                      monthlyEquivalent(r.importe, r.periodicidad)))
+                  : renderRecurrenteRow('rec-total', 'Recurrentes', `${fmt(suscMensualReal)}/mes real${suscCfg.redondeo ? ' → redondeado al alza' : ''}`, suscVirtual))}
 
                 {/* Fila virtual: Ahorro */}
                 {ahorroVirtual > 0 && ahorroMatchesFiltro && (() => {
@@ -617,18 +631,24 @@ export default function PresupuestoClient() {
       {modalIngreso && <IngresoModal form={modalIngreso} setForm={setModalIngreso} onClose={() => setModalIngreso(null)} onSave={handleSaveIngreso} saving={savingIngreso} />}
       {editingAuto && (
         <AutoConfigModal
-          tipo={editingAuto}
+          titulo={AUTO_TITULOS[editingAuto]}
+          color={editingAuto === 'suscripciones' ? '#8b5cf6' : 'var(--color-warning)'}
           current={autoConfig(editingAuto)}
           categorias={categorias}
           bancos={bancos}
+          recurrentes={editingAuto === 'suscripciones'}
           onClose={() => setEditingAuto(null)}
-          onSave={async (banco, categoria, redondeo) => {
-            await fetch('/api/personal/presupuesto/auto', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: editingAuto, banco, categoria, redondeo }) });
-            setAutoConfigs(prev => {
-              const next = prev.filter(c => c.tipo !== editingAuto);
-              const redondeoFinal = redondeo !== undefined ? (redondeo ? 1 : 0) : (autoConfig(editingAuto).redondeo ?? 1);
-              return [...next, { tipo: editingAuto, banco, categoria, redondeo: redondeoFinal }];
-            });
+          onSave={async ({ banco, categoria, redondeo, desglose }) => {
+            await fetch('/api/personal/presupuesto/auto', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: editingAuto, banco, categoria, redondeo, desglose }) });
+            const prevCfg = autoConfig(editingAuto);
+            setAutoConfigs(prev => [
+              ...prev.filter(c => c.tipo !== editingAuto),
+              {
+                tipo: editingAuto, banco, categoria,
+                redondeo: redondeo !== undefined ? (redondeo ? 1 : 0) : prevCfg.redondeo,
+                desglose: desglose !== undefined ? (desglose ? 1 : 0) : prevCfg.desglose,
+              },
+            ]);
             setEditingAuto(null);
           }}
         />
@@ -649,80 +669,6 @@ export default function PresupuestoClient() {
           onCancel={() => setDeleteIngresoId(null)}
         />
       )}
-    </div>
-  );
-}
-
-// ── Modal configuración automáticos ──────────────────────────────────────────
-
-function AutoConfigModal({ tipo, current, categorias, bancos, onClose, onSave }: {
-  tipo: 'suscripciones' | 'ahorro' | 'objetivos';
-  current: { banco: string | null; categoria: string | null; redondeo?: number };
-  categorias: PersonalCategoria[];
-  bancos: PersonalBanco[];
-  onClose: () => void;
-  onSave: (banco: string | null, categoria: string | null, redondeo?: boolean) => Promise<void>;
-}) {
-  const [banco, setBanco] = useState(current.banco ?? '');
-  const [categoria, setCategoria] = useState(current.categoria ?? '');
-  const [redondeo, setRedondeo] = useState((current.redondeo ?? 1) === 1);
-  const [saving, setSaving] = useState(false);
-
-  const titulo = tipo === 'suscripciones' ? 'Suscripciones' : tipo === 'ahorro' ? 'Ahorro mensual' : 'Objetivos de ahorro';
-  const color  = tipo === 'suscripciones' ? '#8b5cf6' : 'var(--color-warning)';
-
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    await onSave(banco || null, categoria || null, tipo === 'suscripciones' ? redondeo : undefined);
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="glass-card rounded-3xl p-6 w-full max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: `${color}20`, color }}>{titulo}</span>
-            <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Configurar</h3>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-xl" style={{ color: 'var(--text-muted)', background: 'var(--btn-hover)' }}>×</button>
-        </div>
-        <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Categoría</label>
-            <select value={categoria} onChange={e => setCategoria(e.target.value)} className={inputCls} style={inputStyle}>
-              <option value="">Sin categoría</option>
-              {categorias.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Banco</label>
-            <select value={banco} onChange={e => setBanco(e.target.value)} className={inputCls} style={inputStyle}>
-              <option value="">Sin banco</option>
-              {bancos.map(b => <option key={b.id} value={b.nombre}>{b.nombre}</option>)}
-            </select>
-          </div>
-          {tipo === 'suscripciones' && (
-            <label className="flex items-center gap-3 cursor-pointer select-none">
-              <div onClick={() => setRedondeo(v => !v)} className="w-10 h-6 rounded-full transition-colors relative shrink-0" style={{ background: redondeo ? color : 'var(--divider)' }}>
-                <div className="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all" style={{ left: redondeo ? '22px' : '4px' }} />
-              </div>
-              <div>
-                <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Redondear al alza</span>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Redondea el total mensual real al múltiplo de 5€ superior</p>
-              </div>
-            </label>
-          )}
-          <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--btn-border)', background: 'transparent' }}>
-              Cancelar
-            </button>
-            <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-50 shadow-lg" style={{ background: `linear-gradient(135deg, ${color}, ${color}cc)` }}>
-              {saving ? 'Guardando…' : 'Guardar'}
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }

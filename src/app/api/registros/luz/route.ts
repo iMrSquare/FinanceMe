@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getDb, getRegistroLuz } from '@/lib/db';
+import { requireEditor, requireSession } from '@/lib/auth';
 
 export async function GET() {
+  const auth = await requireSession();
+  if (auth instanceof NextResponse) return auth;
   return NextResponse.json(getRegistroLuz());
 }
 
 export async function POST(req: Request) {
+  const auth = await requireEditor();
+  if (auth instanceof NextResponse) return auth;
   const { anio, nombre, importe, kwh, fecha_lectura_inicio, fecha_lectura_fin, fecha_cobro, precio_kwh, compania } = await req.json();
   if (!anio || !nombre) return NextResponse.json({ error: 'anio y nombre requeridos' }, { status: 400 });
   const db = getDb();

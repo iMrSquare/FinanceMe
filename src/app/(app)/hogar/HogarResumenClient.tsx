@@ -5,7 +5,8 @@ import InfoExpand from '@/components/InfoExpand';
 import { BoltIcon, DropletIcon } from '@/components/icons';
 import { mensualNecesario } from '@/lib/ahorroObjetivos';
 import { objetivoMensualAhorro } from '@/lib/ahorro';
-import type { Fijo, AhorroObjetivo, Ahorro, Mes, Gasto, EstadisticasData, RegistroLuz, RegistroAgua, MesBalance } from '@/lib/db';
+import type { Fijo, AhorroObjetivo, Ahorro, Mes, Gasto, EstadisticasData, RegistroLuz, RegistroAgua, MesBalance, HogarRecurrente } from '@/lib/db';
+import { billingDayInMonth } from '@/lib/billing';
 import {
   Chart, LineElement, LineController, PointElement,
   CategoryScale, LinearScale, Filler, Tooltip,
@@ -24,7 +25,7 @@ function fmtDate(iso: string | null) {
 const MESES_NOMBRES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DIAS_SEMANA = ['Lu','Ma','Mi','Ju','Vi','Sá','Do'];
 
-interface CalEvHogar { day: number; nombre: string; importe: number; }
+interface CalEvHogar { day: number; nombre: string; importe: number; tipo: 'gasto' | 'recurrente'; }
 
 function CalendarioHogar({ events }: { events: CalEvHogar[] }) {
   const today = new Date();
@@ -88,11 +89,12 @@ interface Props {
   registrosLuz: RegistroLuz[];
   registrosAgua: RegistroAgua[];
   historial: MesBalance[];
+  recurrentes: HogarRecurrente[];
 }
 
 export default function HogarResumenClient({
   anioActual, mesActual, mesGastos, fijosGasto, objetivosAhorro, ahorro,
-  estadisticas, registrosLuz, registrosAgua, historial,
+  estadisticas, registrosLuz, registrosAgua, historial, recurrentes,
 }: Props) {
   const balanceRef = useRef<HTMLCanvasElement>(null);
   const balanceChart = useRef<Chart | null>(null);
@@ -114,9 +116,16 @@ export default function HogarResumenClient({
   const today = new Date();
   const mesNombreActual = MESES_NOMBRES[today.getMonth()];
 
-  const calEvents: CalEvHogar[] = mesGastos
+  const gastoEvents: CalEvHogar[] = mesGastos
     .filter(g => g.fecha)
-    .map(g => ({ day: Number(g.fecha!.split('T')[0].split('-')[2]), nombre: g.gasto, importe: g.importe }));
+    .map(g => ({ day: Number(g.fecha!.split('T')[0].split('-')[2]), nombre: g.gasto, importe: g.importe, tipo: 'gasto' as const }));
+  // Los recurrentes ya desglosados en el Mes no se repiten
+  const recEvents: CalEvHogar[] = recurrentes.flatMap(r => {
+    const day = r.cobro ? billingDayInMonth(r.cobro, r.periodicidad, today.getFullYear(), today.getMonth()) : null;
+    if (day === null || gastoEvents.some(g => g.nombre === r.nombre && g.day === day)) return [];
+    return [{ day, nombre: r.nombre, importe: r.importe, tipo: 'recurrente' as const }];
+  });
+  const calEvents: CalEvHogar[] = [...gastoEvents, ...recEvents];
   const proximos = [...calEvents].sort((a, b) => a.day - b.day).filter(e => e.day >= today.getDate()).slice(0, 5);
 
   const ultimaLuz = registrosLuz.length > 0 ? [...registrosLuz].sort((a, b) => recencyKey(b).localeCompare(recencyKey(a)))[0] : null;
@@ -239,7 +248,7 @@ export default function HogarResumenClient({
           </div>
         </Link>
 
-        <Link href="/hogar/ahorro" className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6 block transition-transform hover:-translate-y-0.5">
+        <Link href="/hogar/modulos/ahorro" className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-6 block transition-transform hover:-translate-y-0.5">
           <div className="sm:flex sm:items-start sm:justify-between sm:mb-4">
             <div>
               <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide mb-0.5 sm:mb-1" style={{ color: 'var(--text-muted)' }}>
@@ -283,7 +292,7 @@ export default function HogarResumenClient({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{e.nombre}</p>
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Gasto</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{e.tipo === 'recurrente' ? 'Recurrente' : 'Gasto'}</p>
                   </div>
                   <span className="text-sm font-bold shrink-0" style={{ color: 'var(--color-error)' }}>-{fmt(e.importe)}</span>
                 </div>
@@ -332,7 +341,7 @@ export default function HogarResumenClient({
 
       {/* Últimos registros (Luz y Agua) + Evolución del balance */}
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-        <Link href="/hogar/registros" className="glass-card rounded-3xl p-6 xl:col-span-2 block transition-transform hover:-translate-y-0.5">
+        <Link href="/hogar/modulos/registros" className="glass-card rounded-3xl p-6 xl:col-span-2 block transition-transform hover:-translate-y-0.5">
           <h2 className="font-bold text-lg mb-5" style={{ color: 'var(--text-primary)' }}>Últimos registros</h2>
           <div className="space-y-5">
             <div>

@@ -1,4 +1,5 @@
 'use client';
+import { SortableTh, useTableSort, type SortAccessor } from '@/components/SortableTable';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { PersonalGastoMes, PersonalIngresoMes, PersonalCategoria, PersonalMes, PersonalGastoFijo, PersonalIngresoFijo } from '@/lib/db';
@@ -64,6 +65,8 @@ export default function MesPersonalClient({
   const [meses, setMeses] = useState(initMeses);
   const [gastos, setGastos] = useState(initGastos);
   const [ingresos, setIngresos] = useState(initIngresos);
+  const sortIng = useTableSort(ingresos, SORT_INGRESOS, { defaultKey: 'concepto', storageKey: 'sort:personal-mes-ingresos', tieBreak: byId });
+  const sortGas = useTableSort(gastos, SORT_GASTOS, { defaultKey: 'fecha', storageKey: 'sort:personal-mes-gastos', tieBreak: byId });
   const [categorias, setCategorias] = useState(initCats);
   const [modal, setModal] = useState<ModalState>({ type: 'none' });
   const [loading, setLoading] = useState(false);
@@ -286,13 +289,13 @@ export default function MesPersonalClient({
             <table className="theme-table">
               <thead>
                 <tr>
-                  <Th>Concepto</Th>
-                  <Th>Importe</Th>
+                  <SortableTh label="Concepto" sortKey="concepto" activeKey={sortIng.sortKey} asc={sortIng.sortAsc} onSort={sortIng.toggleSort} />
+                  <SortableTh label="Importe" sortKey="importe" activeKey={sortIng.sortKey} asc={sortIng.sortAsc} onSort={sortIng.toggleSort} />
                   {!bloqueado && <Th align="right">Acciones</Th>}
                 </tr>
               </thead>
               <tbody>
-                {ingresos.map(i => (
+                {sortIng.sorted.map(i => (
                   <tr key={i.id} className="group" style={{ cursor: isMobile && !bloqueado ? 'pointer' : undefined }}
                     onClick={() => { if (isMobile && !bloqueado) setModal({ type: 'ingreso', item: i }); }}>
                     <td className="py-3 px-4">
@@ -324,16 +327,16 @@ export default function MesPersonalClient({
             <table className="theme-table min-w-[600px]">
               <thead>
                 <tr>
-                  <Th>Concepto</Th>
-                  <Th>Fecha</Th>
-                  <Th>Importe</Th>
-                  <Th>Categoría</Th>
-                  <Th>Banco</Th>
+                  <SortableTh label="Concepto" sortKey="concepto" activeKey={sortGas.sortKey} asc={sortGas.sortAsc} onSort={sortGas.toggleSort} />
+                  <SortableTh label="Fecha" sortKey="fecha" activeKey={sortGas.sortKey} asc={sortGas.sortAsc} onSort={sortGas.toggleSort} />
+                  <SortableTh label="Importe" sortKey="importe" activeKey={sortGas.sortKey} asc={sortGas.sortAsc} onSort={sortGas.toggleSort} />
+                  <SortableTh label="Categoría" sortKey="categoria" activeKey={sortGas.sortKey} asc={sortGas.sortAsc} onSort={sortGas.toggleSort} />
+                  <SortableTh label="Banco" sortKey="banco" activeKey={sortGas.sortKey} asc={sortGas.sortAsc} onSort={sortGas.toggleSort} />
                   {!bloqueado && <Th align="right">Acciones</Th>}
                 </tr>
               </thead>
               <tbody>
-                {gastos.map(g => {
+                {sortGas.sorted.map(g => {
                   const banco = bancos.find(b => b.nombre === g.banco);
                   return (
                     <tr key={g.id} className="group" style={{ cursor: isMobile && !bloqueado ? 'pointer' : undefined }}
@@ -413,6 +416,19 @@ export default function MesPersonalClient({
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+const SORT_INGRESOS: Record<'concepto' | 'importe', SortAccessor<PersonalIngresoMes>> = {
+  concepto: { get: i => i.concepto, type: 'text' },
+  importe:  { get: i => i.importe, type: 'number' },
+};
+const SORT_GASTOS: Record<'concepto' | 'fecha' | 'importe' | 'categoria' | 'banco', SortAccessor<PersonalGastoMes>> = {
+  concepto:  { get: g => g.concepto, type: 'text' },
+  fecha:     { get: g => g.fecha, type: 'date' },
+  importe:   { get: g => g.importe, type: 'number' },
+  categoria: { get: g => g.categoria, type: 'text' },
+  banco:     { get: g => g.banco, type: 'text' },
+};
+const byId = (a: { id: number }, b: { id: number }) => a.id - b.id;
 
 function Th({ children, align = 'left' }: { children?: React.ReactNode; align?: 'left' | 'right' }) {
   return <th className={align === 'right' ? 'text-right' : ''}>{children}</th>;

@@ -79,6 +79,11 @@ En el primer arranque se crea automáticamente un usuario administrador:
 |--------------|-----------------------------------------------------------------------------|-----------|
 | `JWT_SECRET` | Secreto para firmar los tokens de sesión. Mínimo 32 caracteres aleatorios. | Sí        |
 | `HTTPS`      | Poner a `true` solo si el tráfico llega directamente por HTTPS sin proxy. Por defecto `false`. | No |
+| `TZ`         | Zona horaria del servidor, usada para decidir qué pagos son «hoy» y «mañana» en las notificaciones (p. ej. `Europe/Madrid`). Por defecto, UTC. | Recomendada |
+| `AVISOS_HORA` | Hora (0–23) a partir de la cual se envían las notificaciones del día. Por defecto `9`. | No |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Claves para las notificaciones push. Si no se indican, se generan solas la primera vez y se guardan en la base de datos. | No |
+| `VAPID_SUBJECT` | Contacto del administrador para los servicios push (`mailto:tu@correo` o una URL `https://`). | No |
+| `AVISOS_DISABLED` | Poner a `true` para desactivar el envío de notificaciones. | No |
 
 ## 4. Primer acceso
 
@@ -87,7 +92,19 @@ En el primer arranque se crea automáticamente un usuario administrador:
 3. Elige el modo **Hogar** (gastos compartidos) o **Personal** (finanzas individuales) desde el interruptor de la barra lateral — puedes usar ambos con la misma cuenta.
 4. Ve a **Gestión** para crear tus categorías y bancos antes de dar de alta tu primer gasto: de ahí se nutren los filtros, las estadísticas y los desplegables del resto de la app.
 
-## 5. Imágenes de la aplicación
+## 5. Avisos y notificaciones
+
+La sección **Avisos** (en Personal y en Hogar) muestra los pagos de este mes y del siguiente: los gastos del Presupuesto con día de cobro y los Recurrentes con fecha de cobro. Desde ahí puedes activar las **notificaciones en cada dispositivo**; se envían la víspera y el mismo día de cada pago, a partir de la hora indicada en `AVISOS_HORA`.
+
+Requisitos del navegador:
+
+- **HTTPS obligatorio.** Los navegadores solo permiten notificaciones en páginas servidas por HTTPS (o desde `localhost`). Si accedes por `http://<IP>:3000`, pon delante un proxy inverso con certificado (Caddy, Nginx Proxy Manager, Traefik, Tailscale Serve…).
+- **iPhone / iPad:** iOS 16.4 o superior y la app **instalada en la pantalla de inicio** (Safari → Compartir → «Añadir a pantalla de inicio»). Después, abre FinanceMe desde el icono y actívalas en Avisos.
+- **Android y escritorio:** Chrome, Edge, Firefox o Safari recientes.
+
+Configura `TZ` con tu zona horaria para que «hoy» y «mañana» coincidan con tu calendario. Las claves VAPID se generan solas; si cambias de servidor sin conservar la carpeta `data/`, tendrás que volver a activar las notificaciones en cada dispositivo.
+
+## 6. Imágenes de la aplicación
 
 <table>
   <tr>

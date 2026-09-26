@@ -2,18 +2,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
-import { CalendarIcon, BoltIcon, DropletIcon, GridIcon, ReceiptIcon } from './icons';
-
-function RegistrosIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
-      <rect x="9" y="3" width="6" height="4" rx="1"/>
-      <line x1="9" y1="12" x2="15" y2="12"/>
-      <line x1="9" y1="16" x2="13" y2="16"/>
-    </svg>
-  );
-}
+import { CalendarIcon, GridIcon, ReceiptIcon, ModulesIcon, BellIcon } from './icons';
 import type { SessionUser } from '@/lib/auth';
 import Logo from './Logo';
 import { APP_VERSION } from '@/lib/constants';
@@ -62,46 +51,22 @@ function LogoutIcon() {
   );
 }
 
-function SavingsIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-    </svg>
-  );
-}
-
-function SubscriptionIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-    </svg>
-  );
-}
-
-function BarChartIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-    </svg>
-  );
-}
-
 interface NavItem { href: string; label: string; shortLabel?: string; icon: React.ReactElement; color: string; }
 
 const NAV_HOGAR: NavItem[] = [
   { href: '/hogar',              label: 'Resumen',      icon: <GridIcon     className="w-[18px] h-[18px]" />, color: 'var(--accent-hogar)' },
   { href: '/hogar/mes',          label: 'Mes',          icon: <CalendarIcon className="w-[18px] h-[18px]" />, color: 'var(--accent-hogar)' },
   { href: '/hogar/presupuesto',  label: 'Presupuesto',  icon: <ReceiptIcon  className="w-[18px] h-[18px]" />, color: 'var(--accent-hogar)' },
-  { href: '/hogar/registros',    label: 'Registros',    icon: <RegistrosIcon />,                               color: 'var(--accent-hogar)' },
-  { href: '/hogar/ahorro',       label: 'Ahorro',       icon: <SavingsIcon />,                                 color: 'var(--accent-hogar)' },
+  { href: '/hogar/modulos',      label: 'Módulos',      icon: <ModulesIcon  className="w-[18px] h-[18px]" />, color: 'var(--accent-hogar)' },
+  { href: '/hogar/avisos',       label: 'Avisos',       icon: <BellIcon     className="w-[18px] h-[18px]" />, color: 'var(--accent-hogar)' },
 ];
 
 const NAV_PERSONAL: NavItem[] = [
   { href: '/personal',                label: 'Resumen',       icon: <GridIcon className="w-[18px] h-[18px]" />,    color: 'var(--accent-personal)' },
   { href: '/personal/mes',            label: 'Mes',           icon: <CalendarIcon className="w-[18px] h-[18px]" />, color: 'var(--accent-personal)' },
   { href: '/personal/presupuesto',    label: 'Presupuesto',   icon: <ReceiptIcon className="w-[18px] h-[18px]" />,  color: 'var(--accent-personal)' },
-  { href: '/personal/suscripciones',  label: 'Suscripciones', shortLabel: 'Suscs.', icon: <SubscriptionIcon />,     color: 'var(--accent-personal)' },
-  { href: '/personal/ahorro',         label: 'Ahorro',        icon: <SavingsIcon />,                                color: 'var(--accent-personal)' },
+  { href: '/personal/modulos',        label: 'Módulos',       icon: <ModulesIcon className="w-[18px] h-[18px]" />,  color: 'var(--accent-personal)' },
+  { href: '/personal/avisos',         label: 'Avisos',        icon: <BellIcon className="w-[18px] h-[18px]" />,     color: 'var(--accent-personal)' },
 ];
 
 function withCenterResumen(items: NavItem[]): NavItem[] {

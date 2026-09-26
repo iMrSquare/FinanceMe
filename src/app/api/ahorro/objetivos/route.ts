@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getSession, canEdit } from '@/lib/auth';
+import { getSession, canEdit, requireSession } from '@/lib/auth';
 import { getAhorroObjetivos, createAhorroObjetivo } from '@/lib/db';
 
 export async function GET() {
+  const auth = await requireSession();
+  if (auth instanceof NextResponse) return auth;
   return NextResponse.json(getAhorroObjetivos());
 }
 

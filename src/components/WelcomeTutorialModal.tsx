@@ -19,10 +19,11 @@ const SECTIONS: Section[] = [
     ),
   },
   {
-    title: '2. Suscripciones y Ahorro',
+    title: '2. Módulos: Recurrentes y Ahorro',
     body: (
-      <>Con el presupuesto creado, añade tus <strong>Suscripciones</strong> (si tienes) y ajusta tu{' '}
-      <strong>objetivo de ahorro</strong>.</>
+      <>Con el presupuesto creado, entra en <strong>Módulos</strong>: añade tus <strong>Recurrentes</strong>{' '}
+      (suscripciones y otros pagos periódicos) y ajusta tu <strong>objetivo de ahorro</strong>. En{' '}
+      <strong>Avisos</strong> verás tus próximos pagos y podrás activar las notificaciones.</>
     ),
   },
   {
@@ -38,7 +39,7 @@ const SECTIONS: Section[] = [
     body: (
       <>Si eres administrador, puedes activar el <strong>Hogar</strong>: un espacio de control de
       gastos compartido por todos los usuarios. Revisa los usuarios y sus roles en Configuración. Funciona
-      igual que el Personal, salvo que en lugar de Suscripciones tiene un apartado de{' '}
+      igual que el Personal y, además de Recurrentes y Ahorro, sus Módulos incluyen los{' '}
       <strong>Registros de Luz y Agua</strong>, donde primero añades la compañía y luego vas anotando
       manualmente los consumos para ver el historial de gasto (estos registros no se generan desde el
       Presupuesto ni el Mes).</>

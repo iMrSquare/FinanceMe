@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { mensualNecesario } from './ahorroObjetivos';
 import { objetivoMensualAhorro } from './ahorro';
+import { lineasRecurrentesMes } from './recurrentes';
 import type { SessionUser } from './auth-edge';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'financeme.db');
@@ -263,6 +264,33 @@ function initSchema(db: Database.Database) {
       banco TEXT,
       categoria TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS hogar_recurrentes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nombre TEXT NOT NULL,
+      importe REAL NOT NULL DEFAULT 0,
+      cobro TEXT,
+      periodicidad TEXT NOT NULL DEFAULT 'mensual',
+      comentario TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      endpoint TEXT NOT NULL UNIQUE,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      notify_hogar INTEGER NOT NULL DEFAULT 0,
+      notify_personal INTEGER NOT NULL DEFAULT 0,
+      user_agent TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS push_enviados (
+      clave TEXT PRIMARY KEY,
+      enviado_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 }
 
@@ -347,6 +375,15 @@ function runMigrations(db: Database.Database) {
   try {
     db.exec('ALTER TABLE personal_presupuesto_auto ADD COLUMN redondeo INTEGER NOT NULL DEFAULT 1');
   } catch {}
+
+  // Migration: recurrentes volcados al mes como una línea total (0) o desglosados (1)
+  for (const sql of [
+    'ALTER TABLE personal_presupuesto_auto ADD COLUMN desglose INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE presupuesto_auto ADD COLUMN redondeo INTEGER NOT NULL DEFAULT 1',
+    'ALTER TABLE presupuesto_auto ADD COLUMN desglose INTEGER NOT NULL DEFAULT 0',
+  ]) {
+    try { db.exec(sql); } catch {}
+  }
 
   // Migration: add version_seen column to existing databases.
   // Backfilled to an old version so existing users see the "new version"
@@ -656,6 +693,11 @@ export function applyFijosToMes(mesId: number, mes: number, anio: number) {
 
   const autoConfigs = getPresupuestoAutoConfigsHogar();
 
+  const recurrentesCfg = autoConfigs.find(c => c.tipo === 'recurrentes') ?? { banco: null, categoria: null };
+  for (const l of lineasRecurrentesMes(getHogarRecurrentes(), recurrentesCfg, anio, mes)) {
+    insertGasto.run(mesId, l.concepto, l.fecha, l.categoria, l.banco, l.importe, l.comentario);
+  }
+
   const ahorroAnual = getAhorro(anio);
   const ahorroMensual = objetivoMensualAhorro(ahorroAnual.objetivo_anual, ahorroAnual.meses, anio);
   if (ahorroMensual > 0) {
@@ -726,86 +768,118 @@ export interface CategoriaStats {
 export interface EstadisticasData {
   mesesLabels: string[];
   categorias: CategoriaStats[];
+  /** YYYY-MM de cada columna de mesesLabels */
+  mesesKeys?: string[];
+  /** Todos los meses con datos (YYYY-MM, ascendente), para los filtros */
+  disponibles?: string[];
+  /** Todas las categorías del ámbito, para los filtros */
+  categoriasDisponibles?: { nombre: string; color: string }[];
 }
 
-export function getEstadisticasGastos(limit = 12): EstadisticasData {
-  const db = getDb();
-  const meses = (db.prepare(
-    'SELECT id, nombre FROM meses ORDER BY anio DESC, mes DESC LIMIT ?'
-  ).all(limit) as Array<{ id: number; nombre: string }>).reverse();
+export interface EstadisticasFiltro {
+  /** YYYY-MM */
+  desde?: string;
+  /** YYYY-MM */
+  hasta?: string;
+  categorias?: string[];
+  /** Últimos N meses cuando no se indica rango */
+  limit?: number;
+}
 
-  if (meses.length === 0) return { mesesLabels: [], categorias: [] };
+const SIN_CATEGORIA = 'Sin categoría';
+const MESES_NOMBRES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const ymKey = (anio: number, mes: number) => `${anio}-${String(mes).padStart(2, '0')}`;
+const ymNum = (ym: string) => { const [y, m] = ym.split('-').map(Number); return y * 100 + m; };
 
-  const placeholders = meses.map(() => '?').join(',');
-  const rows = db.prepare(`
-    SELECT mes_id, COALESCE(categoria, 'Sin categoría') AS categoria, SUM(importe) AS total
-    FROM gastos WHERE mes_id IN (${placeholders})
-    GROUP BY mes_id, categoria
-  `).all(...meses.map(m => m.id)) as Array<{ mes_id: number; categoria: string; total: number }>;
+function filtrarMeses<T extends { anio: number; mes: number }>(mesesAsc: T[], f: EstadisticasFiltro): T[] {
+  const d = f.desde ? ymNum(f.desde) : null;
+  const h = f.hasta ? ymNum(f.hasta) : null;
+  if (d !== null || h !== null) {
+    return mesesAsc.filter(m => { const k = m.anio * 100 + m.mes; return (d === null || k >= d) && (h === null || k <= h); });
+  }
+  return f.limit ? mesesAsc.slice(-f.limit) : mesesAsc;
+}
 
-  const cats = db.prepare("SELECT nombre, color FROM categorias WHERE tipo='gasto'").all() as Array<{ nombre: string; color: string }>;
+function construirEstadisticas<T extends { anio: number; mes: number }>(
+  mesesAsc: T[],
+  meses: T[],
+  label: (m: T) => string,
+  rows: Array<{ anio: number; mes: number; categoria: string; total: number }>,
+  cats: Array<{ nombre: string; color: string }>,
+  palette: string[],
+  f: EstadisticasFiltro,
+): EstadisticasData {
   const colorMap = Object.fromEntries(cats.map(c => [c.nombre, c.color]));
+  const catNames = [...new Set([...cats.map(c => c.nombre), ...rows.map(r => r.categoria)])];
+  const colorDe = (cat: string, i: number) => colorMap[cat] ?? palette[i % palette.length];
+  const seleccion = f.categorias?.length ? new Set(f.categorias) : null;
+
+  const categorias: CategoriaStats[] = catNames
+    .map((cat, i) => {
+      const totalesPorMes = meses.map(m => rows.find(r => r.anio === m.anio && r.mes === m.mes && r.categoria === cat)?.total ?? 0);
+      const total = totalesPorMes.reduce((s, v) => s + v, 0);
+      return { categoria: cat, color: colorDe(cat, i), totalesPorMes, total, promedio: meses.length > 0 ? total / meses.length : 0 };
+    })
+    .filter(c => c.total > 0 && (!seleccion || seleccion.has(c.categoria)))
+    .sort((a, b) => b.total - a.total);
+
+  const hayMesesSinCategoria = rows.some(r => r.categoria === SIN_CATEGORIA);
+  return {
+    mesesLabels: meses.map(label),
+    mesesKeys: meses.map(m => ymKey(m.anio, m.mes)),
+    categorias,
+    disponibles: mesesAsc.map(m => ymKey(m.anio, m.mes)),
+    categoriasDisponibles: [
+      ...cats.map((c, i) => ({ nombre: c.nombre, color: colorDe(c.nombre, i) })),
+      ...(hayMesesSinCategoria && !colorMap[SIN_CATEGORIA] ? [{ nombre: SIN_CATEGORIA, color: '#94a3b8' }] : []),
+    ],
+  };
+}
+
+export function getEstadisticasGastos(filtro: EstadisticasFiltro | number = 12): EstadisticasData {
+  const f: EstadisticasFiltro = typeof filtro === 'number' ? { limit: filtro } : filtro;
+  const db = getDb();
+  const mesesAsc = db.prepare('SELECT id, nombre, anio, mes FROM meses ORDER BY anio ASC, mes ASC')
+    .all() as Array<{ id: number; nombre: string; anio: number; mes: number }>;
+  const meses = filtrarMeses(mesesAsc, f);
+  const cats = db.prepare("SELECT nombre, color FROM categorias WHERE tipo='gasto' ORDER BY nombre").all() as Array<{ nombre: string; color: string }>;
   const PALETTE = ['#6366f1','#0ea5e9','#10b981','#f97316','#f59e0b','#ec4899','#8b5cf6','#06b6d4'];
 
-  const allCatNames = cats.map(c => c.nombre);
-  const catNamesFromGastos = [...new Set(rows.map(r => r.categoria))];
-  const catNames = [...new Set([...allCatNames, ...catNamesFromGastos])];
-  const categorias: CategoriaStats[] = catNames.map((cat, i) => {
-    const totalesPorMes = meses.map(m => rows.find(r => r.mes_id === m.id && r.categoria === cat)?.total ?? 0);
-    const total = totalesPorMes.reduce((s, v) => s + v, 0);
-    return {
-      categoria: cat,
-      color: colorMap[cat] ?? PALETTE[i % PALETTE.length],
-      totalesPorMes,
-      total,
-      promedio: meses.length > 0 ? total / meses.length : 0,
-    };
-  }).sort((a, b) => b.total - a.total);
-
-  return { mesesLabels: meses.map(m => m.nombre), categorias };
+  let rows: Array<{ anio: number; mes: number; categoria: string; total: number }> = [];
+  if (meses.length) {
+    const byId = new Map(meses.map(m => [m.id, m]));
+    const placeholders = meses.map(() => '?').join(',');
+    rows = (db.prepare(`
+      SELECT mes_id, COALESCE(categoria, '${SIN_CATEGORIA}') AS categoria, SUM(importe) AS total
+      FROM gastos WHERE mes_id IN (${placeholders})
+      GROUP BY mes_id, categoria
+    `).all(...meses.map(m => m.id)) as Array<{ mes_id: number; categoria: string; total: number }>)
+      .map(r => ({ anio: byId.get(r.mes_id)!.anio, mes: byId.get(r.mes_id)!.mes, categoria: r.categoria, total: r.total }));
+  }
+  return construirEstadisticas(mesesAsc, meses, m => m.nombre, rows, cats, PALETTE, f);
 }
 
-export function getPersonalEstadisticas(userId: number, limit = 12): EstadisticasData {
+export function getPersonalEstadisticas(userId: number, filtro: EstadisticasFiltro | number = 12): EstadisticasData {
+  const f: EstadisticasFiltro = typeof filtro === 'number' ? { limit: filtro } : filtro;
   const db = getDb();
-  const MESES_NOMBRES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-
-  const allMeses = db.prepare(
-    'SELECT anio, mes FROM personal_meses WHERE user_id = ? ORDER BY anio DESC, mes DESC'
-  ).all(userId) as Array<{ anio: number; mes: number }>;
-  const meses = allMeses.slice(0, limit).reverse();
-
-  if (meses.length === 0) return { mesesLabels: [], categorias: [] };
-
-  const keys = meses.map(m => m.anio * 100 + m.mes);
-  const placeholders = keys.map(() => '?').join(',');
-  const rows = db.prepare(`
-    SELECT anio, mes, COALESCE(categoria, 'Sin categoría') AS categoria, SUM(importe) AS total
-    FROM personal_gastos_mes
-    WHERE user_id = ? AND (anio * 100 + mes) IN (${placeholders})
-    GROUP BY anio, mes, categoria
-  `).all(userId, ...keys) as Array<{ anio: number; mes: number; categoria: string; total: number }>;
-
+  const mesesAsc = db.prepare('SELECT anio, mes FROM personal_meses WHERE user_id = ? ORDER BY anio ASC, mes ASC')
+    .all(userId) as Array<{ anio: number; mes: number }>;
+  const meses = filtrarMeses(mesesAsc, f);
   const cats = db.prepare('SELECT nombre, color FROM personal_categorias WHERE user_id = ? ORDER BY nombre').all(userId) as Array<{ nombre: string; color: string }>;
-  const colorMap = Object.fromEntries(cats.map(c => [c.nombre, c.color]));
   const PALETTE = ['#f97316','#10b981','#8b5cf6','#0ea5e9','#f59e0b','#ec4899','#6366f1','#06b6d4'];
 
-  const allCatNames = cats.map(c => c.nombre);
-  const catNamesFromGastos = [...new Set(rows.map(r => r.categoria))];
-  const catNames = [...new Set([...allCatNames, ...catNamesFromGastos])];
-
-  const categorias: CategoriaStats[] = catNames.map((cat, i) => {
-    const totalesPorMes = meses.map(m => rows.find(r => r.anio === m.anio && r.mes === m.mes && r.categoria === cat)?.total ?? 0);
-    const total = totalesPorMes.reduce((s, v) => s + v, 0);
-    return {
-      categoria: cat,
-      color: colorMap[cat] ?? PALETTE[i % PALETTE.length],
-      totalesPorMes,
-      total,
-      promedio: meses.length > 0 ? total / meses.length : 0,
-    };
-  }).filter(c => c.total > 0).sort((a, b) => b.total - a.total);
-
-  return { mesesLabels: meses.map(m => `${MESES_NOMBRES[m.mes - 1]} ${m.anio}`), categorias };
+  let rows: Array<{ anio: number; mes: number; categoria: string; total: number }> = [];
+  if (meses.length) {
+    const keys = meses.map(m => m.anio * 100 + m.mes);
+    const placeholders = keys.map(() => '?').join(',');
+    rows = db.prepare(`
+      SELECT anio, mes, COALESCE(categoria, '${SIN_CATEGORIA}') AS categoria, SUM(importe) AS total
+      FROM personal_gastos_mes
+      WHERE user_id = ? AND (anio * 100 + mes) IN (${placeholders})
+      GROUP BY anio, mes, categoria
+    `).all(userId, ...keys) as Array<{ anio: number; mes: number; categoria: string; total: number }>;
+  }
+  return construirEstadisticas(mesesAsc, meses, m => `${MESES_NOMBRES_ES[m.mes - 1]} ${m.anio}`, rows, cats, PALETTE, f);
 }
 
 export function getRegistroLuz(): RegistroLuz[] {
@@ -1085,6 +1159,32 @@ export function updatePersonalSuscripcion(id: number, userId: number, data: Omit
 }
 export function deletePersonalSuscripcion(id: number, userId: number): void {
   getDb().prepare('DELETE FROM personal_suscripciones WHERE id = ? AND user_id = ?').run(id, userId);
+}
+
+// ── Hogar: Recurrentes ─────────────────────────────────────────────────────
+
+export interface HogarRecurrente {
+  id: number; nombre: string; importe: number;
+  cobro: string | null; periodicidad: 'mensual' | 'trimestral' | 'anual'; comentario: string | null;
+  created_at: string;
+}
+export type HogarRecurrenteInput = Omit<HogarRecurrente, 'id' | 'created_at'>;
+
+export function getHogarRecurrentes(): HogarRecurrente[] {
+  return getDb().prepare('SELECT * FROM hogar_recurrentes ORDER BY nombre').all() as HogarRecurrente[];
+}
+export function createHogarRecurrente(data: HogarRecurrenteInput): void {
+  getDb().prepare(
+    'INSERT INTO hogar_recurrentes (nombre, importe, cobro, periodicidad, comentario) VALUES (?, ?, ?, ?, ?)'
+  ).run(data.nombre, data.importe, data.cobro, data.periodicidad, data.comentario);
+}
+export function updateHogarRecurrente(id: number, data: HogarRecurrenteInput): void {
+  getDb().prepare(
+    'UPDATE hogar_recurrentes SET nombre = ?, importe = ?, cobro = ?, periodicidad = ?, comentario = ? WHERE id = ?'
+  ).run(data.nombre, data.importe, data.cobro, data.periodicidad, data.comentario, id);
+}
+export function deleteHogarRecurrente(id: number): void {
+  getDb().prepare('DELETE FROM hogar_recurrentes WHERE id = ?').run(id);
 }
 
 // ── Personal: Ahorro ───────────────────────────────────────────────────────
@@ -1405,35 +1505,135 @@ export function getPersonalEvolucion(userId: number, limit = 6): PersonalMesEvol
 
 // ── Personal: Presupuesto auto-config ─────────────────────────────────────
 
+// 'suscripciones' es el nombre interno histórico de los Recurrentes de Personal; 'recurrentes' es el de Hogar
+export type PresupuestoAutoTipo = 'suscripciones' | 'recurrentes' | 'ahorro' | 'objetivos';
+
 export interface PresupuestoAutoConfig {
-  tipo: 'suscripciones' | 'ahorro' | 'objetivos';
+  tipo: PresupuestoAutoTipo;
   banco: string | null;
   categoria: string | null;
   redondeo: number;
+  desglose: number;
 }
+
+export interface PresupuestoAutoOpts {
+  redondeo?: boolean;
+  desglose?: boolean;
+}
+
+const flag = (v: boolean | undefined) => (v === undefined ? null : v ? 1 : 0);
 
 export function getPresupuestoAutoConfigs(userId: number): PresupuestoAutoConfig[] {
   return getDb().prepare(
-    'SELECT tipo, banco, categoria, redondeo FROM personal_presupuesto_auto WHERE user_id = ?'
+    'SELECT tipo, banco, categoria, redondeo, desglose FROM personal_presupuesto_auto WHERE user_id = ?'
   ).all(userId) as PresupuestoAutoConfig[];
 }
 
-export function upsertPresupuestoAuto(userId: number, tipo: string, banco: string | null, categoria: string | null, redondeo?: boolean): void {
+export function upsertPresupuestoAuto(userId: number, tipo: string, banco: string | null, categoria: string | null, opts: PresupuestoAutoOpts = {}): void {
+  const r = flag(opts.redondeo);
+  const d = flag(opts.desglose);
   getDb().prepare(
-    `INSERT INTO personal_presupuesto_auto (user_id, tipo, banco, categoria, redondeo) VALUES (?, ?, ?, ?, COALESCE(?, 1))
+    `INSERT INTO personal_presupuesto_auto (user_id, tipo, banco, categoria, redondeo, desglose) VALUES (?, ?, ?, ?, COALESCE(?, 1), COALESCE(?, 0))
      ON CONFLICT(user_id, tipo) DO UPDATE SET banco = excluded.banco, categoria = excluded.categoria,
-       redondeo = CASE WHEN ? IS NULL THEN redondeo ELSE excluded.redondeo END`
-  ).run(userId, tipo, banco, categoria, redondeo === undefined ? null : (redondeo ? 1 : 0), redondeo === undefined ? null : (redondeo ? 1 : 0));
+       redondeo = CASE WHEN ? IS NULL THEN redondeo ELSE excluded.redondeo END,
+       desglose = CASE WHEN ? IS NULL THEN desglose ELSE excluded.desglose END`
+  ).run(userId, tipo, banco, categoria, r, d, r, d);
 }
 
 // ── Hogar: Presupuesto auto-config ─────────────────────────────────────────
 
 export function getPresupuestoAutoConfigsHogar(): PresupuestoAutoConfig[] {
-  return getDb().prepare('SELECT tipo, banco, categoria FROM presupuesto_auto').all() as PresupuestoAutoConfig[];
+  return getDb().prepare('SELECT tipo, banco, categoria, redondeo, desglose FROM presupuesto_auto').all() as PresupuestoAutoConfig[];
 }
 
-export function upsertPresupuestoAutoHogar(tipo: string, banco: string | null, categoria: string | null): void {
+export function upsertPresupuestoAutoHogar(tipo: string, banco: string | null, categoria: string | null, opts: PresupuestoAutoOpts = {}): void {
+  const r = flag(opts.redondeo);
+  const d = flag(opts.desglose);
   getDb().prepare(
-    'INSERT INTO presupuesto_auto (tipo, banco, categoria) VALUES (?, ?, ?) ON CONFLICT(tipo) DO UPDATE SET banco = excluded.banco, categoria = excluded.categoria'
-  ).run(tipo, banco, categoria);
+    `INSERT INTO presupuesto_auto (tipo, banco, categoria, redondeo, desglose) VALUES (?, ?, ?, COALESCE(?, 1), COALESCE(?, 0))
+     ON CONFLICT(tipo) DO UPDATE SET banco = excluded.banco, categoria = excluded.categoria,
+       redondeo = CASE WHEN ? IS NULL THEN redondeo ELSE excluded.redondeo END,
+       desglose = CASE WHEN ? IS NULL THEN desglose ELSE excluded.desglose END`
+  ).run(tipo, banco, categoria, r, d, r, d);
+}
+
+// ── App settings ───────────────────────────────────────────────────────────
+
+export function getAppSetting(key: string): string | null {
+  const row = getDb().prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+export function setAppSetting(key: string, value: string): void {
+  getDb().prepare('INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value);
+}
+
+// ── Web Push ───────────────────────────────────────────────────────────────
+
+export type PushScope = 'hogar' | 'personal';
+
+export interface PushSubscriptionRow {
+  id: number;
+  user_id: number;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  notify_hogar: number;
+  notify_personal: number;
+  user_agent: string | null;
+  created_at: string;
+}
+
+const scopeColumn = (scope: PushScope) => (scope === 'hogar' ? 'notify_hogar' : 'notify_personal');
+
+export function getPushSubscription(endpoint: string, userId: number): PushSubscriptionRow | null {
+  return (getDb().prepare('SELECT * FROM push_subscriptions WHERE endpoint = ? AND user_id = ?').get(endpoint, userId) as PushSubscriptionRow | undefined) ?? null;
+}
+
+/** Guarda la suscripción del dispositivo y activa/desactiva un ámbito; devuelve la fila resultante */
+export function savePushSubscription(
+  userId: number,
+  sub: { endpoint: string; p256dh: string; auth: string; userAgent: string | null },
+  scope: PushScope,
+  enabled: boolean,
+): PushSubscriptionRow {
+  const db = getDb();
+  const col = scopeColumn(scope);
+  // Un endpoint pertenece a un único navegador: si otro usuario inicia sesión en él, pasa a ser suyo
+  db.prepare(
+    `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, user_agent, ${col}) VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(endpoint) DO UPDATE SET
+       notify_hogar    = CASE WHEN user_id = excluded.user_id THEN notify_hogar ELSE 0 END,
+       notify_personal = CASE WHEN user_id = excluded.user_id THEN notify_personal ELSE 0 END,
+       user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth, user_agent = excluded.user_agent`
+  ).run(userId, sub.endpoint, sub.p256dh, sub.auth, sub.userAgent, enabled ? 1 : 0);
+  db.prepare(`UPDATE push_subscriptions SET ${col} = ? WHERE endpoint = ?`).run(enabled ? 1 : 0, sub.endpoint);
+  return getPushSubscription(sub.endpoint, userId)!;
+}
+
+export function deletePushSubscription(endpoint: string): void {
+  getDb().prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').run(endpoint);
+}
+
+/** Suscripciones que deben recibir avisos de un ámbito. Hogar: solo usuarios con acceso a Hogar */
+export function getPushSubscriptionsForScope(scope: PushScope): (PushSubscriptionRow & { role: string })[] {
+  const col = scopeColumn(scope);
+  const rows = getDb().prepare(
+    `SELECT s.*, u.role FROM push_subscriptions s JOIN users u ON u.id = s.user_id WHERE s.${col} = 1`
+  ).all() as (PushSubscriptionRow & { role: string })[];
+  if (scope === 'hogar' && !isHogarActivated()) return rows.filter(r => r.role === 'admin');
+  return rows;
+}
+
+/** Marca un aviso como enviado; false si ya se había enviado antes */
+export function markPushEnviado(clave: string): boolean {
+  return getDb().prepare('INSERT OR IGNORE INTO push_enviados (clave) VALUES (?)').run(clave).changes > 0;
+}
+
+export function prunePushEnviados(dias = 90): void {
+  getDb().prepare(`DELETE FROM push_enviados WHERE enviado_at < datetime('now', ?)`).run(`-${dias} days`);
+}
+
+export function isPushEnviado(clave: string): boolean {
+  return !!getDb().prepare('SELECT 1 FROM push_enviados WHERE clave = ?').get(clave);
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { monthlyEquivalent } from '@/lib/billing';
+import { lineasRecurrentesMes } from '@/lib/recurrentes';
 import { mensualNecesario } from '@/lib/ahorroObjetivos';
 import { objetivoMensualAhorro } from '@/lib/ahorro';
 import {
@@ -10,10 +10,6 @@ import {
   personalMesExists, clearPersonalMesGastos, clearPersonalMesIngresos, getMesActual,
 } from '@/lib/db';
 import type { PersonalGastoFijo } from '@/lib/db';
-
-function roundUp5(n: number): number {
-  return Math.ceil(n / 5) * 5;
-}
 
 function cobroFecha(cobro: string | null, mes: number, anio: number): string | null {
   if (!cobro) return null;
@@ -30,19 +26,9 @@ function isVencido(f: PersonalGastoFijo, mes: number, anio: number): boolean {
 function applyVirtualRows(userId: number, anioNum: number, mesNum: number) {
   const autoConfigs = getPresupuestoAutoConfigs(userId);
 
-  const suscs = getPersonalSuscripciones(userId);
-  const suscReal = suscs.reduce((s, sub) => s + monthlyEquivalent(sub.importe, sub.periodicidad), 0);
-  if (suscReal > 0) {
-    const cfg = autoConfigs.find(c => c.tipo === 'suscripciones');
-    const redondea = (cfg?.redondeo ?? 1) === 1;
-    createPersonalGastoMes(userId, anioNum, mesNum, {
-      concepto: 'Suscripciones',
-      importe: redondea ? roundUp5(suscReal) : suscReal,
-      categoria: cfg?.categoria ?? null,
-      banco: cfg?.banco ?? null,
-      fecha: null,
-      comentario: redondea ? `Total suscripciones redondeado (real: ${suscReal.toFixed(2)} €)` : `Total suscripciones (sin redondeo)`,
-    });
+  const recurrentesCfg = autoConfigs.find(c => c.tipo === 'suscripciones') ?? { banco: null, categoria: null };
+  for (const linea of lineasRecurrentesMes(getPersonalSuscripciones(userId), recurrentesCfg, anioNum, mesNum)) {
+    createPersonalGastoMes(userId, anioNum, mesNum, linea);
   }
 
   const ahorro = getPersonalAhorro(userId, anioNum);

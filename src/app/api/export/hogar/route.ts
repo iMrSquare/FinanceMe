@@ -26,6 +26,7 @@ export async function GET() {
       ahorro_mes:   db.prepare('SELECT * FROM ahorro_mes ORDER BY ahorro_id, mes').all(),
       ahorro_objetivos: db.prepare('SELECT * FROM ahorro_objetivos ORDER BY id').all(),
       presupuesto_auto: db.prepare('SELECT * FROM presupuesto_auto ORDER BY id').all(),
+      hogar_recurrentes: db.prepare('SELECT * FROM hogar_recurrentes ORDER BY id').all(),
     },
   };
 
