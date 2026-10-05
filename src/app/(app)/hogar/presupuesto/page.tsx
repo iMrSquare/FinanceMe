@@ -2,7 +2,7 @@ import { getFijos, getCategorias, getAhorroObjetivos, getAhorro, getPresupuestoA
 import { getSession, canEdit } from '@/lib/auth';
 import PresupuestoHogarClient from './PresupuestoHogarClient';
 
-export const metadata = { title: 'Presupuesto — FinanceMe Hogar' };
+export const metadata = { title: 'Hogar · Presupuesto' };
 
 export default async function HogarPresupuestoPage() {
   const session = await getSession();

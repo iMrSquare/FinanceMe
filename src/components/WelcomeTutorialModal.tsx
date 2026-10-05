@@ -166,8 +166,8 @@ export default function WelcomeTutorialModal({ session, hogarDisponible, onClose
       titulo: 'Mes',
       contenido: (
         <PasoParte icon={<CalendarIcon />} donde="Menú › Mes">
-          <p>Cada mes empieza <strong>importando el Presupuesto</strong>: se rellena solo con tus fijos, recurrentes y ahorro.</p>
-          <p>A partir de ahí anotas cada gasto con su fecha, categoría y banco. Los gastos se ven en rojo y los ingresos en verde, y puedes ordenar cualquier columna.</p>
+          <p>Al crear un mes puedes <strong>importar el Presupuesto</strong>: se rellena solo con tus fijos y las filas de tus módulos.</p>
+          <p>Después apuntas cada gasto con su fecha, categoría y banco, y marcas el <strong>check</strong> cuando ya ha venido.</p>
         </PasoParte>
       ),
     },
@@ -175,9 +175,9 @@ export default function WelcomeTutorialModal({ session, hogarDisponible, onClose
       titulo: 'Módulos',
       contenido: (
         <PasoParte icon={<ModulesIcon />} donde="Menú › Módulos">
-          <p><strong>Recurrentes</strong>: suscripciones y pagos mensuales, trimestrales o anuales.</p>
-          <p><strong>Ahorro anual</strong>: tu objetivo del año y lo que apartas cada mes. <strong>Objetivos</strong>: metas concretas con importe y fecha.</p>
-          <p>En Hogar hay además <strong>Registros</strong> de luz y agua. Todo lo que configures aquí aparece solo en el Presupuesto.</p>
+          <p><strong>Recurrentes</strong>: pagos de cada mes, cada 2 meses, trimestre o año.</p>
+          <p><strong>Ahorro anual</strong>: tu objetivo, al año o al mes. <strong>Objetivos</strong>: metas con importe y fecha.</p>
+          <p>Los tres aparecen solos en el Presupuesto como filas <strong>Modulares</strong>. En Hogar hay además <strong>Registros</strong> de luz y agua.</p>
         </PasoParte>
       ),
     },

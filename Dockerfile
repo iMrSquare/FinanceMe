@@ -43,4 +43,9 @@ RUN mkdir -p /app/data
 
 EXPOSE 3000
 
+# Estado del contenedor (healthy/unhealthy). 127.0.0.1 y no «localhost»: el servidor solo escucha
+# en IPv4 y «localhost» puede resolverse a ::1. /api/version es público y no toca la base de datos
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+  CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/version',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+
 CMD ["node", "server.js"]

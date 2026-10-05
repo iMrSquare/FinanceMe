@@ -3,6 +3,7 @@ import { useState, useSyncExternalStore, type KeyboardEvent } from 'react';
 import type { SessionUser, ColorMode } from '@/lib/auth';
 import { SunIcon, MoonIcon, LaptopIcon } from './icons';
 import { CircularColorPicker } from './ColorDots';
+import Segmented from './ui/Segmented';
 
 type Modo = 'personal' | 'hogar';
 
@@ -194,37 +195,6 @@ export function ThemePicker({ a, labelId }: { a: AppearanceState; labelId: strin
                 {active && <span className="w-2 h-2 rounded-full" style={{ background: 'var(--accent-mode)' }} />}
               </span>
             </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function Segmented<T extends string>({ options, value, onChange, disabled }: {
-  options: { id: T; label: string; icon?: React.ReactNode }[];
-  value: T;
-  onChange: (v: T) => void;
-  disabled?: (v: T) => boolean;
-}) {
-  return (
-    <div className="flex p-1 gap-1 rounded-[var(--radius-control)]" style={{ background: 'var(--btn-hover)' }}>
-      {options.map(o => {
-        const active = value === o.id;
-        return (
-          <button
-            key={o.id}
-            type="button"
-            aria-pressed={active}
-            disabled={disabled?.(o.id)}
-            onClick={() => onChange(o.id)}
-            className="flex-1 flex items-center justify-center gap-1.5 min-h-10 rounded-[calc(var(--radius-control)-2px)] text-sm font-medium transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-[var(--accent-mode)]"
-            style={active
-              ? { background: 'var(--bg-card)', color: 'var(--text-primary)', boxShadow: '0 1px 2px var(--shadow-card)' }
-              : { color: 'var(--text-muted)' }}
-          >
-            {o.icon}
-            {o.label}
           </button>
         );
       })}

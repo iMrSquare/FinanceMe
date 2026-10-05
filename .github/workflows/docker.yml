@@ -71,5 +71,5 @@ jobs:
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             echo "La release $GITHUB_REF_NAME ya existe"
           else
-            gh release create "$GITHUB_REF_NAME" --title "FinanceMe $GITHUB_REF_NAME" --generate-notes --verify-tag
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
           fi

@@ -8,6 +8,7 @@ import { isHogarActivated, getUserById } from '@/lib/db';
 import { APP_VERSION } from '@/lib/constants';
 import { getUpdateInfo } from '@/lib/updates';
 import VersionWatcher from '@/components/VersionWatcher';
+import PushRegistrar from '@/components/PushRegistrar';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -30,6 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </main>
         </div>
         <VersionWatcher />
+        <PushRegistrar />
         </ToastProvider>
       </VersionProvider>
     </TutorialProvider>

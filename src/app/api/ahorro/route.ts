@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, canEdit, requireSession } from '@/lib/auth';
 import { getAhorro, updateAhorroObjetivo } from '@/lib/db';
+import { modoAhorro } from '@/lib/ahorro';
 
 export async function GET(request: NextRequest) {
   const auth = await requireSession();
@@ -14,6 +15,6 @@ export async function PUT(request: NextRequest) {
   if (!session || !canEdit(session.role)) {
     return NextResponse.json({ error: 'Sin permisos' }, { status: 403 });
   }
-  const { year, objetivoAnual } = await request.json();
-  return NextResponse.json(updateAhorroObjetivo(Number(year), Number(objetivoAnual)));
+  const { year, objetivoAnual, modo } = await request.json();
+  return NextResponse.json(updateAhorroObjetivo(Number(year), Number(objetivoAnual), modoAhorro(modo)));
 }

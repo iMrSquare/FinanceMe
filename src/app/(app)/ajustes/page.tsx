@@ -4,7 +4,7 @@ import { getAllUsers } from '@/lib/db';
 import { getUpdateInfo } from '@/lib/updates';
 import AjustesClient from './AjustesClient';
 
-export const metadata = { title: 'Configuración — FinanceMe' };
+export const metadata = { title: 'Configuración' };
 
 export default async function AjustesPage() {
   const session = await getSession();

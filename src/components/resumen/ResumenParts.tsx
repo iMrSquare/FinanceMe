@@ -142,12 +142,12 @@ export function ProximosPagos({ pagos, scope, max = 6 }: { pagos: Pago[]; scope:
 }
 
 /* ── Recurrentes: los próximos en cobrarse ── */
-interface RecurrenteRes { id: number; nombre: string; importe: number; cobro: string | null; periodicidad: string; categoria?: string | null }
+interface RecurrenteRes { id: number; nombre: string; importe: number; cobro: string | null; periodicidad: string; meses?: string | null; categoria?: string | null }
 
 export function RecurrentesResumen({ items, categorias, scope, max = 5 }: { items: RecurrenteRes[]; categorias: Opcion[]; scope: 'personal' | 'hogar'; max?: number }) {
   const href = `/${scope}/modulos/recurrentes`;
-  const mensual = items.reduce((s, r) => s + monthlyEquivalent(r.importe, r.periodicidad), 0);
-  const proximo = (r: RecurrenteRes) => (r.cobro ? nextBillingDate(r.cobro, r.periodicidad) : null);
+  const mensual = items.reduce((s, r) => s + monthlyEquivalent(r), 0);
+  const proximo = (r: RecurrenteRes) => nextBillingDate(r);
   const orden = [...items].sort((a, b) => (proximo(a)?.getTime() ?? Infinity) - (proximo(b)?.getTime() ?? Infinity));
   const cat = (n?: string | null) => categorias.find(c => c.nombre === n);
   return (

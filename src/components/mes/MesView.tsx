@@ -11,13 +11,14 @@ import Section from '@/components/ui/Section';
 import SortSelect from '@/components/ui/SortSelect';
 import Modal from '@/components/ui/Modal';
 import Switch from '@/components/ui/Switch';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { BankChip, CategoryBadge } from '@/components/ui/Chips';
 import { EmptyState } from '@/components/ui/Feedback';
 import { formatEUR, formatFechaCorta } from '@/lib/format';
 
 export const MESES_NOMBRES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-export interface MesGastoRow { id: number; concepto: string; comentario: string | null; fecha: string | null; importe: number; categoria: string | null; banco: string | null }
+export interface MesGastoRow { id: number; concepto: string; comentario: string | null; fecha: string | null; importe: number; categoria: string | null; banco: string | null; cobrado?: number | boolean }
 export interface MesIngresoRow { id: number; concepto: string; comentario: string | null; fecha?: string | null; importe: number }
 export interface Opcion { nombre: string; color: string; icono?: string | null }
 
@@ -47,6 +48,29 @@ const ORDEN_GASTOS = [
   { key: 'banco', asc: true, label: 'Banco (A–Z)' },
 ];
 
+function CheckMark() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>;
+}
+
+// Check de «ya ha venido» junto al nombre del concepto. Sin onToggle (mes bloqueado o sin
+// permisos) solo muestra el estado
+function CobradoCheck({ concepto, cobrado, onToggle }: { concepto: string; cobrado: boolean; onToggle?: () => void }) {
+  const marca = (
+    <span className="fm-check-box" data-on={cobrado || undefined} aria-hidden="true">
+      {cobrado && <CheckMark />}
+    </span>
+  );
+  if (!onToggle) {
+    return cobrado ? <span className="fm-check" role="img" aria-label="Ya ha venido" title="Ya ha venido">{marca}</span> : null;
+  }
+  return (
+    <button type="button" role="checkbox" aria-checked={cobrado} className="fm-check" onClick={onToggle}
+      aria-label={`${concepto}: ${cobrado ? 'ya ha venido' : 'pendiente'}`} title={cobrado ? 'Ya ha venido' : 'Pendiente: marcar como venido'}>
+      {marca}
+    </button>
+  );
+}
+
 function PlusIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>;
 }
@@ -64,12 +88,15 @@ interface Props {
   mesActual: string;
   onSelectMes: (value: string) => void;
   onNuevoMes: () => void;
+  /** Elimina el mes tras la doble confirmación; devuelve el error o null */
+  onEliminarMes: (password: string) => Promise<string | null>;
   gastos: MesGastoRow[];
   ingresos: MesIngresoRow[];
   categorias: Opcion[];
   bancos: Opcion[];
   onAddGasto: () => void;
   onEditGasto: (g: MesGastoRow) => void;
+  onToggleCobrado: (g: MesGastoRow) => void;
   onDeleteGasto: (g: MesGastoRow) => void;
   onAddIngreso: () => void;
   onEditIngreso: (i: MesIngresoRow) => void;
@@ -78,6 +105,8 @@ interface Props {
 
 export default function MesView(p: Props) {
   const puedeEditar = p.canEdit && !p.bloqueado;
+  const [soloPendientes, setSoloPendientes] = useState(false);
+  const [eliminar, setEliminar] = useState<'aviso' | 'password' | null>(null);
   const sortGas = useTableSort(p.gastos, SORT_GASTOS, { defaultKey: 'fecha', storageKey: `sort:${p.scope}-mes-gastos`, tieBreak: byId });
   const sortIng = useTableSort(p.ingresos, SORT_INGRESOS, { defaultKey: 'concepto', storageKey: `sort:${p.scope}-mes-ingresos`, tieBreak: byId });
   const conFecha = p.ingresos.some(i => i.fecha !== undefined);
@@ -87,8 +116,19 @@ export default function MesView(p: Props) {
 
   const totalIngresos = p.ingresos.reduce((s, i) => s + (i.importe || 0), 0);
   const totalGastos = p.gastos.reduce((s, g) => s + (g.importe || 0), 0);
+  const cobrados = p.gastos.filter(g => g.cobrado).length;
+  const toggleCobrado = (g: MesGastoRow) => (puedeEditar ? () => p.onToggleCobrado(g) : undefined);
+  const gastosVisibles = soloPendientes ? sortGas.sorted.filter(g => !g.cobrado) : sortGas.sorted;
+  // En escritorio va en la cabecera de Gastos; en móvil, en la barra de «Ordenar por»
+  const filtroPendientes = (
+    <button type="button" className="fm-check-filter" aria-pressed={soloPendientes} onClick={() => setSoloPendientes(v => !v)}
+      title={soloPendientes ? 'Mostrar todos los conceptos' : 'Mostrar solo los que faltan por venir'}>
+      <span className="fm-check-box" data-on={soloPendientes || undefined} aria-hidden="true">{soloPendientes && <CheckMark />}</span>
+      Solo pendientes
+    </button>
+  );
   const balance = totalIngresos - totalGastos;
-  const tasaAhorro = totalIngresos > 0 ? Math.round((balance / totalIngresos) * 100) : null;
+  const margen = totalIngresos > 0 ? Math.round((balance / totalIngresos) * 100) : null;
 
   return (
     <div>
@@ -101,17 +141,27 @@ export default function MesView(p: Props) {
         info={<InfoExpand title="¿Qué es Mes?"><p>{p.info}</p></InfoExpand>}
         stackOnMobile
         actions={<>
-          <label className="sr-only" htmlFor="selector-mes">Cambiar de mes</label>
-          <select id="selector-mes" className="fm-input !w-auto !min-h-11 !py-2 max-w-[170px] font-medium" value={p.mesActual} onChange={e => p.onSelectMes(e.target.value)}>
-            {p.meses.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-          </select>
+          {/* Eliminar y candado lejos del selector y de «Nuevo mes» para evitar toques accidentales */}
+          {p.canEdit && (
+            <IconButton label={p.bloqueado ? 'Desbloquea el mes para eliminarlo' : 'Eliminar mes'} onClick={() => setEliminar('aviso')} disabled={p.bloqueado}
+              className="!w-11 !h-11 border border-[var(--btn-border)] bg-[var(--bg-card)] hover:!text-money-out">
+              <TrashIcon />
+            </IconButton>
+          )}
           {p.canEdit && (
             <IconButton label={p.bloqueado ? 'Desbloquear mes' : 'Bloquear mes'} onClick={p.onToggleBloqueo} disabled={p.togglingBloqueo}
               className="!w-11 !h-11 border border-[var(--btn-border)] bg-[var(--bg-card)]" style={p.bloqueado ? { color: 'var(--money-out)' } : undefined}>
               {p.bloqueado ? <LockIcon /> : <UnlockIcon />}
             </IconButton>
           )}
-          {p.canEdit && <Button onClick={p.onNuevoMes} icon={<CalendarIcon />} compactOnMobile>Nuevo mes</Button>}
+          <label className="sr-only" htmlFor="selector-mes">Cambiar de mes</label>
+          <select id="selector-mes" className="fm-input !w-auto !min-h-11 !py-2 max-w-[170px] font-medium" value={p.mesActual} onChange={e => p.onSelectMes(e.target.value)}>
+            {p.meses.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+          </select>
+          {p.canEdit && (
+            <Button onClick={p.onNuevoMes} compactOnMobile className="max-sm:!w-auto max-sm:!px-3"
+              icon={<span className="inline-flex items-center gap-0.5" aria-hidden="true"><PlusIcon /><CalendarIcon /></span>}>Nuevo mes</Button>
+          )}
         </>}
       />
 
@@ -122,20 +172,24 @@ export default function MesView(p: Props) {
         note={balance > 0 ? `Superávit: te sobran ${formatEUR(balance)} este mes` : balance < 0 ? `Déficit: has gastado ${formatEUR(-balance)} más de lo que ha entrado` : 'Ingresos y gastos igualados'}
         stats={[
           { label: 'Ingresos', value: formatEUR(totalIngresos), tone: 'in', sub: `${p.ingresos.length} entrada${p.ingresos.length !== 1 ? 's' : ''}` },
-          { label: 'Gastos', value: formatEUR(totalGastos), tone: 'out', sub: `${p.gastos.length} concepto${p.gastos.length !== 1 ? 's' : ''}` },
-          { label: 'Tasa de ahorro', value: tasaAhorro === null ? '—' : `${tasaAhorro} %`, tone: tasaAhorro !== null && tasaAhorro < 0 ? 'out' : 'neutral', sub: 'sobre ingresos' },
+          { label: 'Gastos', value: formatEUR(totalGastos), tone: 'out', sub: `${p.gastos.length} concepto${p.gastos.length !== 1 ? 's' : ''}${p.gastos.length ? ` · ${cobrados} ya ${cobrados !== 1 ? 'han' : 'ha'} venido` : ''}` },
+          { label: 'Margen', value: margen === null ? '—' : `${margen} %`, tone: margen !== null && margen < 0 ? 'out' : 'neutral', sub: 'de los ingresos sin gastar' },
         ]}
       />
 
       <Section id="sec-gastos" title="Gastos" count={p.gastos.length} total={formatEUR(totalGastos)} tone="out" toneTotal
-        actions={puedeEditar ? <Button size="sm" icon={<PlusIcon />} onClick={p.onAddGasto} compactOnMobile>Añadir</Button> : undefined}>
+        beforeTotal={p.gastos.length > 0 ? <div className="max-sm:hidden">{filtroPendientes}</div> : undefined}
+        actions={puedeEditar ? <Button size="sm" icon={<PlusIcon />} onClick={p.onAddGasto} compactOnMobile className="shrink-0">Añadir</Button> : undefined}>
         {p.gastos.length === 0 ? (
           <EmptyState icon={<ReceiptIcon />} title="Aún no hay gastos este mes"
             text={puedeEditar ? 'Añade el primero. Al crear un mes también puedes importar los gastos fijos del Presupuesto.' : undefined}
             action={puedeEditar ? <Button variant="primary" icon={<PlusIcon />} onClick={p.onAddGasto}>Añadir gasto</Button> : undefined} />
+        ) : gastosVisibles.length === 0 ? (
+          <EmptyState title="Ya ha venido todo" text="No queda ningún concepto pendiente este mes."
+            action={<Button onClick={() => setSoloPendientes(false)}>Mostrar todos</Button>} />
         ) : (
           <>
-            <SortSelect opciones={ORDEN_GASTOS} sortKey={sortGas.sortKey} sortAsc={sortGas.sortAsc} onChange={(k, asc) => sortGas.setSort(k as GastoKey, asc)} />
+            <SortSelect opciones={ORDEN_GASTOS} sortKey={sortGas.sortKey} sortAsc={sortGas.sortAsc} onChange={(k, asc) => sortGas.setSort(k as GastoKey, asc)} extra={filtroPendientes} />
             <table className="fm-table">
               <thead>
                 <tr>
@@ -148,13 +202,13 @@ export default function MesView(p: Props) {
                 </tr>
               </thead>
               <tbody>
-                {sortGas.sorted.map(g => (
+                {gastosVisibles.map(g => (
                   <tr key={g.id}>
                     <td>
                       <span className="flex items-center gap-3">
                         <CategoryBadge color={cat(g.categoria)?.color} icono={cat(g.categoria)?.icono} />
                         <span className="min-w-0">
-                          <span className="block font-medium">{g.concepto}</span>
+                          <span className="flex items-center gap-1.5 font-medium">{g.concepto}<CobradoCheck concepto={g.concepto} cobrado={!!g.cobrado} onToggle={toggleCobrado(g)} /></span>
                           {g.comentario && <span className="block text-[13px] truncate max-w-xs" style={{ color: 'var(--text-muted)' }}>{g.comentario}</span>}
                         </span>
                       </span>
@@ -176,13 +230,16 @@ export default function MesView(p: Props) {
               </tbody>
             </table>
             <ul className="fm-list">
-              {sortGas.sorted.map(g => {
+              {gastosVisibles.map(g => {
                 const c = cat(g.categoria);
                 const contenido = (
                   <>
                     <CategoryBadge color={c?.color} icono={c?.icono} />
                     <span className="fm-list-body">
-                      <span className="fm-list-title">{g.concepto}</span>
+                      <span className="fm-list-title-row">
+                        <span className="fm-list-title">{g.concepto}</span>
+                        <CobradoCheck concepto={g.concepto} cobrado={!!g.cobrado} onToggle={toggleCobrado(g)} />
+                      </span>
                       <span className="fm-list-meta">
                         <span>{formatFechaCorta(g.fecha)}</span>
                         {g.categoria && <span>{g.categoria}</span>}
@@ -192,11 +249,14 @@ export default function MesView(p: Props) {
                     <span className="fm-list-amount text-money-out">{formatEUR(g.importe)}</span>
                   </>
                 );
+                // El check va dentro de la fila: la edición es un botón que cubre la fila por detrás
+                // (no se puede anidar un botón dentro de otro)
                 return (
                   <li key={g.id}>
-                    {puedeEditar
-                      ? <button type="button" className="fm-list-item" onClick={() => p.onEditGasto(g)} aria-label={`${g.concepto}, ${formatEUR(g.importe)}. Editar`}>{contenido}</button>
-                      : <div className="fm-list-item">{contenido}</div>}
+                    <div className="fm-list-item relative">
+                      {puedeEditar && <button type="button" className="fm-list-hit" onClick={() => p.onEditGasto(g)} aria-label={`${g.concepto}, ${formatEUR(g.importe)}. Editar`} />}
+                      {contenido}
+                    </div>
                   </li>
                 );
               })}
@@ -265,7 +325,46 @@ export default function MesView(p: Props) {
           </>
         )}
       </Section>
+
+      {eliminar === 'aviso' && (
+        <ConfirmDialog message={`¿Eliminar ${p.titulo}?`} confirmLabel="Continuar"
+          detail={`Se borrará el mes con sus ${p.gastos.length} gasto${p.gastos.length !== 1 ? 's' : ''} y ${p.ingresos.length} ingreso${p.ingresos.length !== 1 ? 's' : ''}. El Presupuesto y los módulos no se tocan.`}
+          onConfirm={() => setEliminar('password')} onCancel={() => setEliminar(null)} />
+      )}
+      {eliminar === 'password' && <EliminarMesModal titulo={p.titulo} onClose={() => setEliminar(null)} onConfirm={p.onEliminarMes} />}
     </div>
+  );
+}
+
+// Segundo aviso: hay que escribir la contraseña para eliminar el mes
+function EliminarMesModal({ titulo, onClose, onConfirm }: { titulo: string; onClose: () => void; onConfirm: (password: string) => Promise<string | null> }) {
+  const [password, setPassword] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState('');
+  async function confirmar() {
+    if (!password) return;
+    setEnviando(true); setError('');
+    const err = await onConfirm(password);
+    if (err) { setError(err); setEnviando(false); }
+  }
+  return (
+    <Modal title={`Eliminar ${titulo} definitivamente`} onClose={onClose} width="420px"
+      footer={<>
+        <Button onClick={onClose}>Cancelar</Button>
+        <Button variant="danger" onClick={confirmar} disabled={enviando || !password}
+          className="!bg-money-out !text-[var(--on-accent)] !border-transparent hover:!brightness-95">{enviando ? 'Eliminando…' : 'Eliminar mes'}</Button>
+      </>}>
+      <form onSubmit={e => { e.preventDefault(); confirmar(); }}>
+        <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+          Esta acción no se puede deshacer. Escribe tu contraseña para confirmar que quieres eliminar {titulo}.
+        </p>
+        <label htmlFor="em-password" className="fm-label">Contraseña</label>
+        <input id="em-password" className="fm-input" type="password" autoComplete="current-password" autoFocus
+          value={password} onChange={e => setPassword(e.target.value)} aria-invalid={!!error} aria-describedby={error ? 'em-error' : undefined} />
+        {error && <p id="em-error" className="mt-2 text-sm font-medium text-money-out" role="alert">{error}</p>}
+        <button type="submit" hidden />
+      </form>
+    </Modal>
   );
 }
 
@@ -371,9 +470,6 @@ export function NuevoMesModal({ meses, resumenFijos, presupuestoHref, onClose, o
   const now = new Date();
   const anioActual = now.getFullYear();
   const mesActual = now.getMonth() + 1;
-  // Solo se puede crear hasta el mes siguiente al actual
-  const maxAnio = mesActual === 12 ? anioActual + 1 : anioActual;
-  const maxMesDeMaxAnio = mesActual === 12 ? 1 : mesActual + 1;
 
   const [anio, setAnio] = useState(anioActual);
   const [mes, setMes] = useState(mesActual);
@@ -382,9 +478,10 @@ export function NuevoMesModal({ meses, resumenFijos, presupuestoHref, onClose, o
   const [creando, setCreando] = useState(false);
   const [error, setError] = useState('');
 
-  const maxMes = anio === maxAnio ? maxMesDeMaxAnio : anio < maxAnio ? 12 : 0;
   const existe = meses.some(m => m.anio === anio && m.mes === mes);
-  const anios = [...new Set([...meses.map(m => m.anio), anioActual, maxAnio])].sort((a, b) => b - a);
+  // Cualquier mes: diez años atrás y cinco adelante, más los años que ya tengan meses
+  const rango = Array.from({ length: 16 }, (_, i) => anioActual - 10 + i);
+  const anios = [...new Set([...meses.map(m => m.anio), ...rango])].sort((a, b) => b - a);
 
   async function enviar() {
     setCreando(true); setError('');
@@ -404,17 +501,12 @@ export function NuevoMesModal({ meses, resumenFijos, presupuestoHref, onClose, o
         <div>
           <label htmlFor="nm-mes" className="fm-label">Mes</label>
           <select id="nm-mes" className="fm-input" value={mes} onChange={e => { setMes(Number(e.target.value)); setSobrescribir(false); }}>
-            {MESES_NOMBRES.map((m, i) => <option key={m} value={i + 1} disabled={i + 1 > maxMes}>{m}</option>)}
+            {MESES_NOMBRES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
           </select>
         </div>
         <div>
           <label htmlFor="nm-anio" className="fm-label">Año</label>
-          <select id="nm-anio" className="fm-input" value={anio} onChange={e => {
-            const a = Number(e.target.value);
-            setAnio(a); setSobrescribir(false);
-            const limite = a === maxAnio ? maxMesDeMaxAnio : 12;
-            if (mes > limite) setMes(limite);
-          }}>
+          <select id="nm-anio" className="fm-input" value={anio} onChange={e => { setAnio(Number(e.target.value)); setSobrescribir(false); }}>
             {anios.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
         </div>

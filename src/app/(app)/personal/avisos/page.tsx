@@ -4,7 +4,7 @@ import { getProximosPagos } from '@/lib/avisos';
 import { rangoAvisos } from '@/lib/avisosRango';
 import AvisosClient from '@/components/avisos/AvisosClient';
 
-export const metadata = { title: 'Avisos — FinanceMe Personal' };
+export const metadata = { title: 'Personal · Avisos' };
 
 export default async function PersonalAvisosPage() {
   const session = await getSession();

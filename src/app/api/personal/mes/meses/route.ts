@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, verifyPassword } from '@/lib/auth';
 import { lineasRecurrentesMes } from '@/lib/recurrentes';
 import { mensualNecesario } from '@/lib/ahorroObjetivos';
-import { objetivoMensualAhorro } from '@/lib/ahorro';
+import { descripcionCuotaAhorro, objetivoMensualAhorro } from '@/lib/ahorro';
+import { formatEUR } from '@/lib/format';
 import {
   createPersonalMes, getPersonalGastos, createPersonalGastoMes,
   getPersonalIngresosFijos, createPersonalIngresoMes,
   getPersonalSuscripciones, getPersonalAhorro, getPersonalAhorroObjetivos, getPresupuestoAutoConfigs,
-  personalMesExists, clearPersonalMesGastos, clearPersonalMesIngresos, getMesActual,
+  personalMesExists, clearPersonalMesGastos, clearPersonalMesIngresos, deletePersonalMes, getUserById, isPersonalMesBloqueado,
 } from '@/lib/db';
 import type { PersonalGastoFijo } from '@/lib/db';
 
@@ -32,7 +33,7 @@ function applyVirtualRows(userId: number, anioNum: number, mesNum: number) {
   }
 
   const ahorro = getPersonalAhorro(userId, anioNum);
-  const ahorroMensual = objetivoMensualAhorro(ahorro.objetivo_anual, ahorro.meses, anioNum);
+  const ahorroMensual = objetivoMensualAhorro(ahorro, anioNum);
   if (ahorroMensual > 0) {
     const cfg = autoConfigs.find(c => c.tipo === 'ahorro');
     createPersonalGastoMes(userId, anioNum, mesNum, {
@@ -41,7 +42,7 @@ function applyVirtualRows(userId: number, anioNum: number, mesNum: number) {
       categoria: cfg?.categoria ?? null,
       banco: cfg?.banco ?? null,
       fecha: null,
-      comentario: `Objetivo ${ahorro.objetivo_anual} € / año, cuota recalculada según lo aportado`,
+      comentario: descripcionCuotaAhorro(ahorro, formatEUR),
     });
   }
 
@@ -70,12 +71,8 @@ export async function POST(request: NextRequest) {
   const mesNum = Number(mes);
   const anioNum = Number(anio);
 
-  const { mes: mesActual, anio: anioActual } = getMesActual();
-  let maxAnio = anioActual;
-  let maxMes = mesActual + 1; // mes actual + 1 (siguiente mes permitido)
-  if (maxMes > 12) { maxMes -= 12; maxAnio += 1; }
-  if (anioNum > maxAnio || (anioNum === maxAnio && mesNum > maxMes)) {
-    return NextResponse.json({ error: 'Solo se puede crear como máximo el mes siguiente al actual' }, { status: 400 });
+  if (!Number.isInteger(mesNum) || mesNum < 1 || mesNum > 12 || !Number.isInteger(anioNum) || anioNum < 1900 || anioNum > 2999) {
+    return NextResponse.json({ error: 'Mes no válido' }, { status: 400 });
   }
 
   const alreadyExists = personalMesExists(session.id, mesNum, anioNum);
@@ -133,4 +130,24 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, anio: anioNum, mes: mesNum });
+}
+
+// Elimina el mes y todos sus movimientos. Exige la contraseña del usuario y que el mes esté desbloqueado
+export async function DELETE(request: NextRequest) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+
+  const { mes, anio, password } = await request.json().catch(() => ({}));
+  const mesNum = Number(mes);
+  const anioNum = Number(anio);
+  if (!personalMesExists(session.id, mesNum, anioNum)) return NextResponse.json({ error: 'El mes no existe' }, { status: 404 });
+  if (isPersonalMesBloqueado(session.id, anioNum, mesNum)) {
+    return NextResponse.json({ error: 'El mes está bloqueado: desbloquéalo antes de eliminarlo' }, { status: 409 });
+  }
+  const user = getUserById(session.id);
+  if (!user || typeof password !== 'string' || !verifyPassword(password, user.password_hash)) {
+    return NextResponse.json({ error: 'La contraseña no es correcta' }, { status: 403 });
+  }
+  deletePersonalMes(session.id, mesNum, anioNum);
+  return NextResponse.json({ ok: true });
 }

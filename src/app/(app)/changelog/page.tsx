@@ -2,7 +2,7 @@ import { Sparkles, Wrench, Bug, type LucideIcon } from 'lucide-react';
 import VersionSeenMarker from '@/components/VersionSeenMarker';
 import PageHeader from '@/components/ui/PageHeader';
 
-export const metadata = { title: 'Novedades — FinanceMe' };
+export const metadata = { title: 'Novedades' };
 
 type Tipo = 'Novedades' | 'Mejoras' | 'Correcciones';
 
@@ -27,9 +27,42 @@ const TIPO_META: Record<Tipo, { color: string; Icon: LucideIcon }> = {
 
 const RELEASES: Release[] = [
   {
-    version: 'v1.2.0',
-    fecha: '26 de septiembre de 2026',
+    version: 'v0.1.4',
+    fecha: '5 de octubre de 2026',
     destacado: true,
+    intro: 'Control de lo que ya ha venido en el Mes, crear y eliminar cualquier mes, Recurrentes más flexibles y objetivo de ahorro mensual. Las versiones pasan a numerarse como 0.1.x.',
+    grupos: [
+      {
+        tipo: 'Novedades',
+        items: [
+          'Mes: check en cada gasto para marcar lo que ya ha venido y filtro «Solo pendientes».',
+          'Mes: crea cualquier mes, pasado o futuro, y elimínalo con doble confirmación y tu contraseña.',
+          'Recurrentes: periodicidad bimensual y elección de los meses en que se cobra cada uno.',
+          'Ahorro anual: el objetivo puede ser anual o mensual.',
+        ],
+      },
+      {
+        tipo: 'Mejoras',
+        items: [
+          'Notificaciones de Avisos más fiables.',
+          'Presupuesto: las filas automáticas pasan a llamarse Modulares.',
+          'Recurrentes en Total mensual: sin categoría ni banco por recurrente.',
+          'Mes: «Tasa de ahorro» pasa a llamarse «Margen».',
+          'Selectores más visibles en todos los temas, títulos de pestaña uniformes, textos de ayuda más cortos e inicio de sesión renovado.',
+        ],
+      },
+      {
+        tipo: 'Correcciones',
+        items: [
+          'Un mes pasado que desbloqueabas ya no se vuelve a bloquear solo al recargar.',
+          'Aviso de la consola en la barra de progreso de Ahorro anual.',
+        ],
+      },
+    ],
+  },
+  {
+    version: 'v0.1.3',
+    fecha: '26 de septiembre de 2026',
     intro: 'Nuevo diseño más sobrio y profesional, pensado también para el móvil, nueva sección Avisos con notificaciones en el dispositivo, Módulos para agrupar Registros, Recurrentes, Ahorro anual y Objetivos, Recurrentes también en Hogar, tablas ordenables y filtros avanzados en Estadísticas.',
     grupos: [
       {
@@ -82,7 +115,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: 'v1.1.1',
+    version: 'v0.1.2',
     fecha: '1 de agosto de 2026',
     intro: 'Tanda de correcciones tras el cambio de mes de julio a agosto: suscripciones que desaparecían del calendario, la cuota de Ahorro mensual mal calculada, el Mes de Hogar que se quedaba "atascado", y duplicados al importar datos.',
     grupos: [
@@ -102,7 +135,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: 'v1.1.0',
+    version: 'v0.1.1',
     fecha: '31 de julio de 2026',
     intro: 'Nueva sección de Apariencia en Mi Perfil (temas, modo claro/oscuro/sistema y colores de acento), candado por Mes, Objetivos de ahorro con botones de añadir/retirar, y un Resumen renovado en Personal y Hogar con categorías con más gasto y filtros de Estadísticas más completos.',
     grupos: [
@@ -145,7 +178,7 @@ const RELEASES: Release[] = [
     ],
   },
   {
-    version: 'v1.0.0',
+    version: 'v0.1.0',
     fecha: '18 de julio de 2026',
     intro: 'Primera versión estable de FinanceMe: Modo Personal completo, mejoras significativas al Modo Hogar, Objetivos de ahorro, tutorial de bienvenida y una notable tanda de fiabilidad en Presupuesto, Gestión y Mes.',
     grupos: [

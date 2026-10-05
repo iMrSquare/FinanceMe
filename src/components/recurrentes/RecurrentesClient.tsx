@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { BackToModulos } from '@/components/modulos/ModulosHub';
 import { SortableTh, useTableSort, type SortAccessor } from '@/components/SortableTable';
 import { nextBillingDate } from '@/lib/billing';
-import { PERIODICIDAD_LABEL, totalMensualRecurrentes } from '@/lib/recurrentes';
+import { admiteExclusionMeses, PERIODICIDAD_LABEL, totalMensualRecurrentes } from '@/lib/recurrentes';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import InfoExpand from '@/components/InfoExpand';
 import { PencilIcon, RepeatIcon, TrashIcon } from '@/components/icons';
@@ -14,12 +14,16 @@ import Summary from '@/components/ui/Summary';
 import Section from '@/components/ui/Section';
 import SortSelect from '@/components/ui/SortSelect';
 import Modal from '@/components/ui/Modal';
+import Segmented from '@/components/ui/Segmented';
 import { EmptyState, SkeletonRows, useToast } from '@/components/ui/Feedback';
 import { formatEUR } from '@/lib/format';
 import { CategoryBadge, BankChip } from '@/components/ui/Chips';
 import { cobroTexto } from './RecurrentesPresupuesto';
 
-type Periodicidad = 'mensual' | 'trimestral' | 'anual';
+type Periodicidad = 'mensual' | 'bimensual' | 'trimestral' | 'anual';
+const PERIODICIDADES: Periodicidad[] = ['mensual', 'bimensual', 'trimestral', 'anual'];
+const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const TODOS_LOS_MESES = MESES_CORTOS.map((_, i) => i + 1);
 
 export interface Recurrente {
   id: number;
@@ -27,6 +31,8 @@ export interface Recurrente {
   importe: number;
   cobro: string | null;
   periodicidad: Periodicidad;
+  /** Meses (1-12) en que se cobra, separados por comas; null = todos */
+  meses: string | null;
   comentario: string | null;
   categoria: string | null;
   banco: string | null;
@@ -34,11 +40,11 @@ export interface Recurrente {
 
 interface Opcion { nombre: string; color?: string; icono?: string | null }
 
-const proximo = (r: Recurrente) => (r.cobro ? nextBillingDate(r.cobro, r.periodicidad) : null);
+const proximo = (r: Recurrente) => nextBillingDate(r);
 const fmtProximo = (r: Recurrente) => proximo(r)?.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) ?? '—';
 
 type SortKey = 'nombre' | 'importe' | 'periodicidad' | 'cobro';
-const PERIODO_ORDEN: Record<string, number> = { mensual: 1, trimestral: 2, anual: 3 };
+const PERIODO_ORDEN: Record<string, number> = { mensual: 1, bimensual: 2, trimestral: 3, anual: 4 };
 const SORT: Record<SortKey, SortAccessor<Recurrente>> = {
   nombre: { get: r => r.nombre, type: 'text' },
   importe: { get: r => r.importe, type: 'number' },
@@ -53,9 +59,20 @@ const ORDEN = [
   { key: 'periodicidad', asc: true, label: 'Periodicidad' },
 ];
 
-interface RecForm { id?: number; nombre: string; importe: string; cobro: string; periodicidad: Periodicidad; comentario: string; categoria: string; banco: string }
-const emptyForm = (): RecForm => ({ nombre: '', importe: '', cobro: '', periodicidad: 'mensual', comentario: '', categoria: '', banco: '' });
-const toForm = (r: Recurrente): RecForm => ({ id: r.id, nombre: r.nombre, importe: String(r.importe), cobro: r.cobro ?? '', periodicidad: r.periodicidad, comentario: r.comentario ?? '', categoria: r.categoria ?? '', banco: r.banco ?? '' });
+interface RecForm { id?: number; nombre: string; importe: string; cobro: string; periodicidad: Periodicidad; meses: number[]; comentario: string; categoria: string; banco: string }
+const emptyForm = (): RecForm => ({ nombre: '', importe: '', cobro: '', periodicidad: 'mensual', meses: TODOS_LOS_MESES, comentario: '', categoria: '', banco: '' });
+const toForm = (r: Recurrente): RecForm => ({
+  id: r.id, nombre: r.nombre, importe: String(r.importe), cobro: r.cobro ?? '', periodicidad: r.periodicidad,
+  meses: r.meses ? r.meses.split(',').map(Number) : TODOS_LOS_MESES, comentario: r.comentario ?? '', categoria: r.categoria ?? '', banco: r.banco ?? '',
+});
+
+/** «Sin ago, dic» o «Solo ene, jul»; vacío si se cobra todos los meses */
+function textoMeses(r: Pick<Recurrente, 'meses' | 'periodicidad'>): string {
+  if (!r.meses || !admiteExclusionMeses(r.periodicidad)) return '';
+  const marcados = r.meses.split(',').map(Number);
+  const lista = (ms: number[]) => ms.map(m => MESES_CORTOS[m - 1].toLowerCase()).join(', ');
+  return marcados.length <= 6 ? `Solo ${lista(marcados)}` : `Sin ${lista(TODOS_LOS_MESES.filter(m => !marcados.includes(m)))}`;
+}
 
 /** Endpoints según el ámbito */
 const API = {
@@ -78,12 +95,16 @@ function PeriodoBadge({ p }: { p: Periodicidad }) {
   );
 }
 
-function RecurrenteModal({ form, setForm, onClose, onSave, saving, placeholder, categorias, bancos }: {
+function RecurrenteModal({ form, setForm, onClose, onSave, saving, placeholder, categorias, bancos, conCategoriaBanco }: {
   form: RecForm; setForm: (f: RecForm) => void; onClose: () => void; onSave: () => void; saving: boolean; placeholder: string;
   categorias: Opcion[]; bancos: Opcion[];
+  /** En «Total mensual» la categoría y el banco los pone la fila del Presupuesto */
+  conCategoriaBanco: boolean;
 }) {
   const set = (k: keyof RecForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value });
-  const valido = form.nombre.trim() && form.importe !== '';
+  const conMeses = admiteExclusionMeses(form.periodicidad);
+  const valido = form.nombre.trim() && form.importe !== '' && (!conMeses || form.meses.length > 0);
+  const toggleMes = (m: number) => setForm({ ...form, meses: form.meses.includes(m) ? form.meses.filter(x => x !== m) : [...form.meses, m].sort((a, b) => a - b) });
   return (
     <Modal title={form.id ? 'Editar recurrente' : 'Nuevo recurrente'} onClose={onClose}
       footer={<>
@@ -104,6 +125,7 @@ function RecurrenteModal({ form, setForm, onClose, onSave, saving, placeholder, 
             <label htmlFor="rec-periodicidad" className="fm-label">Periodicidad</label>
             <select id="rec-periodicidad" className="fm-input" value={form.periodicidad} onChange={set('periodicidad')}>
               <option value="mensual">Mensual</option>
+              <option value="bimensual">Bimensual (cada 2 meses)</option>
               <option value="trimestral">Trimestral</option>
               <option value="anual">Anual</option>
             </select>
@@ -114,7 +136,27 @@ function RecurrenteModal({ form, setForm, onClose, onSave, saving, placeholder, 
           <input id="rec-cobro" className="fm-input" type="date" value={form.cobro} onChange={set('cobro')} />
           <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>A partir de esta fecha se calculan los siguientes cobros, los avisos y el día con que se añade al Mes.</p>
         </div>
-        <div className="grid grid-cols-2 gap-3 mb-3.5">
+        {conMeses && (
+          <fieldset className="mb-3.5">
+            <legend className="fm-label">Meses en que se cobra</legend>
+            <div className="grid grid-cols-6 gap-1.5">
+              {MESES_CORTOS.map((nombre, i) => {
+                const activo = form.meses.includes(i + 1);
+                return (
+                  <button key={nombre} type="button" aria-pressed={activo} onClick={() => toggleMes(i + 1)} className="fm-mes-chip">
+                    {nombre}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs mt-1.5" style={{ color: form.meses.length ? 'var(--text-muted)' : 'var(--money-out)' }}>
+              {form.meses.length === 0 ? 'Marca al menos un mes.'
+                : form.periodicidad === 'bimensual' ? 'Solo se añade en los meses de su ciclo que estén marcados.'
+                : 'Desmarca los meses en que no se cobra: en esos meses no se añade al Mes ni avisa.'}
+            </p>
+          </fieldset>
+        )}
+        {conCategoriaBanco && <div className="grid grid-cols-2 gap-3 mb-3.5">
           <div>
             <label htmlFor="rec-categoria" className="fm-label">Categoría</label>
             <select id="rec-categoria" className="fm-input" value={form.categoria} onChange={set('categoria')}>
@@ -129,7 +171,7 @@ function RecurrenteModal({ form, setForm, onClose, onSave, saving, placeholder, 
               {bancos.map(b => <option key={b.nombre} value={b.nombre}>{b.nombre}</option>)}
             </select>
           </div>
-        </div>
+        </div>}
         <div>
           <label htmlFor="rec-comentario" className="fm-label">Comentario</label>
           <input id="rec-comentario" className="fm-input" value={form.comentario} onChange={set('comentario')} placeholder="Opcional" />
@@ -174,7 +216,9 @@ export default function RecurrentesClient({ scope, canEdit = true }: { scope: 'p
     toast(next ? 'Se añadirán desglosados' : 'Se añadirán como total mensual');
   }
 
-  const cat = (n: string | null) => categorias.find(c => c.nombre === n);
+  // En «Total mensual» la categoría y el banco los pone la fila del Presupuesto: no se muestran por recurrente
+  const conCatBanco = desglose !== false;
+  const cat = (n: string | null) => (conCatBanco ? categorias.find(c => c.nombre === n) : undefined);
   const banco = (n: string | null) => bancos.find(b => b.nombre === n);
 
   const lista = items ?? [];
@@ -185,7 +229,7 @@ export default function RecurrentesClient({ scope, canEdit = true }: { scope: 'p
   async function guardar() {
     if (!modal) return;
     setSaving(true);
-    const body = { ...modal, importe: Number(modal.importe), cobro: modal.cobro || null, comentario: modal.comentario || null, categoria: modal.categoria || null, banco: modal.banco || null };
+    const body = { ...modal, importe: Number(modal.importe), cobro: modal.cobro || null, meses: modal.meses, comentario: modal.comentario || null, categoria: modal.categoria || null, banco: modal.banco || null };
     const res = await fetch(modal.id ? `${apiBase}/${modal.id}` : apiBase, {
       method: modal.id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     });
@@ -215,10 +259,10 @@ export default function RecurrentesClient({ scope, canEdit = true }: { scope: 'p
         info={
           <InfoExpand title="¿Qué son los Recurrentes?">
             <p>
-              Los pagos que se repiten cada mes, trimestre o año
-              {scope === 'personal' ? ' (suscripciones, seguros, cuotas…)' : ' (seguros del hogar, comunidad, IBI, mantenimientos…)'}.
-              En el Presupuesto y el Mes se añaden como una línea con el total mensual o desglosados, cada uno con su fecha de cobro,
-              categoría y banco; lo eliges aquí abajo. Sus próximos cobros aparecen también en Avisos.
+              Pagos que se repiten cada mes, cada 2 meses, cada trimestre o cada año
+              {scope === 'personal' ? ' (suscripciones, seguros, cuotas…)' : ' (seguros, comunidad, IBI…)'}.
+              Puedes quitar los meses en que no se cobran. Abajo eliges si van al Presupuesto en una sola línea o uno a uno.
+              También salen en Avisos.
             </p>
           </InfoExpand>
         }
@@ -229,13 +273,13 @@ export default function RecurrentesClient({ scope, canEdit = true }: { scope: 'p
         label="Coste mensual"
         value={formatEUR(totalMensual)}
         note={`${formatEUR(totalMensual * 12)} al año${siguiente ? ` · próximo: ${siguiente.nombre}, ${fmtProximo(siguiente)}` : ''}`}
-        stats={(['mensual', 'trimestral', 'anual'] as const).map(p => {
+        stats={PERIODICIDADES.map(p => {
           const grupo = lista.filter(r => r.periodicidad === p);
           const suma = grupo.reduce((t, r) => t + r.importe, 0);
           return {
-            label: { mensual: 'Mensuales', trimestral: 'Trimestrales', anual: 'Anuales' }[p],
+            label: { mensual: 'Mensuales', bimensual: 'Bimensuales', trimestral: 'Trimestrales', anual: 'Anuales' }[p],
             value: String(grupo.length),
-            sub: grupo.length ? `${formatEUR(suma)} ${{ mensual: 'al mes', trimestral: 'al trimestre', anual: 'al año' }[p]}` : 'ninguno',
+            sub: grupo.length ? `${formatEUR(suma)} ${{ mensual: 'al mes', bimensual: 'cada 2 meses', trimestral: 'al trimestre', anual: 'al año' }[p]}` : 'ninguno',
           };
         })}
       />
@@ -246,21 +290,16 @@ export default function RecurrentesClient({ scope, canEdit = true }: { scope: 'p
             <h2 id="rec-modo" className="font-semibold" style={{ color: 'var(--text-primary)' }}>En el Presupuesto y el Mes</h2>
             <p className="text-[13px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
               {desglose === null ? 'Cargando…' : desglose
-                ? 'Cada recurrente es una línea con su fecha de cobro, categoría y banco. Los trimestrales y anuales solo se añaden en el mes en que se cobran.'
-                : 'Una sola línea con el equivalente mensual de todos (anuales ÷ 12, trimestrales ÷ 3). Su categoría y banco se configuran en el Presupuesto.'}
+                ? 'Una línea por recurrente, con su fecha, categoría y banco, solo en los meses en que se cobra.'
+                : 'Una sola línea con lo que cuestan todos al mes. Su categoría y banco se eligen en el Presupuesto.'}
             </p>
           </div>
-          <div className="flex p-1 gap-1 rounded-[var(--radius-control)] md:w-80 shrink-0" style={{ background: 'var(--btn-hover)' }} role="group" aria-labelledby="rec-modo">
-            {[{ v: false, label: 'Total mensual' }, { v: true, label: 'Desglosado' }].map(o => {
-              const activo = desglose === o.v;
-              return (
-                <button key={o.label} type="button" aria-pressed={activo} disabled={!canEdit || desglose === null} onClick={() => !activo && cambiarModo(o.v)}
-                  className="flex-1 min-h-10 rounded-[calc(var(--radius-control)-2px)] text-sm font-medium transition-colors cursor-pointer disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-[var(--accent-mode)]"
-                  style={activo ? { background: 'var(--bg-card)', color: 'var(--text-primary)', boxShadow: '0 1px 2px var(--shadow-card)' } : { color: 'var(--text-muted)' }}>
-                  {o.label}
-                </button>
-              );
-            })}
+          <div className="md:w-80 shrink-0" role="group" aria-labelledby="rec-modo">
+            <Segmented<'total' | 'desglose'>
+              options={[{ id: 'total', label: 'Total mensual' }, { id: 'desglose', label: 'Desglosado' }]}
+              value={desglose ? 'desglose' : 'total'}
+              onChange={v => { if ((v === 'desglose') !== desglose) cambiarModo(v === 'desglose'); }}
+              disabled={() => !canEdit || desglose === null} />
           </div>
         </div>
       </section>
@@ -279,8 +318,8 @@ export default function RecurrentesClient({ scope, canEdit = true }: { scope: 'p
                   <SortableTh label="Recurrente" sortKey="nombre" activeKey={sort.sortKey} asc={sort.sortAsc} onSort={sort.toggleSort} />
                   <SortableTh label="Periodicidad" sortKey="periodicidad" activeKey={sort.sortKey} asc={sort.sortAsc} onSort={sort.toggleSort} />
                   <SortableTh label="Próximo cobro" sortKey="cobro" activeKey={sort.sortKey} asc={sort.sortAsc} onSort={sort.toggleSort} />
-                  <th>Categoría</th>
-                  <th>Banco</th>
+                  {conCatBanco && <th>Categoría</th>}
+                  {conCatBanco && <th>Banco</th>}
                   <SortableTh label="Importe" sortKey="importe" activeKey={sort.sortKey} asc={sort.sortAsc} onSort={sort.toggleSort} align="right" className="fm-num" />
                   {canEdit && <th style={{ width: 96 }} aria-label="Acciones" />}
                 </tr>
@@ -297,10 +336,13 @@ export default function RecurrentesClient({ scope, canEdit = true }: { scope: 'p
                         </span>
                       </span>
                     </td>
-                    <td><PeriodoBadge p={r.periodicidad} /></td>
+                    <td>
+                      <PeriodoBadge p={r.periodicidad} />
+                      {textoMeses(r) && <span className="block text-[13px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{textoMeses(r)}</span>}
+                    </td>
                     <td className="whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{fmtProximo(r)}</td>
-                    <td style={{ color: r.categoria ? 'var(--text-secondary)' : 'var(--text-muted)' }}>{r.categoria ?? '—'}</td>
-                    <td><BankChip nombre={r.banco} color={banco(r.banco)?.color} /></td>
+                    {conCatBanco && <td style={{ color: r.categoria ? 'var(--text-secondary)' : 'var(--text-muted)' }}>{r.categoria ?? '—'}</td>}
+                    {conCatBanco && <td><BankChip nombre={r.banco} color={banco(r.banco)?.color} /></td>}
                     <td className="fm-num">{formatEUR(r.importe)}</td>
                     {canEdit && (
                       <td>
@@ -323,9 +365,10 @@ export default function RecurrentesClient({ scope, canEdit = true }: { scope: 'p
                       <span className="fm-list-title">{r.nombre}</span>
                       <span className="fm-list-meta">
                         {r.periodicidad !== 'mensual' && <span>{PERIODICIDAD_LABEL[r.periodicidad]}</span>}
+                        {textoMeses(r) && <span>{textoMeses(r)}</span>}
                         <span>{r.periodicidad === 'mensual' ? cobroTexto(r) ?? 'Sin fecha' : `Próximo: ${fmtProximo(r)}`}</span>
-                        {r.categoria && <span>{r.categoria}</span>}
-                        {r.banco && <BankChip nombre={r.banco} color={banco(r.banco)?.color} />}
+                        {conCatBanco && r.categoria && <span>{r.categoria}</span>}
+                        {conCatBanco && r.banco && <BankChip nombre={r.banco} color={banco(r.banco)?.color} />}
                       </span>
                     </span>
                     <span className="fm-list-amount">{formatEUR(r.importe)}</span>
@@ -345,7 +388,7 @@ export default function RecurrentesClient({ scope, canEdit = true }: { scope: 'p
       </Section>
 
       {modal && <RecurrenteModal form={modal} setForm={setModal} onClose={() => setModal(null)} onSave={guardar} saving={saving}
-        placeholder={scope === 'personal' ? 'Ej: Netflix' : 'Ej: Seguro del hogar'} categorias={categorias} bancos={bancos} />}
+        placeholder={scope === 'personal' ? 'Ej: Netflix' : 'Ej: Seguro del hogar'} categorias={categorias} bancos={bancos} conCategoriaBanco={conCatBanco} />}
       {borrar && <ConfirmDialog message={`¿Eliminar «${borrar.nombre}»?`} onConfirm={() => eliminar(borrar)} onCancel={() => setBorrar(null)} />}
     </div>
   );

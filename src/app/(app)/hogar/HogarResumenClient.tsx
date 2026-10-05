@@ -64,7 +64,7 @@ export default function HogarResumenClient({
   const recCfg = autoConfigs.find(c => c.tipo === 'recurrentes') ?? { banco: null, categoria: null, redondeo: 1, desglose: 0 };
   const recVirtual = importeVirtualRecurrentes(recurrentes, recCfg);
   const objetivosVirtual = objetivosAhorro.reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
-  const ahorroVirtual = objetivoMensualAhorro(ahorro.objetivo_anual, ahorro.meses, anioActual);
+  const ahorroVirtual = objetivoMensualAhorro(ahorro, anioActual);
   const presupuestoTotal = fijosGasto.reduce((s, f) => s + f.importe, 0) + recVirtual + objetivosVirtual + ahorroVirtual;
   const presupuestoConceptos = fijosGasto.length + (recVirtual > 0 ? (recCfg.desglose ? recurrentes.filter(r => r.importe > 0).length : 1) : 0)
     + (objetivosVirtual > 0 ? 1 : 0) + (ahorroVirtual > 0 ? 1 : 0);
@@ -78,7 +78,7 @@ export default function HogarResumenClient({
   const pagos: Pago[] = [
     ...gastoPagos,
     ...recurrentes.flatMap(r => {
-      const day = r.cobro ? billingDayInMonth(r.cobro, r.periodicidad, hoy.getFullYear(), hoy.getMonth()) : null;
+      const day = billingDayInMonth(r, hoy.getFullYear(), hoy.getMonth());
       if (day === null || gastoPagos.some(g => g.nombre === r.nombre && g.day === day)) return [];
       return [{ day, nombre: r.nombre, importe: r.importe, tipo: 'recurrente' as const }];
     }),
@@ -92,7 +92,7 @@ export default function HogarResumenClient({
       <PageHeader
         title="Resumen"
         subtitle="Las finanzas de la casa de un vistazo"
-        info={<InfoExpand title="¿Qué es Resumen?"><p>La portada del Hogar: el balance del mes, lo presupuestado y cómo va el ahorro de la casa. Toca cualquier cifra para ir a su sección. Debajo, los próximos pagos, los recurrentes, las categorías con más gasto y los últimos registros de luz y agua.</p></InfoExpand>}
+        info={<InfoExpand title="¿Qué es Resumen?"><p>La casa de un vistazo: balance, presupuesto, ahorro, próximos pagos y registros de luz y agua. Toca una cifra para ir a su sección.</p></InfoExpand>}
         actions={<Button href="/hogar/estadisticas" icon={<EstadisticasIcon />} compactOnMobile>Estadísticas</Button>}
       />
 

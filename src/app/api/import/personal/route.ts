@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sugerirIcono } from '@/lib/categoryIcons';
 import { getDb } from '@/lib/db';
+import { modoAhorro } from '@/lib/ahorro';
 import { getSession } from '@/lib/auth';
 
 // Lanzada al final de una pasada en modo "check" para forzar que better-sqlite3
@@ -91,13 +92,13 @@ function runImport(
       if (existing) {
         bump('suscripciones');
         if (opts.overwrite) {
-          db.prepare('UPDATE personal_suscripciones SET importe = ?, cobro = ?, periodicidad = ?, comentario = ?, categoria = ?, banco = ? WHERE id = ?')
-            .run(s.importe, s.cobro ?? null, s.periodicidad, s.comentario ?? null, s.categoria ?? null, s.banco ?? null, existing.id);
+          db.prepare('UPDATE personal_suscripciones SET importe = ?, cobro = ?, periodicidad = ?, meses = ?, comentario = ?, categoria = ?, banco = ? WHERE id = ?')
+            .run(s.importe, s.cobro ?? null, s.periodicidad, s.meses ?? null, s.comentario ?? null, s.categoria ?? null, s.banco ?? null, existing.id);
           importado++;
         }
       } else {
-        db.prepare('INSERT INTO personal_suscripciones (user_id, nombre, importe, cobro, periodicidad, comentario, categoria, banco) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-          .run(userId, s.nombre, s.importe, s.cobro ?? null, s.periodicidad, s.comentario ?? null, s.categoria ?? null, s.banco ?? null);
+        db.prepare('INSERT INTO personal_suscripciones (user_id, nombre, importe, cobro, periodicidad, meses, comentario, categoria, banco) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          .run(userId, s.nombre, s.importe, s.cobro ?? null, s.periodicidad, s.meses ?? null, s.comentario ?? null, s.categoria ?? null, s.banco ?? null);
         importado++;
       }
     }
@@ -108,10 +109,10 @@ function runImport(
       const existing = db.prepare('SELECT id FROM personal_ahorro WHERE user_id = ? AND anio = ?').get(userId, a.anio) as { id: number } | undefined;
       if (existing) {
         bump('ahorro');
-        if (opts.overwrite) { db.prepare('UPDATE personal_ahorro SET objetivo_anual = ? WHERE id = ?').run(a.objetivo_anual, existing.id); importado++; }
+        if (opts.overwrite) { db.prepare('UPDATE personal_ahorro SET objetivo_anual = ?, modo = ? WHERE id = ?').run(a.objetivo_anual, modoAhorro(a.modo), existing.id); importado++; }
         ahorroIdMap[a.id as number] = existing.id;
       } else {
-        const res = db.prepare('INSERT INTO personal_ahorro (user_id, anio, objetivo_anual) VALUES (?, ?, ?)').run(userId, a.anio, a.objetivo_anual);
+        const res = db.prepare('INSERT INTO personal_ahorro (user_id, anio, objetivo_anual, modo) VALUES (?, ?, ?, ?)').run(userId, a.anio, a.objetivo_anual, modoAhorro(a.modo));
         ahorroIdMap[a.id as number] = Number(res.lastInsertRowid);
         importado++;
       }
@@ -180,8 +181,8 @@ function runImport(
           gastosDupMonths.add(`cleared:${key}`);
         }
       }
-      db.prepare('INSERT INTO personal_gastos_mes (user_id, anio, mes, concepto, importe, categoria, banco, fecha, comentario) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(userId, g.anio, g.mes, g.concepto, g.importe, g.categoria ?? null, g.banco ?? null, g.fecha ?? null, g.comentario ?? null);
+      db.prepare('INSERT INTO personal_gastos_mes (user_id, anio, mes, concepto, importe, categoria, banco, fecha, comentario, cobrado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(userId, g.anio, g.mes, g.concepto, g.importe, g.categoria ?? null, g.banco ?? null, g.fecha ?? null, g.comentario ?? null, g.cobrado ? 1 : 0);
       importado++;
     }
 

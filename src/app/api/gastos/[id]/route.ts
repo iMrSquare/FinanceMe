@@ -19,6 +19,20 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   return NextResponse.json({ ok: true });
 }
 
+// Check «ya ha venido» del gasto
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireEditor();
+  if (auth instanceof NextResponse) return auth;
+  const { id } = await params;
+  const mesId = getMesIdDeGasto(Number(id));
+  if (mesId != null && isMesBloqueado(mesId)) {
+    return NextResponse.json({ error: 'Este mes está bloqueado' }, { status: 403 });
+  }
+  const { cobrado } = await req.json();
+  getDb().prepare('UPDATE gastos SET cobrado = ? WHERE id = ?').run(cobrado ? 1 : 0, id);
+  return NextResponse.json({ ok: true });
+}
+
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireEditor();
   if (auth instanceof NextResponse) return auth;

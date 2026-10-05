@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { isHogarActivated } from '@/lib/db';
 import PerfilClient from './PerfilClient';
 
-export const metadata = { title: 'Mi perfil — FinanceMe' };
+export const metadata = { title: 'Mi perfil' };
 
 export default async function PerfilPage() {
   const session = await getSession();

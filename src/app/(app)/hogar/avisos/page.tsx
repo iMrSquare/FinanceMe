@@ -2,7 +2,7 @@ import { getProximosPagos } from '@/lib/avisos';
 import { rangoAvisos } from '@/lib/avisosRango';
 import AvisosClient from '@/components/avisos/AvisosClient';
 
-export const metadata = { title: 'Avisos — FinanceMe Hogar' };
+export const metadata = { title: 'Hogar · Avisos' };
 export const dynamic = 'force-dynamic';
 
 export default function HogarAvisosPage() {

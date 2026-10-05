@@ -6,7 +6,7 @@ import {
 } from '@/lib/db';
 import HogarResumenClient from './HogarResumenClient';
 
-export const metadata = { title: 'Resumen — FinanceMe Hogar' };
+export const metadata = { title: 'Hogar · Resumen' };
 
 export default function HogarPage() {
   seedDatabase();

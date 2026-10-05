@@ -23,6 +23,7 @@ interface Fuente {
   cobro: string | null;
   periodicidad: string;
   vencimiento?: string | null;
+  meses?: string | null;
 }
 
 export const toISODate = (d: Date) =>
@@ -39,13 +40,13 @@ function fuentes(scope: AvisoScope, userId?: number): Fuente[] {
   if (scope === 'hogar') {
     return [
       ...getFijos('gasto').map(f => ({ origen: 'presupuesto' as const, id: f.id, concepto: f.gasto, importe: f.importe, cobro: f.cobro, periodicidad: 'mensual', vencimiento: f.vencimiento })),
-      ...getHogarRecurrentes().map(r => ({ origen: 'recurrente' as const, id: r.id, concepto: r.nombre, importe: r.importe, cobro: r.cobro, periodicidad: r.periodicidad })),
+      ...getHogarRecurrentes().map(r => ({ origen: 'recurrente' as const, id: r.id, concepto: r.nombre, importe: r.importe, cobro: r.cobro, periodicidad: r.periodicidad, meses: r.meses })),
     ];
   }
   if (userId === undefined) return [];
   return [
     ...getPersonalGastos(userId).map(f => ({ origen: 'presupuesto' as const, id: f.id, concepto: f.gasto, importe: f.importe, cobro: f.cobro, periodicidad: 'mensual', vencimiento: f.vencimiento })),
-    ...getPersonalSuscripciones(userId).map(r => ({ origen: 'recurrente' as const, id: r.id, concepto: r.nombre, importe: r.importe, cobro: r.cobro, periodicidad: r.periodicidad })),
+    ...getPersonalSuscripciones(userId).map(r => ({ origen: 'recurrente' as const, id: r.id, concepto: r.nombre, importe: r.importe, cobro: r.cobro, periodicidad: r.periodicidad, meses: r.meses })),
   ];
 }
 
@@ -55,7 +56,7 @@ export function getProximosPagos(scope: AvisoScope, userId: number | undefined, 
   for (const f of fuentes(scope, userId)) {
     if (!f.cobro || f.importe <= 0) continue;
     const href = f.origen === 'presupuesto' ? `/${scope}/presupuesto` : `/${scope}/modulos/recurrentes`;
-    for (const d of billingDatesBetween(f.cobro, f.periodicidad, desde, hasta)) {
+    for (const d of billingDatesBetween(f, desde, hasta)) {
       if (!vigente(d, f.vencimiento)) continue;
       const fecha = toISODate(d);
       pagos.push({ clave: `${f.origen}:${f.id}:${fecha}`, origen: f.origen, id: f.id, concepto: f.concepto, importe: f.importe, fecha, periodicidad: f.periodicidad, href });

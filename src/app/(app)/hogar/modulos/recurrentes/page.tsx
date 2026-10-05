@@ -1,7 +1,7 @@
 import { getSession, canEdit } from '@/lib/auth';
 import RecurrentesClient from '@/components/recurrentes/RecurrentesClient';
 
-export const metadata = { title: 'Recurrentes — FinanceMe Hogar' };
+export const metadata = { title: 'Hogar · Recurrentes' };
 
 export default async function HogarRecurrentesPage() {
   const session = await getSession();

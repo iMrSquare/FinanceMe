@@ -71,7 +71,7 @@ export default function InicioPersonalClient() {
   // Presupuesto mensual: fijos + filas automáticas (recurrentes, ahorro y objetivos)
   const suscCfg: RecurrentesConfig = autoConfigs.find(c => c.tipo === 'suscripciones') ?? { banco: null, categoria: null };
   const suscVirtual = importeVirtualRecurrentes(suscs, suscCfg);
-  const ahorroVirtual = ahorro ? objetivoMensualAhorro(ahorro.objetivo_anual, ahorro.meses, hoy.getFullYear()) : 0;
+  const ahorroVirtual = ahorro ? objetivoMensualAhorro(ahorro, hoy.getFullYear()) : 0;
   const objetivosVirtual = objetivos.reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
   const presupuestoTotal = gastos.reduce((s, g) => s + g.importe, 0) + suscVirtual + ahorroVirtual + objetivosVirtual;
   const presupuestoConceptos = gastos.length + (suscVirtual > 0 ? (suscCfg.desglose ? suscs.filter(r => r.importe > 0).length : 1) : 0)
@@ -85,7 +85,7 @@ export default function InicioPersonalClient() {
   const pagos: Pago[] = [
     ...mesGastos.filter(g => g.fecha).map(g => ({ day: Number(g.fecha!.split('-')[2]), nombre: g.concepto, importe: g.importe, tipo: 'gasto' as const })),
     ...suscs.flatMap(s => {
-      const day = s.cobro ? billingDayInMonth(s.cobro, s.periodicidad, hoy.getFullYear(), hoy.getMonth()) : null;
+      const day = billingDayInMonth(s, hoy.getFullYear(), hoy.getMonth());
       if (day === null || mesGastos.some(g => g.concepto === s.nombre && g.fecha && Number(g.fecha.split('-')[2]) === day)) return [];
       return [{ day, nombre: s.nombre, importe: s.importe, tipo: 'recurrente' as const }];
     }),
@@ -98,7 +98,7 @@ export default function InicioPersonalClient() {
       <PageHeader
         title="Resumen"
         subtitle="Tus finanzas personales de un vistazo"
-        info={<InfoExpand title="¿Qué es Resumen?"><p>Tu portada: el balance del mes, lo que tienes presupuestado y cómo va tu ahorro. Toca cualquier cifra para ir a su sección. Debajo, los próximos pagos del mes, tus recurrentes y en qué categorías gastas más.</p></InfoExpand>}
+        info={<InfoExpand title="¿Qué es Resumen?"><p>Tu mes de un vistazo: balance, presupuesto, ahorro y próximos pagos. Toca una cifra para ir a su sección.</p></InfoExpand>}
         actions={<Button href="/personal/estadisticas" icon={<EstadisticasIcon />} compactOnMobile>Estadísticas</Button>}
       />
 

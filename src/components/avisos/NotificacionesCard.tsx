@@ -3,40 +3,18 @@
 import { useEffect, useState } from 'react';
 import { BellIcon, BellOffIcon } from '@/components/icons';
 import Button from '@/components/ui/Button';
+import { ensureSubscription, getSubscription, isIOS, isStandalone, pushSupported, registerServiceWorker } from '@/lib/pushClient';
 
 type Scope = 'hogar' | 'personal';
 type Estado = 'cargando' | 'insecure' | 'ios-install' | 'unsupported' | 'denied' | 'ready';
 
-function urlBase64ToUint8Array(base64: string) {
-  const padding = '='.repeat((4 - (base64.length % 4)) % 4);
-  const raw = atob((base64 + padding).replace(/-/g, '+').replace(/_/g, '/'));
-  return Uint8Array.from(raw, c => c.charCodeAt(0));
-}
-
-function sameKey(a: ArrayBuffer | null | undefined, b: Uint8Array) {
-  if (!a) return false;
-  const x = new Uint8Array(a);
-  return x.length === b.length && x.every((v, i) => v === b[i]);
-}
-
-function isIOS() {
-  const ua = navigator.userAgent;
-  return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-}
-
-function isStandalone() {
-  return window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
-}
-
 async function detectar(scope: Scope): Promise<{ estado: Estado; activo: boolean }> {
   if (!window.isSecureContext) return { estado: 'insecure', activo: false };
   if (isIOS() && !isStandalone()) return { estado: 'ios-install', activo: false };
-  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-    return { estado: 'unsupported', activo: false };
-  }
+  if (!pushSupported()) return { estado: 'unsupported', activo: false };
   if (Notification.permission === 'denied') return { estado: 'denied', activo: false };
-  const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-  const sub = await reg.pushManager.getSubscription();
+  await registerServiceWorker();
+  const sub = await getSubscription();
   if (!sub || Notification.permission !== 'granted') return { estado: 'ready', activo: false };
   const res = await fetch(`/api/push/subscribe?endpoint=${encodeURIComponent(sub.endpoint)}`);
   const data = res.ok ? await res.json() : {};
@@ -82,16 +60,7 @@ export default function NotificacionesCard({ scope, accent }: { scope: Scope; ac
       if (permiso === 'denied') setEstado('denied');
       return;
     }
-    const { publicKey } = await fetch('/api/push/vapid').then(r => r.json());
-    const key = urlBase64ToUint8Array(publicKey);
-    const reg = await navigator.serviceWorker.ready;
-    let sub = await reg.pushManager.getSubscription();
-    // Si las claves del servidor cambiaron, la suscripción antigua ya no sirve
-    if (sub && !sameKey(sub.options.applicationServerKey, key)) {
-      await sub.unsubscribe();
-      sub = null;
-    }
-    sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+    const sub = await ensureSubscription();
     const res = await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -103,8 +72,7 @@ export default function NotificacionesCard({ scope, accent }: { scope: Scope; ac
   }
 
   async function desactivar() {
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
+    const sub = await getSubscription();
     if (sub) {
       const res = await fetch('/api/push/subscribe', {
         method: 'POST',
@@ -134,8 +102,7 @@ export default function NotificacionesCard({ scope, accent }: { scope: Scope; ac
     setOcupado(true);
     setMensaje(null);
     try {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
+      const sub = await getSubscription();
       const res = await fetch('/api/push/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

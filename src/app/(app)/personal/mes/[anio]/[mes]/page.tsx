@@ -12,7 +12,7 @@ interface Props { params: Promise<{ anio: string; mes: string }> }
 export async function generateMetadata({ params }: Props) {
   const { anio, mes } = await params;
   const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  return { title: `${MESES[Number(mes) - 1]} ${anio} — Personal FinanceMe` };
+  return { title: `Personal · ${MESES[Number(mes) - 1]} ${anio}` };
 }
 
 export default async function MesPersonalPage({ params }: Props) {

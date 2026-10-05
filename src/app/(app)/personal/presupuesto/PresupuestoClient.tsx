@@ -9,12 +9,12 @@ import PresupuestoView, { FijoFormModal, fijoVacio, fijoAForm, type AutoRow, typ
 import { IngresoFormModal, ingresoVacio, type IngresoForm } from '@/components/mes/MesView';
 import { filasRecurrentes, RecurrenteAjustesModal } from '@/components/recurrentes/RecurrentesPresupuesto';
 import { mensualNecesario } from '@/lib/ahorroObjetivos';
-import { objetivoMensualAhorro } from '@/lib/ahorro';
+import { descripcionCuotaAhorro, objetivoMensualAhorro } from '@/lib/ahorro';
 import { formatEUR } from '@/lib/format';
 
 type AutoTipo = 'suscripciones' | 'ahorro' | 'objetivos';
 const AUTO_TITULOS: Record<AutoTipo, string> = { suscripciones: 'Recurrentes', ahorro: 'Ahorro mensual', objetivos: 'Objetivos' };
-const INFO = 'El Presupuesto son tus gastos e ingresos fijos de cada mes. Crea antes tus categorías y bancos: los filtros y las estadísticas se basan en ellos. Al crear un Mes, estos datos se importan automáticamente. Un gasto con fecha de vencimiento deja de importarse cuando esa fecha queda atrás.';
+const INFO = 'Tus gastos e ingresos fijos de cada mes; se copian al crear un Mes. Las filas Modulares vienen de Recurrentes, Ahorro anual y Objetivos. Un gasto con vencimiento deja de copiarse cuando pasa esa fecha. Crea antes tus categorías y bancos.';
 
 export default function PresupuestoClient() {
   const router = useRouter();
@@ -63,11 +63,11 @@ export default function PresupuestoClient() {
   const autos: AutoRow[] = [];
   const recCfg = autoConfig('suscripciones');
   autos.push(...filasRecurrentes(recurrentes, recCfg, 'suscripciones'));
-  const ahorroMensual = ahorro ? objetivoMensualAhorro(ahorro.objetivo_anual, ahorro.meses, new Date().getFullYear()) : 0;
+  const ahorroMensual = ahorro ? objetivoMensualAhorro(ahorro, new Date().getFullYear()) : 0;
   if (ahorroMensual > 0 && ahorro) {
     const cfg = autoConfig('ahorro');
     autos.push({ key: 'ahorro', tipo: 'ahorro', concepto: 'Ahorro mensual', importe: ahorroMensual, categoria: cfg.categoria, banco: cfg.banco,
-      subtitulo: `Objetivo de ${formatEUR(ahorro.objetivo_anual)} al año, recalculado según lo aportado` });
+      subtitulo: descripcionCuotaAhorro(ahorro, formatEUR) });
   }
   const objetivosMensual = objetivos.reduce((s, o) => s + (mensualNecesario(o) ?? 0), 0);
   if (objetivosMensual > 0) {

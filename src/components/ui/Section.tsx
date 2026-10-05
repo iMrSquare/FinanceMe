@@ -15,12 +15,14 @@ interface Props {
   /** Colorea también el total con el tono */
   toneTotal?: boolean;
   actions?: ReactNode;
+  /** Controles que van delante del total (p. ej. un filtro) */
+  beforeTotal?: ReactNode;
   id: string;
   className?: string;
   children: ReactNode;
 }
 
-export default function Section({ title, count, total, tone = 'accent', color, toneTotal, actions, id, className = '', children }: Props) {
+export default function Section({ title, count, total, tone = 'accent', color, toneTotal, actions, beforeTotal, id, className = '', children }: Props) {
   return (
     <section className={`fm-card fm-section mb-7 ${className}`} aria-labelledby={id}>
       <div className="fm-section-head" style={{ ['--fm-tone' as string]: color ?? TONE_VAR[tone] }}>
@@ -29,6 +31,7 @@ export default function Section({ title, count, total, tone = 'accent', color, t
           {count !== undefined && <span className="text-sm font-normal" style={{ color: 'var(--text-muted)' }}>{count}</span>}
         </h2>
         <div className="flex items-center gap-3 min-w-0">
+          {beforeTotal}
           {total !== undefined && (
             <span className={`font-semibold whitespace-nowrap ${toneTotal && tone !== 'accent' ? TONE_CLASS[tone] : ''}`} style={toneTotal && tone !== 'accent' ? undefined : { color: 'var(--text-primary)' }}>{total}</span>
           )}

@@ -95,9 +95,8 @@ export default function AvisosClient({ scope, pagos, hoy }: Props) {
         info={
           <InfoExpand title="¿Qué son los Avisos?">
             <p>
-              Los pagos de este mes y del siguiente: los gastos del Presupuesto con día de cobro y los Recurrentes con fecha de
-              cobro. Los próximos aparecen en color y los que ya han pasado, en gris. Activa las notificaciones para recibir un
-              aviso en este dispositivo la víspera y el mismo día de cada pago.
+              Los pagos de este mes y del siguiente que tienen fecha, del Presupuesto y de Recurrentes. Activa las
+              notificaciones para que te avisemos la víspera y el mismo día.
             </p>
           </InfoExpand>
         }

@@ -461,6 +461,45 @@ button.fm-list-item:active { background: var(--row-hover); }
 .fm-list-meta > * + *::before { content: '·'; margin: 0 6px; color: var(--text-muted); }
 .fm-list-amount { font-weight: 600; white-space: nowrap; }
 
+/* Fila de lista con botón de edición por detrás y controles propios encima (check del Mes) */
+.fm-list-hit { position: absolute; inset: 0; width: 100%; border: 0; background: none; cursor: pointer; }
+.fm-list-item:has(> .fm-list-hit:active) { background: var(--row-hover); }
+.fm-list-hit:focus-visible { outline: 2px solid var(--accent-mode); outline-offset: -2px; }
+.fm-list-item:has(> .fm-list-hit) > :not(.fm-list-hit) { pointer-events: none; }
+.fm-list-item:has(> .fm-list-hit) .fm-check { pointer-events: auto; position: relative; }
+.fm-list-title-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+
+/* Check «ya ha venido» de los gastos del Mes: círculo discreto de 16px con área táctil de 32px */
+.fm-check { display: inline-grid; place-items: center; flex-shrink: 0; width: 32px; height: 32px; margin: -8px -4px; padding: 0; border: 0; background: none; border-radius: 50%; color: inherit; }
+button.fm-check { cursor: pointer; }
+button.fm-check:hover .fm-check-box:not([data-on]) { border-color: var(--money-in); }
+button.fm-check:focus-visible { outline: 2px solid var(--accent-mode); outline-offset: -4px; }
+.fm-check-box {
+  display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%;
+  border: 1.5px solid var(--btn-border); color: var(--money-in); transition: background-color .15s ease, border-color .15s ease;
+}
+.fm-check-box[data-on] { background: color-mix(in srgb, var(--money-in) 14%, transparent); border-color: color-mix(in srgb, var(--money-in) 45%, transparent); }
+.fm-check-box svg { width: 10px; height: 10px; }
+
+/* Meses en que se cobra un recurrente */
+.fm-mes-chip {
+  min-height: 36px; border-radius: var(--radius-control); border: 1px solid var(--btn-border); background: var(--bg-card);
+  color: var(--text-muted); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.fm-mes-chip[aria-pressed="true"] {
+  color: var(--accent-mode); border-color: color-mix(in srgb, var(--accent-mode) 55%, transparent);
+  background: color-mix(in srgb, var(--accent-mode) 12%, var(--bg-card));
+}
+.fm-mes-chip:focus-visible { outline: 2px solid var(--accent-mode); outline-offset: 1px; }
+
+/* Filtro «Solo pendientes» en la cabecera de Gastos */
+.fm-check-filter {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; min-height: 32px; padding: 0 10px; border: 0; border-radius: var(--radius-control);
+  background: none; color: var(--text-muted); font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap;
+}
+.fm-check-filter:hover, .fm-check-filter[aria-pressed="true"] { color: var(--text-primary); background: var(--btn-hover); }
+.fm-check-filter:focus-visible { outline: 2px solid var(--accent-mode); outline-offset: 0; }
+
 .fm-sortbar {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   padding: 8px 16px; border-bottom: 1px solid var(--border-card); background: var(--row-hover);
@@ -472,6 +511,7 @@ button.fm-list-item:active { background: var(--row-hover); }
   font: inherit; font-size: 16px; color: var(--text-primary); background: var(--bg-card);
   border: 1px solid var(--btn-border); border-radius: var(--radius-control); padding: 6px 10px; min-height: 40px; max-width: 70%;
 }
+.fm-sortbar[data-extra] select { flex: 1; min-width: 0; max-width: none; }
 
 /* Categoría / banco: icono con el color elegido y texto neutro */
 .fm-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); white-space: nowrap; max-width: 100%; }
@@ -611,3 +651,40 @@ select.fm-input {
 .fm-bottom-fab > svg { width: 22px; height: 22px; }
 .fm-bottom-item[aria-current="page"] .fm-bottom-fab { background: var(--accent-mode); color: var(--on-accent); box-shadow: 0 6px 16px color-mix(in srgb, var(--accent-mode) 35%, transparent); }
 .fm-list-meta > .fm-chip::before { margin-right: 0; }
+
+/* ── Inicio de sesión ── */
+.fm-login { background: var(--bg-page); }
+/* Cuadrícula fina que se desvanece hacia los bordes */
+.fm-login-grid {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(23, 32, 51, 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(23, 32, 51, 0.055) 1px, transparent 1px);
+  background-size: 48px 48px; background-position: center;
+  -webkit-mask-image: radial-gradient(ellipse 70% 65% at 50% 45%, #000 20%, transparent 75%);
+  mask-image: radial-gradient(ellipse 70% 65% at 50% 45%, #000 20%, transparent 75%);
+}
+/* Halo con los colores del logo (azul de las barras y verde de la flecha) */
+.fm-login-glow {
+  position: absolute; left: 50%; top: 42%; width: min(760px, 140vw); aspect-ratio: 1.6; transform: translate(-50%, -50%); pointer-events: none;
+  background:
+    radial-gradient(closest-side at 38% 50%, rgba(20, 61, 221, 0.10), transparent),
+    radial-gradient(closest-side at 64% 46%, rgba(16, 185, 129, 0.10), transparent);
+  filter: blur(8px);
+}
+.fm-login-card {
+  position: relative; padding: 28px 24px;
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  border: 1px solid var(--border-card); border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(23, 32, 51, 0.04), 0 18px 40px -12px rgba(23, 32, 51, 0.14);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+@media (min-width: 640px) { .fm-login-card { padding: 32px; } }
+.fm-login-field { position: relative; }
+.fm-login-field .fm-input { padding-left: 42px; }
+.fm-login-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--text-muted); pointer-events: none; }
+.fm-login-field:focus-within .fm-login-icon { color: var(--accent-mode); }
+/* Botón de entrar: azul de las barras del logo; verde de la flecha al pasar el ratón */
+.fm-login .fm-login-submit { background: #143ddd; color: #ffffff; border-color: transparent; transition: background-color .15s ease, color .15s ease; }
+.fm-login .fm-login-submit:hover:not(:disabled) { background: #10b981; color: #0e1623; }
+.fm-login .fm-login-submit:focus-visible { outline: 2px solid #143ddd; outline-offset: 2px; }

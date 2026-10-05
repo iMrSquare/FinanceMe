@@ -22,10 +22,10 @@ interface Props {
   canEdit?: boolean;
 }
 
-const INFO = 'Aquí se registran los gastos e ingresos del mes del Hogar con su categoría, fecha y banco. Al crear el mes se puede importar el Presupuesto. Solo se puede crear el mes actual o, como máximo, el siguiente. Con el candado se bloquea o desbloquea el mes; los meses ya pasados se bloquean solos.';
+const INFO = 'Aquí se apuntan los gastos e ingresos de la casa en el mes. Al crearlo se puede importar el Presupuesto. Marca el check de cada gasto cuando ya haya venido. El candado bloquea el mes; los meses pasados se bloquean solos. Para eliminar un mes, desbloquéalo antes: se pide tu contraseña.';
 const plural = (n: number, s: string) => `${n} ${s}${n !== 1 ? 's' : ''}`;
 
-const aGastoRow = (g: Gasto): MesGastoRow => ({ id: g.id, concepto: g.gasto, comentario: g.comentario, fecha: g.fecha, importe: g.importe, categoria: g.categoria, banco: g.banco });
+const aGastoRow = (g: Gasto): MesGastoRow => ({ id: g.id, concepto: g.gasto, comentario: g.comentario, fecha: g.fecha, importe: g.importe, categoria: g.categoria, banco: g.banco, cobrado: g.cobrado });
 const aIngresoRow = (i: Ingreso): MesIngresoRow => ({ id: i.id, concepto: i.inquilino, comentario: i.comentario, importe: i.aportacion });
 
 export default function HogarMesPageClient({
@@ -131,6 +131,27 @@ export default function HogarMesPageClient({
     router.refresh();
   }
 
+  // Check «ya ha venido»: se marca al instante y se revierte si el servidor lo rechaza
+  async function toggleCobrado(g: MesGastoRow) {
+    const cobrado = g.cobrado ? 0 : 1;
+    setGastos(prev => prev.map(x => x.id === g.id ? { ...x, cobrado } : x));
+    const res = await fetch(`/api/gastos/${g.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cobrado: !!cobrado }) }).catch(() => null);
+    if (!res?.ok) {
+      setGastos(prev => prev.map(x => x.id === g.id ? { ...x, cobrado: cobrado ? 0 : 1 } : x));
+      toast((await res?.json().catch(() => ({})))?.error ?? 'No se pudo guardar', 'error');
+    }
+  }
+
+  // Segundo paso del borrado del mes (tras el aviso): el servidor valida la contraseña
+  async function eliminarMes(password: string): Promise<string | null> {
+    const res = await fetch(`/api/meses/${mesObj?.id}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) }).catch(() => null);
+    if (!res?.ok) return (await res?.json().catch(() => ({})))?.error ?? 'No se pudo eliminar el mes';
+    toast('Mes eliminado');
+    router.replace('/hogar/mes');
+    router.refresh();
+    return null;
+  }
+
   const borrarGasto = (g: MesGastoRow) => setConfirm({ msg: `¿Eliminar «${g.concepto}»?`, fn: async () => {
     await fetch(`/api/gastos/${g.id}`, { method: 'DELETE' });
     setGastos(prev => prev.filter(x => x.id !== g.id));
@@ -162,6 +183,8 @@ export default function HogarMesPageClient({
         bancos={categoriasBanco}
         onAddGasto={() => setGastoForm(gastoVacio())}
         onEditGasto={g => setGastoForm(gastoAForm(g))}
+        onToggleCobrado={toggleCobrado}
+        onEliminarMes={eliminarMes}
         onDeleteGasto={borrarGasto}
         onAddIngreso={() => setIngresoForm(ingresoVacio())}
         onEditIngreso={i => setIngresoForm(ingresoAForm(i))}

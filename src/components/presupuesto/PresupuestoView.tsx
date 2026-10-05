@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { SortableTh, useTableSort, type SortAccessor } from '@/components/SortableTable';
 import InfoExpand from '@/components/InfoExpand';
-import { BanknoteIcon, PencilIcon, ReceiptIcon, RepeatIcon, SettingsIcon, TrashIcon } from '@/components/icons';
+import { BanknoteIcon, ModulesIcon, PencilIcon, ReceiptIcon, SettingsIcon, TrashIcon } from '@/components/icons';
 import Button, { IconButton } from '@/components/ui/Button';
 import PageHeader from '@/components/ui/PageHeader';
 import Summary from '@/components/ui/Summary';
@@ -63,8 +63,9 @@ function PlusIcon() {
 function AutoBadge() {
   return (
     <span className="inline-flex items-center gap-1 px-2 py-px rounded-full text-xs font-medium align-middle whitespace-nowrap"
-      style={{ background: 'color-mix(in srgb, var(--accent-mode) 12%, transparent)', color: 'var(--accent-mode)' }}>
-      <RepeatIcon className="w-3 h-3" />Automático
+      style={{ background: 'color-mix(in srgb, var(--accent-mode) 12%, transparent)', color: 'var(--accent-mode)' }}
+      title="Viene de un módulo: Recurrentes, Ahorro anual, Objetivos o Registros">
+      <ModulesIcon className="w-3 h-3" />Modular
     </span>
   );
 }
@@ -142,11 +143,11 @@ export default function PresupuestoView(p: Props) {
         label="Gastos fijos al mes"
         value={formatEUR(totalGastos)}
         tone="out"
-        note={totalAutos > 0 ? `${formatEUR(totalFijos)} fijos + ${formatEUR(totalAutos)} automáticos` : `${p.fijos.length} concepto${p.fijos.length !== 1 ? 's' : ''}`}
+        note={totalAutos > 0 ? `${formatEUR(totalFijos)} fijos + ${formatEUR(totalAutos)} modulares` : `${p.fijos.length} concepto${p.fijos.length !== 1 ? 's' : ''}`}
         stats={[
           { label: 'Ingresos fijos', value: formatEUR(totalIngresos), tone: 'in', sub: `${p.ingresos.length} entrada${p.ingresos.length !== 1 ? 's' : ''}` },
           { label: 'Margen', value: formatEUR(margen, { signo: margen < 0 }), tone: margen < 0 ? 'out' : 'neutral', sub: 'tras los gastos fijos' },
-          { label: 'Automáticos', value: formatEUR(totalAutos), sub: 'recurrentes y ahorro' },
+          { label: 'Modulares', value: formatEUR(totalAutos), sub: 'vienen de tus módulos' },
         ]}
       />
 

@@ -9,6 +9,7 @@ import { APP_VERSION } from '@/lib/constants';
 import { useVersionNotification } from './VersionProvider';
 import Button from './ui/Button';
 import Modal from './ui/Modal';
+import { disablePushOnLogout } from '@/lib/pushClient';
 
 function PanelIcon({ collapsed }: { collapsed: boolean }) {
   return (
@@ -192,6 +193,8 @@ export default function Sidebar({ session, hogarActivated, updateDisponible }: P
   }
 
   async function handleLogout() {
+    // Antes de soltar la sesión: si no, este dispositivo seguiría recibiendo los avisos de la cuenta
+    await disablePushOnLogout().catch(() => {});
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.href = '/login';
   }

@@ -1,7 +1,7 @@
 import { getSession, canEdit } from '@/lib/auth';
 import AhorroView from '@/components/ahorro/AhorroView';
 
-export const metadata = { title: 'Ahorro anual — FinanceMe Hogar' };
+export const metadata = { title: 'Hogar · Ahorro anual' };
 
 export default async function HogarAhorroPage() {
   const session = await getSession();

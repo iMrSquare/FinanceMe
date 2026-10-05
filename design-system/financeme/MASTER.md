@@ -168,7 +168,7 @@ por `scope`): `MesView`, `PresupuestoView`, `GestionView` (Categorías y Bancos)
 
 ## 7. Anti-patrones
 
-- ❌ `glass-card`, `backdrop-filter`, degradados o sombras de color.
+- ❌ `glass-card`, `backdrop-filter`, degradados o sombras de color. Única excepción: la pantalla de inicio de sesión (`.fm-login-*`), con cuadrícula y halo en los colores del logo (`public/logo-financeme.png`); botón azul que pasa a verde al pasar el ratón.
 - ❌ Hex suelto en componentes (salvo la paleta que elige el usuario, `PALETA`).
 - ❌ Etiquetas en MAYÚSCULAS, `font-bold` para jerarquía (usa tamaño y color).
 - ❌ Emojis o «✓ / ✗» como iconos o prefijos de mensaje.

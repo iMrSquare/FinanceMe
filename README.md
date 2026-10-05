@@ -28,19 +28,18 @@ services:
       - ./data:/app/data
     env_file:
       - .env
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
 ```
 
-Junto a él, crea un archivo `.env` (ver [Variables de entorno](#3-variables-de-entorno)) con al menos `JWT_SECRET`:
+Para usar otro puerto en tu máquina, cambia solo el de la izquierda; por ejemplo, `"3019:3000"` deja la app en el puerto 3019.
+
+Junto a él, crea un archivo `.env` (ver [Variables de entorno](#3-variables-de-entorno)) con al menos `JWT_SECRET` y tu zona horaria:
 
 ```bash
 echo "JWT_SECRET=$(openssl rand -base64 48)" > .env
+echo "TZ=Europe/Madrid" >> .env
 ```
+
+Tienes todas las variables comentadas en [`.env.example`](.env.example).
 
 Y levántalo:
 
@@ -49,6 +48,8 @@ docker compose up -d
 ```
 
 La aplicación estará disponible en [http://localhost:3000](http://localhost:3000). Los datos se guardan en `./data/` (volumen local), así que persisten entre reinicios y actualizaciones.
+
+La imagen incluye un *healthcheck*: tras unos segundos, `docker ps` muestra el contenedor como `(healthy)`.
 
 Para actualizar a la última versión:
 
@@ -90,12 +91,12 @@ En el primer arranque se crea automáticamente un usuario administrador:
 
 1. Abre [http://localhost:3000](http://localhost:3000) desde el mismo equipo, o `http://<IP-de-tu-servidor>:3000` desde otro dispositivo de tu red local.
 2. Inicia sesión con las credenciales por defecto (`admin` / `admin123`) y cambia la contraseña cuando se te solicite.
-3. Elige el modo **Hogar** (gastos compartidos) o **Personal** (finanzas individuales) desde el interruptor de la barra lateral — puedes usar ambos con la misma cuenta.
+3. Cambia entre **Personal** (tus finanzas) y **Hogar** (gastos compartidos de la casa) desde el menú lateral; en el móvil, desde el menú de tu cuenta. Hogar lo activa el administrador la primera vez que lo abre.
 4. Ve a **Presupuesto › Categorías y Bancos** para crear tus categorías y bancos antes de dar de alta tu primer gasto: de ahí se nutren los filtros, las estadísticas y los desplegables del resto de la app.
 
 ## 5. Avisos y notificaciones
 
-La sección **Avisos** (en Personal y en Hogar) muestra los pagos de este mes y del siguiente: los gastos del Presupuesto con día de cobro y los Recurrentes con fecha de cobro. Desde ahí puedes activar las **notificaciones en cada dispositivo**; se envían la víspera y el mismo día de cada pago, a partir de la hora indicada en `AVISOS_HORA`.
+La sección **Avisos** (en Personal y en Hogar) muestra los pagos de este mes y del siguiente: los gastos del Presupuesto con día de cobro y los Recurrentes con fecha de cobro (salvo en los meses que hayas excluido). Desde ahí puedes activar las **notificaciones en cada dispositivo**; se envían la víspera y el mismo día de cada pago, a partir de la hora indicada en `AVISOS_HORA`.
 
 Requisitos del navegador:
 
@@ -118,44 +119,28 @@ Tus datos, en la carpeta `data/`, se conservan. Tras actualizar, quien tenga la 
 
 La comprobación solo lee la API pública de GitHub. Se desactiva con `UPDATE_CHECK=false`.
 
+> **Si vienes de v1.x:** desde la v0.1.4 las versiones se numeran 0.1.x (v1.2.0 pasó a ser v0.1.3). Una instalación en v1.2.0 no avisará de las nuevas: actualízala a mano una vez con los comandos de arriba.
+
 ## 7. Imágenes de la aplicación
 
 <table>
   <tr>
-    <td><img src="img/00-login.png" alt="Login" width="400"/></td>
-    <td><img src="img/01-resumen.png" alt="Resumen" width="400"/></td>
+    <td><img src="img/01-personal-resumen.png" alt="Personal · Resumen, tema claro" width="400"/></td>
+    <td><img src="img/02-hogar-mes.png" alt="Hogar · Mes, tema oscuro" width="400"/></td>
   </tr>
   <tr>
-    <td align="center"><sub>Inicio de sesión</sub></td>
-    <td align="center"><sub>Personal · Resumen</sub></td>
+    <td align="center"><sub>Personal · Resumen (claro)</sub></td>
+    <td align="center"><sub>Hogar · Mes (oscuro)</sub></td>
   </tr>
   <tr>
-    <td><img src="img/11-hogar-mes.png" alt="Hogar — Mes" width="400"/></td>
-    <td><img src="img/12-hogar-presupuesto.png" alt="Hogar — Presupuesto" width="400"/></td>
+    <td><img src="img/03-personal-estadisticas.png" alt="Personal · Estadísticas, tema oscuro" width="400"/></td>
+    <td><img src="img/04-hogar-presupuesto.png" alt="Hogar · Presupuesto, tema claro" width="400"/></td>
   </tr>
   <tr>
-    <td align="center"><sub>Hogar · Mes</sub></td>
-    <td align="center"><sub>Hogar · Presupuesto</sub></td>
-  </tr>
-  <tr>
-    <td><img src="img/14-hogar-ahorro.png" alt="Hogar — Ahorro anual" width="400"/></td>
-    <td><img src="img/22-personal-presupuesto.png" alt="Personal — Presupuesto" width="400"/></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>Hogar · Ahorro anual</sub></td>
-    <td align="center"><sub>Personal · Presupuesto</sub></td>
-  </tr>
-  <tr>
-    <td><img src="img/25-personal-recurrentes.png" alt="Personal — Recurrentes" width="400"/></td>
-    <td><img src="img/26-personal-estadisticas.png" alt="Estadísticas" width="400"/></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>Personal · Recurrentes</sub></td>
-    <td align="center"><sub>Personal · Estadísticas</sub></td>
+    <td align="center"><sub>Personal · Estadísticas (oscuro)</sub></td>
+    <td align="center"><sub>Hogar · Presupuesto (claro)</sub></td>
   </tr>
 </table>
-
-Más capturas (Resumen de Hogar, Categorías y Bancos, Recurrentes y Objetivos, Registros de luz y agua, Avisos, Configuración, Mi perfil…) disponibles en la carpeta [`/img`](img).
 
 ---
 

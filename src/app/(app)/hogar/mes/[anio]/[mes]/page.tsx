@@ -8,6 +8,11 @@ interface Props {
   params: Promise<{ anio: string; mes: string }>;
 }
 
+export async function generateMetadata({ params }: Props) {
+  const { anio, mes } = await params;
+  return { title: `Hogar · ${getNombreMes(Number(mes), Number(anio))}` };
+}
+
 export default async function HogarMesDetallePage({ params }: Props) {
   seedDatabase();
   const [{ anio: anioStr, mes: mesStr }, session] = await Promise.all([params, getSession()]);

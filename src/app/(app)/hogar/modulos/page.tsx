@@ -3,7 +3,7 @@ import { totalMensualRecurrentes } from '@/lib/recurrentes';
 import ModulosHub, { type Modulo } from '@/components/modulos/ModulosHub';
 import { ClipboardIcon, PiggyIcon, RepeatIcon, TargetIcon } from '@/components/icons';
 
-export const metadata = { title: 'Módulos — FinanceMe Hogar' };
+export const metadata = { title: 'Hogar · Módulos' };
 
 const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 
@@ -35,7 +35,7 @@ export default async function HogarModulosPage() {
     {
       href: '/hogar/modulos/ahorro',
       titulo: 'Ahorro anual',
-      descripcion: 'El objetivo de ahorro de la casa, mes a mes.',
+      descripcion: 'El objetivo de ahorro de la casa, anual o mensual.',
       dato: ahorro.objetivo_anual > 0
         ? `Ahorro ${anio}: ${Math.round((aportado / ahorro.objetivo_anual) * 100)} % de ${fmt(ahorro.objetivo_anual)}`
         : 'Sin objetivo anual',

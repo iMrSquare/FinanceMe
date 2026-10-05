@@ -12,14 +12,14 @@ import Modal from '@/components/ui/Modal';
 type Recurrente = RecurrenteLike & { categoria?: string | null; banco?: string | null };
 
 /** Texto de la columna Cobro: día del mes si es mensual; si no, la fecha del próximo cobro */
-export function cobroTexto(r: Pick<Recurrente, 'cobro' | 'periodicidad'>): string | undefined {
+export function cobroTexto(r: Pick<Recurrente, 'cobro' | 'periodicidad' | 'meses'>): string | undefined {
   if (!r.cobro) return undefined;
   if (r.periodicidad === 'mensual') {
     const d = diaCobro(r.cobro);
     return d ? `Día ${d}` : undefined;
   }
-  const f = nextBillingDate(r.cobro, r.periodicidad);
-  return f.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  const f = nextBillingDate(r);
+  return f?.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
 }
 
 /** Filas automáticas de Recurrentes en el Presupuesto: una con el total o una por recurrente */
@@ -35,7 +35,7 @@ export function filasRecurrentes(items: Recurrente[], cfg: RecurrentesConfig & {
   }
   return items.filter(r => r.importe > 0).map(r => ({
     key: `rec-${r.id}`, tipo, recurrenteId: r.id, concepto: r.nombre,
-    importe: monthlyEquivalent(r.importe, r.periodicidad),
+    importe: monthlyEquivalent(r),
     categoria: r.categoria || cfg.categoria, banco: r.banco || cfg.banco,
     cobroTexto: cobroTexto(r),
     subtitulo: r.periodicidad === 'mensual' ? 'Recurrente mensual' : `${PERIODICIDAD_LABEL[r.periodicidad]} de ${formatEUR(r.importe)}, prorrateado`,

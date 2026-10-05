@@ -2,7 +2,7 @@ import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import CambiarPasswordClient from './CambiarPasswordClient';
 
-export const metadata = { title: 'Cambiar contraseña — FinanceMe' };
+export const metadata = { title: 'Cambiar contraseña' };
 
 export default async function CambiarPasswordPage() {
   const session = await getSession();

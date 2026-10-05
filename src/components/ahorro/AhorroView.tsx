@@ -11,8 +11,9 @@ import PageHeader from '@/components/ui/PageHeader';
 import Summary from '@/components/ui/Summary';
 import Section from '@/components/ui/Section';
 import Modal from '@/components/ui/Modal';
+import Segmented from '@/components/ui/Segmented';
 import { EmptyState, SkeletonRows, useToast } from '@/components/ui/Feedback';
-import { objetivoMensualAhorro } from '@/lib/ahorro';
+import { esMensual, objetivoMensualAhorro, type ModoAhorro } from '@/lib/ahorro';
 import { estadoObjetivo, fmtMesAnio, mensualNecesario, type EstadoObjetivo } from '@/lib/ahorroObjetivos';
 import { formatEUR } from '@/lib/format';
 
@@ -20,7 +21,7 @@ type Scope = 'personal' | 'hogar';
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 interface AhorroMes { id: number; mes: number; aportado: number }
-interface Ahorro { objetivo_anual: number; meses: AhorroMes[] }
+interface Ahorro { objetivo_anual: number; modo?: ModoAhorro; meses: AhorroMes[] }
 interface Objetivo { id: number; nombre: string; objetivo: number; aportado: number; fecha_objetivo: string; emoji: string | null }
 
 const api = (scope: Scope) => (scope === 'personal' ? '/api/personal/ahorro' : '/api/ahorro');
@@ -36,9 +37,10 @@ function MinusIcon() {
 function Barra({ pct }: { pct: number }) {
   const v = Math.min(Math.max(pct, 0), 100);
   return (
-    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--divider)' }} role="progressbar" aria-valuenow={Math.round(v)} aria-valuemin={0} aria-valuemax={100}>
-      <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${v}%`, background: 'var(--saving)' }} />
-    </div>
+    // <span> en bloque: la barra también se pinta dentro del <p> de la nota del resumen
+    <span className="block h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--divider)' }} role="progressbar" aria-valuenow={Math.round(v)} aria-valuemin={0} aria-valuemax={100}>
+      <span className="block h-full rounded-full transition-[width] duration-300" style={{ width: `${v}%`, background: 'var(--saving)' }} />
+    </span>
   );
 }
 
@@ -77,6 +79,55 @@ function ImporteModal({ titulo, etiqueta, inicial, permitirNegativo, onClose, on
   );
 }
 
+// Modal del objetivo: anual (cuota recalculada) o mensual (cuota fija)
+function ObjetivoAhorroModal({ year, inicial, onClose, onSave }: {
+  year: number; inicial: Ahorro; onClose: () => void; onSave: (objetivoAnual: number, modo: ModoAhorro) => Promise<void>;
+}) {
+  const [modo, setModo] = useState<ModoAhorro>(esMensual(inicial) ? 'mensual' : 'anual');
+  const importeInicial = (m: ModoAhorro) => {
+    if (inicial.objetivo_anual <= 0) return '';
+    const n = m === 'mensual' ? inicial.objetivo_anual / 12 : inicial.objetivo_anual;
+    return String(Math.round(n * 100) / 100);
+  };
+  const [valor, setValor] = useState(importeInicial(modo));
+  const [saving, setSaving] = useState(false);
+  const num = parseFloat(valor);
+  const valido = !isNaN(num) && num >= 0;
+  const mensual = modo === 'mensual';
+
+  function cambiarModo(m: ModoAhorro) {
+    if (m === modo) return;
+    // Convierte lo escrito para que el objetivo equivalga al mismo total del año
+    setValor(valido ? String(Math.round((m === 'mensual' ? num / 12 : num * 12) * 100) / 100) : importeInicial(m));
+    setModo(m);
+  }
+  async function guardar() {
+    if (!valido) return;
+    setSaving(true);
+    await onSave(mensual ? num * 12 : num, modo);
+  }
+  return (
+    <Modal title={`Objetivo de ahorro ${year}`} onClose={onClose} width="400px"
+      footer={<>
+        <Button onClick={onClose}>Cancelar</Button>
+        <Button variant="primary" onClick={guardar} disabled={saving || !valido}>{saving ? 'Guardando…' : 'Guardar'}</Button>
+      </>}>
+      <form onSubmit={e => { e.preventDefault(); guardar(); }}>
+        <span className="fm-label">Tipo de objetivo</span>
+        <Segmented<ModoAhorro> options={[{ id: 'anual', label: 'Anual' }, { id: 'mensual', label: 'Mensual' }]} value={modo} onChange={cambiarModo} />
+        <label htmlFor="obj-ahorro-valor" className="fm-label mt-3.5">{mensual ? 'Objetivo mensual (€)' : 'Objetivo anual (€)'}</label>
+        <input id="obj-ahorro-valor" className="fm-input" type="number" step="0.01" inputMode="decimal" min={0} value={valor} onChange={e => setValor(e.target.value)} />
+        <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
+          {mensual
+            ? `La misma cantidad todos los meses${valido && num > 0 ? ` (${formatEUR(num * 12)} al año)` : ''}.`
+            : 'La cuota mensual se recalcula según lo que llevas ahorrado.'}
+        </p>
+        <button type="submit" hidden />
+      </form>
+    </Modal>
+  );
+}
+
 // ── Objetivo anual ──────────────────────────────────────────────────────────
 function Anual({ scope, canEdit }: { scope: Scope; canEdit: boolean }) {
   const toast = useToast();
@@ -91,15 +142,16 @@ function Anual({ scope, canEdit }: { scope: Scope; canEdit: boolean }) {
   const meses = ahorro?.meses ?? [];
   const objetivoAnual = ahorro?.objetivo_anual ?? 0;
   const hayObjetivo = objetivoAnual > 0;
+  const mensual = !!ahorro && esMensual(ahorro);
   const base = hayObjetivo ? objetivoAnual / 12 : 0;
   const total = meses.reduce((s, m) => s + m.aportado, 0);
   const pct = hayObjetivo ? (total / objetivoAnual) * 100 : 0;
   const hoy = new Date();
   const esEsteAnio = year === hoy.getFullYear();
-  const cuota = objetivoMensualAhorro(objetivoAnual, meses, year);
+  const cuota = objetivoMensualAhorro({ objetivo_anual: objetivoAnual, meses, modo: ahorro?.modo }, year);
 
-  async function guardarObjetivo(n: number) {
-    await fetch(api(scope), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year, objetivoAnual: n }) });
+  async function guardarObjetivo(n: number, modo: ModoAhorro) {
+    await fetch(api(scope), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year, objetivoAnual: n, modo }) });
     setEditObjetivo(false); toast('Objetivo actualizado'); cargar(year);
   }
   async function guardarMes(i: number, n: number) {
@@ -144,8 +196,10 @@ function Anual({ scope, canEdit }: { scope: Scope; canEdit: boolean }) {
           </span>
         ) : 'Aún no hay objetivo anual para este año'}
         stats={[
-          { label: 'Objetivo anual', value: hayObjetivo ? formatEUR(objetivoAnual) : '—', sub: hayObjetivo ? `${formatEUR(base)} al mes` : 'sin fijar' },
-          { label: 'Cuota mensual', value: hayObjetivo ? formatEUR(cuota) : '—', tone: 'saving', sub: esEsteAnio ? 'recalculada según lo ahorrado' : 'objetivo ÷ 12' },
+          mensual
+            ? { label: 'Objetivo mensual', value: formatEUR(base), sub: `${formatEUR(objetivoAnual)} al año` }
+            : { label: 'Objetivo anual', value: hayObjetivo ? formatEUR(objetivoAnual) : '—', sub: hayObjetivo ? `${formatEUR(base)} al mes` : 'sin fijar' },
+          { label: 'Cuota mensual', value: hayObjetivo ? formatEUR(cuota) : '—', tone: 'saving', sub: mensual ? 'fija todos los meses' : esEsteAnio ? 'recalculada según lo ahorrado' : 'objetivo ÷ 12' },
           { label: 'Pendiente', value: hayObjetivo ? formatEUR(Math.max(objetivoAnual - total, 0)) : '—', sub: 'para cumplir el objetivo' },
         ]}
       />
@@ -222,8 +276,7 @@ function Anual({ scope, canEdit }: { scope: Scope; canEdit: boolean }) {
       </Section>
 
       {editObjetivo && (
-        <ImporteModal titulo={`Objetivo de ahorro ${year}`} etiqueta="Objetivo anual (€)" inicial={objetivoAnual ? String(objetivoAnual) : ''}
-          ayuda="La cuota mensual se recalcula según lo que llevas ahorrado." onClose={() => setEditObjetivo(false)} onSave={guardarObjetivo} />
+        <ObjetivoAhorroModal year={year} inicial={ahorro ?? { objetivo_anual: 0, meses: [] }} onClose={() => setEditObjetivo(false)} onSave={guardarObjetivo} />
       )}
       {editMes !== null && (
         <ImporteModal titulo={`Aportación de ${MESES[editMes].toLowerCase()}`} etiqueta="Importe aportado (€)" permitirNegativo
@@ -413,14 +466,14 @@ export default function AhorroView({ scope, vista, canEdit = true }: { scope: Sc
       <PageHeader
         title={anual ? 'Ahorro anual' : 'Objetivos'}
         subtitle={anual
-          ? (scope === 'personal' ? 'Tu objetivo de ahorro del año, mes a mes' : 'El objetivo de ahorro de la casa, mes a mes')
+          ? (scope === 'personal' ? 'Tu objetivo de ahorro, anual o mensual' : 'El objetivo de ahorro de la casa, anual o mensual')
           : (scope === 'personal' ? 'Tus metas de ahorro con fecha' : 'Las metas de ahorro de la casa con fecha')}
         info={
           <InfoExpand title={anual ? '¿Qué es Ahorro anual?' : '¿Qué son los Objetivos?'}>
             <p>
               {anual
-                ? 'Fija un objetivo de ahorro anual y registra lo que aportas cada mes; la cuota mensual se recalcula según lo que llevas. Se suma como fila automática en el Presupuesto.'
-                : 'Crea metas concretas con importe y fecha y ve apartando dinero para cada una. La cuota mensual necesaria se suma como fila automática en el Presupuesto.'}
+                ? 'Fija cuánto quieres ahorrar, al año o al mes, y apunta lo que aportas. Con objetivo anual, la cuota se ajusta a lo que llevas. Aparece como fila Modular en el Presupuesto.'
+                : 'Metas con importe y fecha. Ve añadiendo dinero a cada una; lo que toca aportar al mes aparece como fila Modular en el Presupuesto.'}
             </p>
           </InfoExpand>
         }

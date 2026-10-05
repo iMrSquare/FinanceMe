@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { getSession, canEdit } from '@/lib/auth';
 import GestionView from '@/components/gestion/GestionView';
 
-export const metadata = { title: 'Categorías y Bancos — FinanceMe Hogar' };
+export const metadata = { title: 'Hogar · Categorías y bancos' };
 
 export default async function GestionHogarPage() {
   const session = await getSession();
