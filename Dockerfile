@@ -1,5 +1,5 @@
 # ── Stage 1: Install & compile dependencies ───────────────────────────────────
-FROM node:20-slim AS deps
+FROM node:24-slim AS deps
 WORKDIR /app
 
 # Build tools required for better-sqlite3 native module
@@ -9,7 +9,7 @@ COPY package*.json ./
 RUN npm ci
 
 # ── Stage 2: Build Next.js app ─────────────────────────────────────────────────
-FROM node:20-slim AS builder
+FROM node:24-slim AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -20,7 +20,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # ── Stage 3: Production runner ─────────────────────────────────────────────────
-FROM node:20-slim AS runner
+FROM node:24-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production

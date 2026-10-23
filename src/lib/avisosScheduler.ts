@@ -24,8 +24,9 @@ async function notificar(scope: AvisoScope, sub: PushSubscriptionRow, pagos: Pro
     const delDia = pagos.filter(p => (p.fecha === hoyISO) === (cuando === 'hoy'));
     const pendientes = delDia.filter(p => !isPushEnviado(`${sub.id}:${scope}:${p.clave}:${cuando}`));
     if (!pendientes.length) continue;
-    const ok = await sendPush(sub, construirPayload(scope, cuando, pendientes));
-    if (ok) pendientes.forEach(p => markPushEnviado(`${sub.id}:${scope}:${p.clave}:${cuando}`));
+    const res = await sendPush(sub, construirPayload(scope, cuando, pendientes));
+    if (res.ok) pendientes.forEach(p => markPushEnviado(`${sub.id}:${scope}:${p.clave}:${cuando}`));
+    else if (res.gone) return; // Suscripción borrada: no tiene sentido intentar el resto
   }
 }
 

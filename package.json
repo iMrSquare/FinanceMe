@@ -1,6 +1,6 @@
 {
   "name": "financeme",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,26 +10,30 @@
   },
   "dependencies": {
     "@types/better-sqlite3": "^7.6.13",
-    "better-sqlite3": "^12.10.0",
-    "chart.js": "^4.5.1",
-    "jose": "^6.2.3",
-    "lucide-react": "^1.16.0",
-    "next": "16.2.6",
-    "react": "19.2.4",
+    "better-sqlite3": "^12.11.1",
+    "chart.js": "^4.6.1",
+    "jose": "^6.2.13",
+    "lucide-react": "^1.61.0",
+    "next": "16.4.3",
+    "react": "19.3.1",
     "react-chartjs-2": "^5.3.1",
-    "react-dom": "19.2.4",
+    "react-dom": "19.3.1",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@types/web-push": "^3.6.4",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.6",
-    "playwright": "^1.60.0",
-    "tailwindcss": "^4",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.4.3",
+    "playwright": "^1.64.1",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5"
+  },
+  "allowScripts": {
+    "better-sqlite3@12.11.1": true,
+    "unrs-resolver@1.12.2": true
   }
 }

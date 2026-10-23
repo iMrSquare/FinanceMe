@@ -1,4 +1,4 @@
-import { Sparkles, Wrench, Bug, type LucideIcon } from 'lucide-react';
+import { Sparkles, Wrench, Bug, ChevronDown, type LucideIcon } from 'lucide-react';
 import VersionSeenMarker from '@/components/VersionSeenMarker';
 import PageHeader from '@/components/ui/PageHeader';
 
@@ -27,9 +27,32 @@ const TIPO_META: Record<Tipo, { color: string; Icon: LucideIcon }> = {
 
 const RELEASES: Release[] = [
   {
+    version: 'v0.1.5',
+    fecha: '23 de octubre de 2026',
+    destacado: true,
+    intro: 'Parches de seguridad del stack, notificaciones de Avisos que funcionan en iPhone y pequeñas mejoras visuales.',
+    grupos: [
+      {
+        tipo: 'Mejoras',
+        items: [
+          'Novedades: cada versión es un desplegable y solo la actual aparece abierta.',
+          'Ámbar, Vino y Contraste: los diálogos y menús son opacos y ya no dejan ver el contenido de detrás en el móvil.',
+          'Avisos: si falla la notificación de prueba, se muestra el motivo real que da el servicio de notificaciones.',
+        ],
+      },
+      {
+        tipo: 'Correcciones',
+        items: [
+          'Seguridad: Next.js 16.4.3 corrige vulnerabilidades críticas (aviso INCIBE-2026-752) y se actualizan el resto de dependencias y la imagen Docker a Node 24 LTS.',
+          'Avisos: las notificaciones no llegaban a iPhone y iPad porque Apple rechazaba el contacto del servidor. Para máxima fiabilidad, define VAPID_SUBJECT en el .env.',
+          'Avisos: un envío automático fallido ya no se da por enviado y se reintenta.',
+        ],
+      },
+    ],
+  },
+  {
     version: 'v0.1.4',
     fecha: '5 de octubre de 2026',
-    destacado: true,
     intro: 'Control de lo que ya ha venido en el Mes, crear y eliminar cualquier mes, Recurrentes más flexibles y objetivo de ahorro mensual. Las versiones pasan a numerarse como 0.1.x.',
     grupos: [
       {
@@ -267,19 +290,24 @@ export default function ChangelogPage() {
 
       <div className="space-y-5">
         {RELEASES.map(rel => (
-          <article key={rel.version} className="fm-card p-5 sm:p-7" aria-labelledby={`rel-${rel.version}`}>
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h2 id={`rel-${rel.version}`} className="text-xl font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{rel.version}</h2>
-              {rel.destacado && (
-                <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: 'color-mix(in srgb, var(--accent-mode) 12%, transparent)', color: 'var(--accent-mode)' }}>
-                  Actual
-                </span>
-              )}
-              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{rel.fecha}</span>
-            </div>
+          // Desplegable nativo: solo la versión actual empieza abierta
+          <details key={rel.version} open={rel.destacado} className="fm-card group">
+            <summary className="flex items-center gap-3 p-5 sm:px-7 cursor-pointer list-none [&::-webkit-details-marker]:hidden rounded-[var(--radius-card)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-mode)]">
+              <div className="flex flex-1 flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h2 className="text-xl font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{rel.version}</h2>
+                {rel.destacado && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: 'color-mix(in srgb, var(--accent-mode) 12%, transparent)', color: 'var(--accent-mode)' }}>
+                    Actual
+                  </span>
+                )}
+                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{rel.fecha}</span>
+              </div>
+              <ChevronDown className="w-5 h-5 shrink-0 transition-transform group-open:rotate-180" style={{ color: 'var(--text-muted)' }} aria-hidden="true" />
+            </summary>
 
+            <div className="px-5 pb-5 sm:px-7 sm:pb-7">
             {rel.intro && (
-              <p className="text-[15px] mt-2 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{rel.intro}</p>
+              <p className="text-[15px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{rel.intro}</p>
             )}
 
             <div className="space-y-5 mt-5">
@@ -302,7 +330,8 @@ export default function ChangelogPage() {
                 );
               })}
             </div>
-          </article>
+            </div>
+          </details>
         ))}
       </div>
 

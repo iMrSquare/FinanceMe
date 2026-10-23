@@ -325,7 +325,7 @@ export default function Sidebar({ session, hogarActivated, updateDisponible }: P
             </button>
 
             {menuOpen && (
-              <div role="menu" className="absolute bottom-full left-0 mb-2 w-56 rounded-[var(--radius-card)] overflow-hidden z-50 fm-card" style={{ boxShadow: '0 12px 32px rgba(10,16,28,.18)' }}>
+              <div role="menu" className="absolute bottom-full left-0 mb-2 w-56 rounded-[var(--radius-card)] overflow-hidden z-50 fm-card fm-surface" style={{ boxShadow: '0 12px 32px rgba(10,16,28,.18)' }}>
                 <Link role="menuitem" href="/perfil" onClick={() => setMenuOpen(false)} className={menuLinkCls} style={{ color: 'var(--text-primary)' }}><UserIcon />Mi perfil</Link>
                 {session?.role === 'admin' && (
                   <Link role="menuitem" href="/ajustes" onClick={() => setMenuOpen(false)} className={menuLinkCls} style={{ color: 'var(--text-primary)' }}><SettingsIcon />Configuración</Link>

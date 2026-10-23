@@ -3,6 +3,7 @@ import { requireSession } from '@/lib/auth';
 import {
   deletePushSubscription, deletePushSubscriptionForUser, getPushSubscription, isHogarActivated, savePushSubscription, syncPushSubscription, type PushScope,
 } from '@/lib/db';
+import { rememberAppUrl } from '@/lib/push';
 
 function parseScope(v: unknown): PushScope | null {
   return v === 'hogar' || v === 'personal' ? v : null;
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
   const scope = parseScope(body?.scope);
   const sub = parseSubscription(body?.subscription);
   if (!scope || !sub) return NextResponse.json({ error: 'Suscripción inválida' }, { status: 400 });
+  rememberAppUrl(req.headers);
   if (scope === 'hogar' && auth.role !== 'admin' && !isHogarActivated()) {
     return NextResponse.json({ error: 'Sin acceso a Hogar' }, { status: 403 });
   }
@@ -56,6 +58,7 @@ export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const sub = parseSubscription(body?.subscription);
   if (!sub) return NextResponse.json({ error: 'Suscripción inválida' }, { status: 400 });
+  rememberAppUrl(req.headers);
   const replaces = typeof body?.replaces === 'string' ? body.replaces : null;
   return NextResponse.json(estado(syncPushSubscription(auth.id, { ...sub, userAgent: req.headers.get('user-agent') }, replaces)));
 }

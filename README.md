@@ -83,7 +83,7 @@ En el primer arranque se crea automáticamente un usuario administrador:
 | `TZ`         | Zona horaria del servidor, usada para decidir qué pagos son «hoy» y «mañana» en las notificaciones (p. ej. `Europe/Madrid`). Por defecto, UTC. | Recomendada |
 | `AVISOS_HORA` | Hora (0–23) a partir de la cual se envían las notificaciones del día. Por defecto `9`. | No |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Claves para las notificaciones push. Si no se indican, se generan solas la primera vez y se guardan en la base de datos. | No |
-| `VAPID_SUBJECT` | Contacto del administrador para los servicios push (`mailto:tu@correo` o una URL `https://`). | No |
+| `VAPID_SUBJECT` | Contacto del administrador para los servicios push (`mailto:tu@correo` o una URL `https://`). Si no se indica, se usa la dirección https desde la que se abre FinanceMe. Apple rechaza los envíos sin un contacto válido (no valen `localhost` ni dominios `.local`). | Recomendada |
 | `AVISOS_DISABLED` | Poner a `true` para desactivar el envío de notificaciones. | No |
 | `UPDATE_CHECK` | Poner a `false` para que el servidor no consulte GitHub en busca de versiones nuevas. | No |
 

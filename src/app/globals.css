@@ -418,6 +418,10 @@ th.sortable-th > button[data-active] .sortable-th-indicator {
   box-shadow: 0 1px 2px var(--shadow-card);
 }
 
+/* Superficies flotantes (diálogos, menús, popovers): en Ámbar, Vino y Contraste --bg-card es
+   translúcido y dejaría ver lo de debajo. Se pinta sobre --bg-page para que sea opaco con el mismo tono */
+.fm-surface, .fm-dialog { background: linear-gradient(var(--bg-card), var(--bg-card)), var(--bg-page); }
+
 /* Sección con cabecera (lista de gastos, ingresos…) */
 .fm-section { overflow: hidden; }
 .fm-section-head {
@@ -534,7 +538,7 @@ button.fm-check:focus-visible { outline: 2px solid var(--accent-mode); outline-o
 @media (min-width: 640px) { .fm-overlay { align-items: center; padding: 24px; } }
 .fm-dialog {
   width: 100%; max-height: 92dvh; overflow-y: auto; color: var(--text-primary);
-  background: var(--bg-card); border-radius: var(--radius-modal) var(--radius-modal) 0 0;
+  border-radius: var(--radius-modal) var(--radius-modal) 0 0;
   box-shadow: 0 16px 40px rgba(10, 16, 28, 0.25);
   padding: 8px 20px calc(20px + env(safe-area-inset-bottom, 0px));
   animation: fm-sheet .2s ease-out;

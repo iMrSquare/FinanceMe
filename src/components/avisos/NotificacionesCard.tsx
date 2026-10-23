@@ -109,7 +109,11 @@ export default function NotificacionesCard({ scope, accent }: { scope: Scope; ac
         body: JSON.stringify({ scope, endpoint: sub?.endpoint }),
       });
       const data = await res.json().catch(() => ({}));
+      // Suscripción caducada o inexistente en el servidor: se muestra desactivado para poder reactivarla
+      if (data.gone) setActivo(false);
       setMensaje(res.ok ? { tipo: 'ok', texto: 'Notificación de prueba enviada.' } : { tipo: 'error', texto: data.error ?? 'No se pudo enviar' });
+    } catch {
+      setMensaje({ tipo: 'error', texto: 'No se pudo contactar con el servidor' });
     } finally {
       setOcupado(false);
     }

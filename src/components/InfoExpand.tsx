@@ -69,7 +69,7 @@ export default function InfoExpand({ title = '¿Qué es esto?', children }: Prop
         <div
           ref={popRef}
           role="note"
-          className="fixed z-[120] fm-card p-4 text-sm leading-relaxed"
+          className="fixed z-[120] fm-card fm-surface p-4 text-sm leading-relaxed"
           style={{ top: pos.top, left: pos.left, width: pos.width, color: 'var(--text-secondary)', boxShadow: '0 12px 32px rgba(10,16,28,.18)' }}
         >
           <p className="font-semibold mb-1.5" style={{ color: 'var(--text-primary)' }}>{title}</p>
